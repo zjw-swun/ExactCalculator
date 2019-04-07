@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.calculator2;
+package com.example.calculator2;
 
 import java.util.Random;
 

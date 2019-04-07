@@ -23,7 +23,7 @@
 //       more useful text version in a separate window.  It's not clear
 //       this is worth the added (code and user) complexity.
 
-package com.android.calculator2;
+package com.example.calculator2;
 
 import android.animation.Animator;
 import android.animation.Animator.AnimatorListener;

@@ -17,7 +17,7 @@
 
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.android.calculator2">
+    package="com.example.calculator2">
 
     <application
         android:allowBackup="false"
