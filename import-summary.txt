@@ -1,0 +1,327 @@
+ECLIPSE ANDROID PROJECT IMPORT SUMMARY
+======================================
+
+Ignored Files:
+--------------
+The following files were *not* copied into the new Gradle project; you
+should evaluate whether these are still needed in your project and if
+so manually move them:
+
+* .gitignore
+* .idea/
+* .idea/encodings.xml
+* .idea/misc.xml
+* .idea/workspace.xml
+* LICENSE
+* NOTICE
+* README.md
+* app/
+* app/build.gradle
+* app/src/
+* app/src/main/
+* app/src/main/AndroidManifest.xml
+* app/src/main/assets/
+* app/src/main/assets/licenses.html
+* app/src/main/java/
+* app/src/main/java/com/
+* app/src/main/java/com/example/
+* app/src/main/java/com/example/calculator2/
+* app/src/main/java/com/example/calculator2/AlertDialogFragment.java
+* app/src/main/java/com/example/calculator2/AlignedTextView.java
+* app/src/main/java/com/example/calculator2/BoundedRational.java
+* app/src/main/java/com/example/calculator2/Calculator.java
+* app/src/main/java/com/example/calculator2/CalculatorDisplay.java
+* app/src/main/java/com/example/calculator2/CalculatorExpr.java
+* app/src/main/java/com/example/calculator2/CalculatorPadViewPager.java
+* app/src/main/java/com/example/calculator2/CalculatorResult.java
+* app/src/main/java/com/example/calculator2/CalculatorScrollView.java
+* app/src/main/java/com/example/calculator2/CalculatorText.java
+* app/src/main/java/com/example/calculator2/Evaluator.java
+* app/src/main/java/com/example/calculator2/KeyMaps.java
+* app/src/main/java/com/example/calculator2/Licenses.java
+* app/src/main/java/com/example/calculator2/StringUtils.java
+* app/src/main/java/com/example/calculator2/UnifiedReal.java
+* app/src/main/res/
+* app/src/main/res/drawable/
+* app/src/main/res/drawable/pad_button_advanced_background.xml
+* app/src/main/res/drawable/pad_button_background.xml
+* app/src/main/res/drawable/pad_button_inverse_background.xml
+* app/src/main/res/layout/
+* app/src/main/res/layout/activity_calculator_land.xml
+* app/src/main/res/layout/activity_calculator_port.xml
+* app/src/main/res/layout/activity_calculator_tablet_port.xml
+* app/src/main/res/layout/dialog_message.xml
+* app/src/main/res/layout/display_one_line.xml
+* app/src/main/res/layout/display_two_line.xml
+* app/src/main/res/layout/pad_advanced_3x5.xml
+* app/src/main/res/layout/pad_advanced_4x4.xml
+* app/src/main/res/layout/pad_advanced_5x3.xml
+* app/src/main/res/layout/pad_numeric.xml
+* app/src/main/res/layout/pad_operator_one_col.xml
+* app/src/main/res/layout/pad_operator_two_col.xml
+* app/src/main/res/layout/toolbar.xml
+* app/src/main/res/menu/
+* app/src/main/res/menu/activity_calculator.xml
+* app/src/main/res/menu/copy.xml
+* app/src/main/res/menu/paste.xml
+* app/src/main/res/mipmap-hdpi/
+* app/src/main/res/mipmap-hdpi/ic_launcher_calculator.png
+* app/src/main/res/mipmap-mdpi/
+* app/src/main/res/mipmap-mdpi/ic_launcher_calculator.png
+* app/src/main/res/mipmap-xhdpi/
+* app/src/main/res/mipmap-xhdpi/ic_launcher_calculator.png
+* app/src/main/res/mipmap-xxhdpi/
+* app/src/main/res/mipmap-xxhdpi/ic_launcher_calculator.png
+* app/src/main/res/mipmap-xxxhdpi/
+* app/src/main/res/mipmap-xxxhdpi/ic_launcher_calculator.png
+* app/src/main/res/values-af/
+* app/src/main/res/values-af/strings.xml
+* app/src/main/res/values-am/
+* app/src/main/res/values-am/strings.xml
+* app/src/main/res/values-ar/
+* app/src/main/res/values-ar/strings.xml
+* app/src/main/res/values-az-rAZ/
+* app/src/main/res/values-az-rAZ/strings.xml
+* app/src/main/res/values-b+sr+Latn/
+* app/src/main/res/values-b+sr+Latn/strings.xml
+* app/src/main/res/values-be-rBY/
+* app/src/main/res/values-be-rBY/strings.xml
+* app/src/main/res/values-bg/
+* app/src/main/res/values-bg/strings.xml
+* app/src/main/res/values-bn-rBD/
+* app/src/main/res/values-bn-rBD/strings.xml
+* app/src/main/res/values-bs-rBA/
+* app/src/main/res/values-bs-rBA/strings.xml
+* app/src/main/res/values-ca/
+* app/src/main/res/values-ca/strings.xml
+* app/src/main/res/values-cs/
+* app/src/main/res/values-cs/strings.xml
+* app/src/main/res/values-da/
+* app/src/main/res/values-da/strings.xml
+* app/src/main/res/values-de/
+* app/src/main/res/values-de/strings.xml
+* app/src/main/res/values-el/
+* app/src/main/res/values-el/strings.xml
+* app/src/main/res/values-en-rAU/
+* app/src/main/res/values-en-rAU/strings.xml
+* app/src/main/res/values-en-rGB/
+* app/src/main/res/values-en-rGB/strings.xml
+* app/src/main/res/values-en-rIN/
+* app/src/main/res/values-en-rIN/strings.xml
+* app/src/main/res/values-es-rUS/
+* app/src/main/res/values-es-rUS/strings.xml
+* app/src/main/res/values-es/
+* app/src/main/res/values-es/strings.xml
+* app/src/main/res/values-et-rEE/
+* app/src/main/res/values-et-rEE/strings.xml
+* app/src/main/res/values-eu-rES/
+* app/src/main/res/values-eu-rES/strings.xml
+* app/src/main/res/values-fa/
+* app/src/main/res/values-fa/strings.xml
+* app/src/main/res/values-fi/
+* app/src/main/res/values-fi/strings.xml
+* app/src/main/res/values-fr-rCA/
+* app/src/main/res/values-fr-rCA/strings.xml
+* app/src/main/res/values-fr/
+* app/src/main/res/values-fr/strings.xml
+* app/src/main/res/values-gl-rES/
+* app/src/main/res/values-gl-rES/strings.xml
+* app/src/main/res/values-gu-rIN/
+* app/src/main/res/values-gu-rIN/strings.xml
+* app/src/main/res/values-hi/
+* app/src/main/res/values-hi/strings.xml
+* app/src/main/res/values-hr/
+* app/src/main/res/values-hr/strings.xml
+* app/src/main/res/values-hu/
+* app/src/main/res/values-hu/strings.xml
+* app/src/main/res/values-hy-rAM/
+* app/src/main/res/values-hy-rAM/strings.xml
+* app/src/main/res/values-in/
+* app/src/main/res/values-in/strings.xml
+* app/src/main/res/values-is-rIS/
+* app/src/main/res/values-is-rIS/strings.xml
+* app/src/main/res/values-it/
+* app/src/main/res/values-it/strings.xml
+* app/src/main/res/values-iw/
+* app/src/main/res/values-iw/strings.xml
+* app/src/main/res/values-ja/
+* app/src/main/res/values-ja/strings.xml
+* app/src/main/res/values-ka-rGE/
+* app/src/main/res/values-ka-rGE/strings.xml
+* app/src/main/res/values-kk-rKZ/
+* app/src/main/res/values-kk-rKZ/strings.xml
+* app/src/main/res/values-km-rKH/
+* app/src/main/res/values-km-rKH/strings.xml
+* app/src/main/res/values-kn-rIN/
+* app/src/main/res/values-kn-rIN/strings.xml
+* app/src/main/res/values-ko/
+* app/src/main/res/values-ko/strings.xml
+* app/src/main/res/values-ky-rKG/
+* app/src/main/res/values-ky-rKG/strings.xml
+* app/src/main/res/values-lo-rLA/
+* app/src/main/res/values-lo-rLA/strings.xml
+* app/src/main/res/values-lt/
+* app/src/main/res/values-lt/strings.xml
+* app/src/main/res/values-lv/
+* app/src/main/res/values-lv/strings.xml
+* app/src/main/res/values-mk-rMK/
+* app/src/main/res/values-mk-rMK/strings.xml
+* app/src/main/res/values-ml-rIN/
+* app/src/main/res/values-ml-rIN/strings.xml
+* app/src/main/res/values-mn-rMN/
+* app/src/main/res/values-mn-rMN/strings.xml
+* app/src/main/res/values-mr-rIN/
+* app/src/main/res/values-mr-rIN/strings.xml
+* app/src/main/res/values-ms-rMY/
+* app/src/main/res/values-ms-rMY/strings.xml
+* app/src/main/res/values-my-rMM/
+* app/src/main/res/values-my-rMM/strings.xml
+* app/src/main/res/values-nb/
+* app/src/main/res/values-nb/strings.xml
+* app/src/main/res/values-ne-rNP/
+* app/src/main/res/values-ne-rNP/strings.xml
+* app/src/main/res/values-nl/
+* app/src/main/res/values-nl/strings.xml
+* app/src/main/res/values-pa-rIN/
+* app/src/main/res/values-pa-rIN/strings.xml
+* app/src/main/res/values-pl/
+* app/src/main/res/values-pl/strings.xml
+* app/src/main/res/values-pt-rBR/
+* app/src/main/res/values-pt-rBR/strings.xml
+* app/src/main/res/values-pt-rPT/
+* app/src/main/res/values-pt-rPT/strings.xml
+* app/src/main/res/values-pt/
+* app/src/main/res/values-pt/strings.xml
+* app/src/main/res/values-ro/
+* app/src/main/res/values-ro/strings.xml
+* app/src/main/res/values-ru/
+* app/src/main/res/values-ru/strings.xml
+* app/src/main/res/values-si-rLK/
+* app/src/main/res/values-si-rLK/strings.xml
+* app/src/main/res/values-sk/
+* app/src/main/res/values-sk/strings.xml
+* app/src/main/res/values-sl/
+* app/src/main/res/values-sl/strings.xml
+* app/src/main/res/values-sq-rAL/
+* app/src/main/res/values-sq-rAL/strings.xml
+* app/src/main/res/values-sr/
+* app/src/main/res/values-sr/strings.xml
+* app/src/main/res/values-sv/
+* app/src/main/res/values-sv/strings.xml
+* app/src/main/res/values-sw/
+* app/src/main/res/values-sw/strings.xml
+* app/src/main/res/values-ta-rIN/
+* app/src/main/res/values-ta-rIN/strings.xml
+* app/src/main/res/values-te-rIN/
+* app/src/main/res/values-te-rIN/strings.xml
+* app/src/main/res/values-th/
+* app/src/main/res/values-th/strings.xml
+* app/src/main/res/values-tl/
+* app/src/main/res/values-tl/strings.xml
+* app/src/main/res/values-tr/
+* app/src/main/res/values-tr/strings.xml
+* app/src/main/res/values-uk/
+* app/src/main/res/values-uk/strings.xml
+* app/src/main/res/values-ur-rPK/
+* app/src/main/res/values-ur-rPK/strings.xml
+* app/src/main/res/values-uz-rUZ/
+* app/src/main/res/values-uz-rUZ/strings.xml
+* app/src/main/res/values-vi/
+* app/src/main/res/values-vi/strings.xml
+* app/src/main/res/values-w230dp-h220dp/
+* app/src/main/res/values-w230dp-h220dp/layout.xml
+* app/src/main/res/values-w230dp-h220dp/styles.xml
+* app/src/main/res/values-w230dp-h275dp/
+* app/src/main/res/values-w230dp-h275dp/layout.xml
+* app/src/main/res/values-w230dp-h275dp/styles.xml
+* app/src/main/res/values-w230dp-h375dp/
+* app/src/main/res/values-w230dp-h375dp/layout.xml
+* app/src/main/res/values-w230dp-h375dp/styles.xml
+* app/src/main/res/values-w230dp-h475dp-port/
+* app/src/main/res/values-w230dp-h475dp-port/layout.xml
+* app/src/main/res/values-w230dp-h475dp-port/styles.xml
+* app/src/main/res/values-w375dp-h220dp/
+* app/src/main/res/values-w375dp-h220dp/layout.xml
+* app/src/main/res/values-w375dp-h220dp/styles.xml
+* app/src/main/res/values-w375dp-h275dp/
+* app/src/main/res/values-w375dp-h275dp/layout.xml
+* app/src/main/res/values-w375dp-h275dp/styles.xml
+* app/src/main/res/values-w375dp-h375dp/
+* app/src/main/res/values-w375dp-h375dp/layout.xml
+* app/src/main/res/values-w375dp-h375dp/styles.xml
+* app/src/main/res/values-w375dp-h500dp-port/
+* app/src/main/res/values-w375dp-h500dp-port/layout.xml
+* app/src/main/res/values-w375dp-h500dp-port/styles.xml
+* app/src/main/res/values-w375dp-h768dp-port/
+* app/src/main/res/values-w375dp-h768dp-port/layout.xml
+* app/src/main/res/values-w375dp-h768dp-port/styles.xml
+* app/src/main/res/values-w520dp-h220dp-land/
+* app/src/main/res/values-w520dp-h220dp-land/layout.xml
+* app/src/main/res/values-w520dp-h220dp-land/styles.xml
+* app/src/main/res/values-w520dp-h275dp-land/
+* app/src/main/res/values-w520dp-h275dp-land/layout.xml
+* app/src/main/res/values-w520dp-h275dp-land/styles.xml
+* app/src/main/res/values-w520dp-h375dp-land/
+* app/src/main/res/values-w520dp-h375dp-land/layout.xml
+* app/src/main/res/values-w520dp-h375dp-land/styles.xml
+* app/src/main/res/values-w520dp-h500dp-land/
+* app/src/main/res/values-w520dp-h500dp-land/layout.xml
+* app/src/main/res/values-w520dp-h500dp-land/styles.xml
+* app/src/main/res/values-w520dp-h768dp-land/
+* app/src/main/res/values-w520dp-h768dp-land/layout.xml
+* app/src/main/res/values-w520dp-h768dp-land/styles.xml
+* app/src/main/res/values-w520dp-h768dp-port/
+* app/src/main/res/values-w520dp-h768dp-port/layout.xml
+* app/src/main/res/values-w520dp-h768dp-port/styles.xml
+* app/src/main/res/values-zh-rCN/
+* app/src/main/res/values-zh-rCN/strings.xml
+* app/src/main/res/values-zh-rHK/
+* app/src/main/res/values-zh-rHK/strings.xml
+* app/src/main/res/values-zh-rTW/
+* app/src/main/res/values-zh-rTW/strings.xml
+* app/src/main/res/values-zu/
+* app/src/main/res/values-zu/strings.xml
+* app/src/main/res/values/
+* app/src/main/res/values/attr.xml
+* app/src/main/res/values/color.xml
+* app/src/main/res/values/dimens.xml
+* app/src/main/res/values/strings.xml
+* app/src/main/res/values/styles.xml
+* app/src/main/res/values/themes.xml
+* build.gradle
+* docs/
+* docs/arithmetic-overview.html
+* docs/implementation-overview.html
+* gradle/
+* gradle/wrapper/
+* gradle/wrapper/gradle-wrapper.jar
+* gradle/wrapper/gradle-wrapper.properties
+* gradlew
+* gradlew.bat
+* proguard.flags
+* settings.gradle
+
+Moved Files:
+------------
+Android Gradle projects use a different directory structure than ADT
+Eclipse projects. Here's how the projects were restructured:
+
+* AndroidManifest.xml => app/src/main/AndroidManifest.xml
+* assets/ => app/src/main/assets/
+* res/ => app/src/main/res/
+* src/ => app/src/main/java/
+
+Next Steps:
+-----------
+You can now build the project. The Gradle project needs network
+connectivity to download dependencies.
+
+Bugs:
+-----
+If for some reason your project does not build, and you determine that
+it is due to a bug or limitation of the Eclipse to Gradle importer,
+please file a bug at http://b.android.com with category
+Component-Tools.
+
+(This import summary is for your information only, and can be deleted
+after import once you are satisfied with the results.)
