@@ -34,7 +34,6 @@ import android.animation.PropertyValuesHolder;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.ClipData;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -42,9 +41,9 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewPager;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
 import android.text.Editable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
@@ -210,6 +209,7 @@ public class Calculator extends Activity
         setActionBar((Toolbar) findViewById(R.id.toolbar));
 
         // Hide all default options in the ActionBar.
+        //noinspection ConstantConditions
         getActionBar().setDisplayOptions(0);
 
         // Ensure the toolbar stays visible while the options menu is displayed.
@@ -220,13 +220,13 @@ public class Calculator extends Activity
             }
         });
 
-        mDisplayView = (CalculatorDisplay) findViewById(R.id.display);
-        mModeView = (TextView) findViewById(R.id.mode);
-        mFormulaText = (CalculatorText) findViewById(R.id.formula);
-        mResultText = (CalculatorResult) findViewById(R.id.result);
-        mFormulaContainer = (HorizontalScrollView) findViewById(R.id.formula_container);
+        mDisplayView = findViewById(R.id.display);
+        mModeView = findViewById(R.id.mode);
+        mFormulaText = findViewById(R.id.formula);
+        mResultText = findViewById(R.id.result);
+        mFormulaContainer = findViewById(R.id.formula_container);
 
-        mPadViewPager = (ViewPager) findViewById(R.id.pad_pager);
+        mPadViewPager = findViewById(R.id.pad_pager);
         mDeleteButton = findViewById(R.id.del);
         mClearButton = findViewById(R.id.clr);
         mEqualButton = findViewById(R.id.pad_numeric).findViewById(R.id.eq);
@@ -234,8 +234,8 @@ public class Calculator extends Activity
             mEqualButton = findViewById(R.id.pad_operator).findViewById(R.id.eq);
         }
 
-        mInverseToggle = (TextView) findViewById(R.id.toggle_inv);
-        mModeToggle = (TextView) findViewById(R.id.toggle_mode);
+        mInverseToggle = findViewById(R.id.toggle_inv);
+        mModeToggle = findViewById(R.id.toggle_mode);
 
         mOneLine = mResultText.getVisibility() == View.INVISIBLE;
 
@@ -303,7 +303,7 @@ public class Calculator extends Activity
         // TODO: We're currently not saving and restoring scroll position.
         //       We probably should.  Details may require care to deal with:
         //         - new display size
-        //         - slow recomputation if we've scrolled far.
+        //         - slow re-computation if we've scrolled far.
     }
 
     @Override
@@ -405,6 +405,7 @@ public class Calculator extends Activity
         if (mResultText.stopActionModeOrContextMenu()) {
             return true;
         }
+        //noinspection RedundantIfStatement
         if (mFormulaText.stopActionModeOrContextMenu()) {
             return true;
         }
@@ -564,6 +565,7 @@ public class Calculator extends Activity
         } else if (mCurrentState == CalculatorState.RESULT) {
             switchToInput(id);
         }
+        //noinspection StatementWithEmptyBody
         if (!mEvaluator.append(id)) {
             // TODO: Some user visible feedback?
         }
@@ -621,6 +623,7 @@ public class Calculator extends Activity
         }
     }
 
+    @SuppressWarnings("unused")
     public void onButtonClick(View view) {
         // Any animation is ended before we get here.
         mCurrentButton = view;
