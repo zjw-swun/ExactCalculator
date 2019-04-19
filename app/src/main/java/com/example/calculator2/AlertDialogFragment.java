@@ -27,7 +27,7 @@ import android.view.LayoutInflater;
 import android.widget.TextView;
 
 /**
- * Display a message with a dismiss putton, and optionally a second button.
+ * Display a message with a dismiss button, and optionally a second button.
  */
 public class AlertDialogFragment extends DialogFragment implements DialogInterface.OnClickListener {
 
