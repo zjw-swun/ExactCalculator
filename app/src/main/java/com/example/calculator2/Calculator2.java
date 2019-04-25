@@ -96,7 +96,7 @@ public class Calculator2 extends Activity
      */
     public static final int INVALID_RES_ID = -1;
 
-    private enum NewCalculatorState {
+    private enum CalculatorState {
         INPUT,          // Result and formula both visible, no evaluation requested,
                         // Though result may be visible on bottom line.
         EVALUATE,       // Both visible, evaluation requested, evaluation/animation incomplete.
@@ -244,7 +244,7 @@ public class Calculator2 extends Activity
         }
     };
 
-    private NewCalculatorState mCurrentState;
+    private CalculatorState mCurrentState;
     private Evaluator mEvaluator;
 
     private CalculatorDisplay mDisplayView;
@@ -283,15 +283,15 @@ public class Calculator2 extends Activity
     /**
      * Map the old saved state to a new state reflecting requested result reevaluation.
      */
-    private NewCalculatorState mapFromSaved(NewCalculatorState savedState) {
+    private CalculatorState mapFromSaved(CalculatorState savedState) {
         switch (savedState) {
             case RESULT:
             case INIT_FOR_RESULT:
                 // Evaluation is expected to terminate normally.
-                return NewCalculatorState.INIT_FOR_RESULT;
+                return CalculatorState.INIT_FOR_RESULT;
             case ERROR:
             case INIT:
-                return NewCalculatorState.INIT;
+                return CalculatorState.INIT;
             case EVALUATE:
             case INPUT:
                 return savedState;
@@ -305,9 +305,9 @@ public class Calculator2 extends Activity
      * Return true if the toolbar should be visible.
      */
     private void restoreInstanceState(Bundle savedInstanceState) {
-        final NewCalculatorState savedState = NewCalculatorState.values()[
+        final CalculatorState savedState = CalculatorState.values()[
                 savedInstanceState.getInt(KEY_DISPLAY_STATE,
-                        NewCalculatorState.INPUT.ordinal())];
+                        CalculatorState.INPUT.ordinal())];
         setState(savedState);
         CharSequence unprocessed = savedInstanceState.getCharSequence(KEY_UNPROCESSED_CHARS);
         if (unprocessed != null) {
@@ -319,7 +319,7 @@ public class Calculator2 extends Activity
                 mEvaluator.restoreInstanceState(in);
             } catch (Throwable ignored) {
                 // When in doubt, revert to clean state
-                mCurrentState = NewCalculatorState.INPUT;
+                mCurrentState = CalculatorState.INPUT;
                 mEvaluator.clearMain();
             }
         }
@@ -337,11 +337,11 @@ public class Calculator2 extends Activity
 
     private void restoreDisplay() {
         onModeChanged(mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX));
-        if (mCurrentState != NewCalculatorState.RESULT
-            && mCurrentState != NewCalculatorState.INIT_FOR_RESULT) {
+        if (mCurrentState != CalculatorState.RESULT
+            && mCurrentState != CalculatorState.INIT_FOR_RESULT) {
             redisplayFormula();
         }
-        if (mCurrentState == NewCalculatorState.INPUT) {
+        if (mCurrentState == CalculatorState.INPUT) {
             // This resultText will explicitly call evaluateAndNotify when ready.
             mResultText.setShouldEvaluateResult(CalculatorResult.SHOULD_EVALUATE, this);
         } else {
@@ -430,7 +430,7 @@ public class Calculator2 extends Activity
         if (savedInstanceState != null) {
             restoreInstanceState(savedInstanceState);
         } else {
-            mCurrentState = NewCalculatorState.INPUT;
+            mCurrentState = CalculatorState.INPUT;
             mEvaluator.clearMain();
             showAndMaybeHideToolbar();
             onInverseToggled(false);
@@ -483,16 +483,16 @@ public class Calculator2 extends Activity
     // Set the state, updating delete label and display colors.
     // This restores display positions on moving to INPUT.
     // But movement/animation for moving to RESULT has already been done.
-    private void setState(NewCalculatorState state) {
+    private void setState(CalculatorState state) {
         if (mCurrentState != state) {
-            if (state == NewCalculatorState.INPUT) {
+            if (state == CalculatorState.INPUT) {
                 // We'll explicitly request evaluation from now on.
                 mResultText.setShouldEvaluateResult(CalculatorResult.SHOULD_NOT_EVALUATE, null);
                 restoreDisplayPositions();
             }
             mCurrentState = state;
 
-            if (mCurrentState == NewCalculatorState.RESULT) {
+            if (mCurrentState == CalculatorState.RESULT) {
                 // No longer do this for ERROR; allow mistakes to be corrected.
                 mDeleteButton.setVisibility(View.GONE);
                 mClearButton.setVisibility(View.VISIBLE);
@@ -502,12 +502,12 @@ public class Calculator2 extends Activity
             }
 
             if (mIsOneLine) {
-                if (mCurrentState == NewCalculatorState.RESULT
-                        || mCurrentState == NewCalculatorState.EVALUATE
-                        || mCurrentState == NewCalculatorState.ANIMATE) {
+                if (mCurrentState == CalculatorState.RESULT
+                        || mCurrentState == CalculatorState.EVALUATE
+                        || mCurrentState == CalculatorState.ANIMATE) {
                     mFormulaText.setVisibility(View.VISIBLE);
                     mResultText.setVisibility(View.VISIBLE);
-                } else if (mCurrentState == NewCalculatorState.ERROR) {
+                } else if (mCurrentState == CalculatorState.ERROR) {
                     mFormulaText.setVisibility(View.INVISIBLE);
                     mResultText.setVisibility(View.VISIBLE);
                 } else {
@@ -516,13 +516,13 @@ public class Calculator2 extends Activity
                 }
             }
 
-            if (mCurrentState == NewCalculatorState.ERROR) {
+            if (mCurrentState == CalculatorState.ERROR) {
                 final int errorColor =
                         ContextCompat.getColor(this, R.color.calculator_error_color);
                 mFormulaText.setTextColor(errorColor);
                 mResultText.setTextColor(errorColor);
                 getWindow().setStatusBarColor(errorColor);
-            } else if (mCurrentState != NewCalculatorState.RESULT) {
+            } else if (mCurrentState != CalculatorState.RESULT) {
                 mFormulaText.setTextColor(
                         ContextCompat.getColor(this, R.color.display_formula_text_color));
                 mResultText.setTextColor(
@@ -537,8 +537,8 @@ public class Calculator2 extends Activity
 
     public boolean isResultLayout() {
         // Note that ERROR has INPUT, not RESULT layout.
-        return mCurrentState == NewCalculatorState.INIT_FOR_RESULT
-                || mCurrentState == NewCalculatorState.RESULT;
+        return mCurrentState == CalculatorState.INIT_FOR_RESULT
+                || mCurrentState == CalculatorState.RESULT;
     }
 
     public boolean isOneLine() {
@@ -749,15 +749,15 @@ public class Calculator2 extends Activity
             announceClearedForAccessibility();
             mEvaluator.clearMain();
         }
-        setState(NewCalculatorState.INPUT);
+        setState(CalculatorState.INPUT);
     }
 
     // Add the given button id to input expression.
     // If appropriate, clear the expression before doing so.
     private void addKeyToExpr(int id) {
-        if (mCurrentState == NewCalculatorState.ERROR) {
-            setState(NewCalculatorState.INPUT);
-        } else if (mCurrentState == NewCalculatorState.RESULT) {
+        if (mCurrentState == CalculatorState.ERROR) {
+            setState(CalculatorState.INPUT);
+        } else if (mCurrentState == CalculatorState.RESULT) {
             switchToInput(id);
         }
         //noinspection StatementWithEmptyBody
@@ -772,14 +772,14 @@ public class Calculator2 extends Activity
      * We perform slightly more aggressive correction than in pasted expressions.
      */
     private void addExplicitKeyToExpr(int id) {
-        if (mCurrentState == NewCalculatorState.INPUT && id == R.id.op_sub) {
+        if (mCurrentState == CalculatorState.INPUT && id == R.id.op_sub) {
             mEvaluator.getExpr(Evaluator.MAIN_INDEX).removeTrailingAdditiveOperators();
         }
         addKeyToExpr(id);
     }
 
     public void evaluateInstantIfNecessary() {
-        if (mCurrentState == NewCalculatorState.INPUT
+        if (mCurrentState == CalculatorState.INPUT
                 && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
             mEvaluator.evaluateAndNotify(Evaluator.MAIN_INDEX, this, mResultText);
         }
@@ -788,7 +788,7 @@ public class Calculator2 extends Activity
     private void redisplayAfterFormulaChange() {
         // TODO: Could do this more incrementally.
         redisplayFormula();
-        setState(NewCalculatorState.INPUT);
+        setState(CalculatorState.INPUT);
         mResultText.clear();
         if (haveUnprocessed()) {
             // Force reevaluation when text is deleted, even if expression is unchanged.
@@ -804,7 +804,7 @@ public class Calculator2 extends Activity
      */
     private void showAndMaybeHideToolbar() {
         final boolean shouldBeVisible =
-                mCurrentState == NewCalculatorState.INPUT && mEvaluator.hasTrigFuncs();
+                mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs();
         mDisplayView.showToolbar(!shouldBeVisible);
     }
 
@@ -813,7 +813,7 @@ public class Calculator2 extends Activity
      */
     private void showOrHideToolbar() {
         final boolean shouldBeVisible =
-                mCurrentState == NewCalculatorState.INPUT && mEvaluator.hasTrigFuncs();
+                mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs();
         if (shouldBeVisible) {
             mDisplayView.showToolbar(false);
         } else {
@@ -845,14 +845,14 @@ public class Calculator2 extends Activity
                 final boolean selected = !mInverseToggle.isSelected();
                 mInverseToggle.setSelected(selected);
                 onInverseToggled(selected);
-                if (mCurrentState == NewCalculatorState.RESULT) {
+                if (mCurrentState == CalculatorState.RESULT) {
                     mResultText.redisplay();   // In case we cancelled reevaluation.
                 }
                 break;
             case R.id.toggle_mode:
                 cancelIfEvaluating(false);
                 final boolean mode = !mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX);
-                if (mCurrentState == NewCalculatorState.RESULT
+                if (mCurrentState == CalculatorState.RESULT
                         && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
                     // Capture current result evaluated in old mode.
                     mEvaluator.collapse(mEvaluator.getMaxIndex());
@@ -863,7 +863,7 @@ public class Calculator2 extends Activity
                 onModeChanged(mode);
                 // Show the toolbar to highlight the mode change.
                 showAndMaybeHideToolbar();
-                setState(NewCalculatorState.INPUT);
+                setState(CalculatorState.INPUT);
                 mResultText.clear();
                 if (!haveUnprocessed()) {
                     evaluateInstantIfNecessary();
@@ -919,18 +919,18 @@ public class Calculator2 extends Activity
         invalidateOptionsMenu();
 
         mResultText.onEvaluate(index, initDisplayPrec, msd, leastDigPos, truncatedWholeNumber);
-        if (mCurrentState != NewCalculatorState.INPUT) {
+        if (mCurrentState != CalculatorState.INPUT) {
             // In EVALUATE, INIT, RESULT, or INIT_FOR_RESULT state.
-            onResult(mCurrentState == NewCalculatorState.EVALUATE /* animate */,
-                     mCurrentState == NewCalculatorState.INIT_FOR_RESULT
-                    || mCurrentState == NewCalculatorState.RESULT /* previously preserved */);
+            onResult(mCurrentState == CalculatorState.EVALUATE /* animate */,
+                     mCurrentState == CalculatorState.INIT_FOR_RESULT
+                    || mCurrentState == CalculatorState.RESULT /* previously preserved */);
         }
     }
 
     // Reset state to reflect evaluator cancellation.  Invoked by evaluator.
     public void onCancelled(long index) {
         // Index is Evaluator.MAIN_INDEX. We should be in EVALUATE state.
-        setState(NewCalculatorState.INPUT);
+        setState(CalculatorState.INPUT);
         mResultText.onCancelled(index);
     }
 
@@ -942,7 +942,7 @@ public class Calculator2 extends Activity
 
     @Override
     public void onTextSizeChanged(final TextView textView, float oldSize) {
-        if (mCurrentState != NewCalculatorState.INPUT) {
+        if (mCurrentState != CalculatorState.INPUT) {
             // Only animate text changes that occur from user input.
             return;
         }
@@ -973,7 +973,7 @@ public class Calculator2 extends Activity
      * @return      true if there was such an evaluation
      */
     private boolean cancelIfEvaluating(boolean quiet) {
-        if (mCurrentState == NewCalculatorState.EVALUATE) {
+        if (mCurrentState == CalculatorState.EVALUATE) {
             mEvaluator.cancel(Evaluator.MAIN_INDEX, quiet);
             return true;
         } else {
@@ -983,7 +983,7 @@ public class Calculator2 extends Activity
 
 
     private void cancelUnrequested() {
-        if (mCurrentState == NewCalculatorState.INPUT) {
+        if (mCurrentState == CalculatorState.INPUT) {
             mEvaluator.cancel(Evaluator.MAIN_INDEX, true);
         }
     }
@@ -994,12 +994,12 @@ public class Calculator2 extends Activity
 
     private void onEquals() {
         // Ignore if in non-INPUT state, or if there are no operators.
-        if (mCurrentState == NewCalculatorState.INPUT) {
+        if (mCurrentState == CalculatorState.INPUT) {
             if (haveUnprocessed()) {
-                setState(NewCalculatorState.EVALUATE);
+                setState(CalculatorState.EVALUATE);
                 onError(Evaluator.MAIN_INDEX, R.string.error_syntax);
             } else if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
-                setState(NewCalculatorState.EVALUATE);
+                setState(CalculatorState.EVALUATE);
                 mEvaluator.requireResult(Evaluator.MAIN_INDEX, this, mResultText);
             }
         }
@@ -1013,7 +1013,7 @@ public class Calculator2 extends Activity
         // This should be impossible in RESULT state.
         // If there is an in-progress explicit evaluation, just cancel it and return.
         if (cancelIfEvaluating(false)) return;
-        setState(NewCalculatorState.INPUT);
+        setState(CalculatorState.INPUT);
         if (haveUnprocessed()) {
             mUnprocessedChars = mUnprocessedChars.substring(0, mUnprocessedChars.length() - 1);
         } else {
@@ -1088,7 +1088,7 @@ public class Calculator2 extends Activity
          mUnprocessedChars = null;
          mResultText.clear();
          mEvaluator.clearMain();
-         setState(NewCalculatorState.INPUT);
+         setState(CalculatorState.INPUT);
          redisplayFormula();
     }
 
@@ -1113,20 +1113,20 @@ public class Calculator2 extends Activity
         if (index != Evaluator.MAIN_INDEX) {
             throw new AssertionError("Unexpected error source");
         }
-        if (mCurrentState == NewCalculatorState.EVALUATE) {
-            setState(NewCalculatorState.ANIMATE);
+        if (mCurrentState == CalculatorState.EVALUATE) {
+            setState(CalculatorState.ANIMATE);
             mResultText.announceForAccessibility(getResources().getString(errorResourceId));
             reveal(mCurrentButton, R.color.calculator_error_color,
                     new AnimatorListenerAdapter() {
                         @Override
                         public void onAnimationEnd(Animator animation) {
-                           setState(NewCalculatorState.ERROR);
+                           setState(CalculatorState.ERROR);
                            mResultText.onError(index, errorResourceId);
                         }
                     });
-        } else if (mCurrentState == NewCalculatorState.INIT
-                || mCurrentState == NewCalculatorState.INIT_FOR_RESULT /* very unlikely */) {
-            setState(NewCalculatorState.ERROR);
+        } else if (mCurrentState == CalculatorState.INIT
+                || mCurrentState == CalculatorState.INIT_FOR_RESULT /* very unlikely */) {
+            setState(CalculatorState.ERROR);
             mResultText.onError(index, errorResourceId);
         } else {
             mResultText.clear();
@@ -1183,7 +1183,7 @@ public class Calculator2 extends Activity
         if (animate) {
             mResultText.announceForAccessibility(getResources().getString(R.string.desc_eq));
             mResultText.announceForAccessibility(mResultText.getText());
-            setState(NewCalculatorState.ANIMATE);
+            setState(CalculatorState.ANIMATE);
             final AnimatorSet animatorSet = new AnimatorSet();
             animatorSet.playTogether(
                     ObjectAnimator.ofPropertyValuesHolder(mResultText,
@@ -1198,7 +1198,7 @@ public class Calculator2 extends Activity
             animatorSet.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    setState(NewCalculatorState.RESULT);
+                    setState(CalculatorState.RESULT);
                     mCurrentAnimator = null;
                 }
             });
@@ -1211,7 +1211,7 @@ public class Calculator2 extends Activity
             mResultText.setTranslationY(resultTranslationY);
             mResultText.setTextColor(formulaTextColor);
             mFormulaContainer.setTranslationY(formulaTranslationY);
-            setState(NewCalculatorState.RESULT);
+            setState(CalculatorState.RESULT);
         }
     }
 
@@ -1264,10 +1264,10 @@ public class Calculator2 extends Activity
         super.onPrepareOptionsMenu(menu);
 
         // Show the leading option when displaying a result.
-        menu.findItem(R.id.menu_leading).setVisible(mCurrentState == NewCalculatorState.RESULT);
+        menu.findItem(R.id.menu_leading).setVisible(mCurrentState == CalculatorState.RESULT);
 
         // Show the fraction option when displaying a rational result.
-        boolean visible = mCurrentState == NewCalculatorState.RESULT;
+        boolean visible = mCurrentState == CalculatorState.RESULT;
         final UnifiedReal mainResult = mEvaluator.getResult(Evaluator.MAIN_INDEX);
         // mainResult should never be null, but it happens. Check as a workaround to protect
         // against crashes until we find the root cause (b/34763650).
@@ -1339,7 +1339,7 @@ public class Calculator2 extends Activity
      * Return false if that was not easily possible.
      */
     private boolean prepareForHistory() {
-        if (mCurrentState == NewCalculatorState.ANIMATE) {
+        if (mCurrentState == CalculatorState.ANIMATE) {
             // End the current animation and signal that preparation has failed.
             // onUserInteraction is unreliable and onAnimationEnd() is asynchronous, so we
             // aren't guaranteed to be out of the ANIMATE state by the time prepareForHistory is
@@ -1352,12 +1352,12 @@ public class Calculator2 extends Activity
             // while in history mode, which causes all sorts of problems.
             // TODO: Consider other alternatives. If we're just doing the decimal conversion
             // at the end of an evaluation, we could treat this as RESULT state.
-            if (mCurrentState == NewCalculatorState.EVALUATE) {
+            if (mCurrentState == CalculatorState.EVALUATE) {
             // Cancel current evaluation
             cancelIfEvaluating(true /* quiet */ );
-            setState(NewCalculatorState.INPUT);
+            setState(CalculatorState.INPUT);
             return true;
-        } else return mCurrentState != NewCalculatorState.INIT;
+        } else return mCurrentState != CalculatorState.INIT;
         // We should be in INPUT, INIT_FOR_RESULT, RESULT, or ERROR state.
     }
 
@@ -1433,7 +1433,7 @@ public class Calculator2 extends Activity
         int current = 0;
         int len = moreChars.length();
         boolean lastWasDigit = false;
-        if (mCurrentState == NewCalculatorState.RESULT && len != 0) {
+        if (mCurrentState == CalculatorState.RESULT && len != 0) {
             // Clear display immediately for incomplete function name.
             switchToInput(KeyMaps.keyForChar(moreChars.charAt(current)));
         }
@@ -1509,9 +1509,9 @@ public class Calculator2 extends Activity
     }
 
     private void clearIfNotInputState() {
-        if (mCurrentState == NewCalculatorState.ERROR
-                || mCurrentState == NewCalculatorState.RESULT) {
-            setState(NewCalculatorState.INPUT);
+        if (mCurrentState == CalculatorState.ERROR
+                || mCurrentState == CalculatorState.RESULT) {
+            setState(CalculatorState.INPUT);
             mEvaluator.clearMain();
         }
     }
