@@ -17,15 +17,13 @@
 
 <com.example.calculator2.CalculatorDisplay
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/display"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/display_background_color"
     android:clipChildren="false"
     android:elevation="4dip"
-    android:orientation="vertical"
-    tools:ignore="UnusedAttribute">
+    android:orientation="vertical">
 
     <include layout="@layout/toolbar" />
 
@@ -41,7 +39,7 @@
             android:overScrollMode="never"
             android:scrollbars="none">
 
-            <com.example.calculator2.CalculatorText
+            <com.example.calculator2.CalculatorFormula
                 android:id="@+id/formula"
                 style="@style/DisplayTextStyle.Formula"
                 android:layout_width="wrap_content"
