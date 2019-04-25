@@ -1,0 +1,1118 @@
+/*
+ * Copyright (C) 2016 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// TODO: Copy & more general paste in formula?  Note that this requires
+//       great care: Currently the text version of a displayed formula
+//       is not directly useful for re-evaluating the formula later, since
+//       it contains ellipses representing subexpressions evaluated with
+//       a different degree mode.  Rather than supporting copy from the
+//       formula window, we may eventually want to support generation of a
+//       more useful text version in a separate window.  It's not clear
+//       this is worth the added (code and user) complexity.
+
+package com.example.calculator2
+
+import android.animation.Animator
+import android.animation.Animator.AnimatorListener
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.app.Activity
+import android.content.ClipData
+import android.content.DialogInterface
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Rect
+import android.os.Bundle
+import androidx.core.content.ContextCompat
+import androidx.viewpager.widget.ViewPager
+import android.text.Editable
+import android.text.Spanned
+import android.text.TextUtils
+import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
+import android.util.Property
+import android.view.ActionMode
+import android.view.KeyCharacterMap
+import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.View.OnLongClickListener
+import android.view.ViewAnimationUtils
+import android.view.ViewGroupOverlay
+import android.view.ViewTreeObserver
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.HorizontalScrollView
+import android.widget.TextView
+import android.widget.Toolbar
+
+import com.example.calculator2.CalculatorText.OnTextSizeChangeListener
+
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+
+class Calculator : Activity(), OnTextSizeChangeListener, OnLongClickListener, CalculatorText.OnPasteListener, AlertDialogFragment.OnClickListener {
+    // Normal transition sequence is
+    // INPUT -> EVALUATE -> ANIMATE -> RESULT (or ERROR) -> INPUT
+    // A RESULT -> ERROR transition is possible in rare corner cases, in which
+    // a higher precision evaluation exposes an error.  This is possible, since we
+    // initially evaluate assuming we were given a well-defined problem.  If we
+    // were actually asked to compute sqrt(<extremely tiny negative number>) we produce 0
+    // unless we are asked for enough precision that we can distinguish the argument from zero.
+    // TODO: Consider further heuristics to reduce the chance of observing this?
+    //       It already seems to be observable only in contrived cases.
+    // ANIMATE, ERROR, and RESULT are translated to an INIT state if the application
+    // is restarted in that state.  This leads us to recompute and redisplay the result
+    // ASAP.
+    // TODO: Possibly save a bit more information, e.g. its initial display string
+    // or most significant digit position, to speed up restart.
+
+    private val TEXT_COLOR = object : Property<TextView, Int>(Int::class.java, "textColor") {
+        override fun get(textView: TextView): Int {
+            return textView.currentTextColor
+        }
+
+        override fun set(textView: TextView, textColor: Int?) {
+            textView.setTextColor(textColor!!)
+        }
+    }
+
+    private val mPreDrawListener = object : ViewTreeObserver.OnPreDrawListener {
+        override fun onPreDraw(): Boolean {
+            mFormulaContainer!!.scrollTo(mFormulaText!!.right, 0)
+            val observer = mFormulaContainer!!.viewTreeObserver
+            if (observer.isAlive) {
+                observer.removeOnPreDrawListener(this)
+            }
+            return false
+        }
+    }
+
+    private val mFormulaTextWatcher = object : TextWatcher {
+        override fun beforeTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
+
+        override fun onTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
+
+        override fun afterTextChanged(editable: Editable) {
+            val observer = mFormulaContainer!!.viewTreeObserver
+            if (observer.isAlive) {
+                observer.removeOnPreDrawListener(mPreDrawListener)
+                observer.addOnPreDrawListener(mPreDrawListener)
+            }
+        }
+    }
+
+    private var mCurrentState: CalculatorState? = null
+    private var mEvaluator: Evaluator? = null
+
+    private var mDisplayView: CalculatorDisplay? = null
+    private var mModeView: TextView? = null
+    private var mFormulaText: CalculatorText? = null
+    private var mResultText: CalculatorResult? = null
+    private var mFormulaContainer: HorizontalScrollView? = null
+
+    private var mPadViewPager: ViewPager? = null
+    private var mDeleteButton: View? = null
+    private var mClearButton: View? = null
+    private var mEqualButton: View? = null
+
+    private var mInverseToggle: TextView? = null
+    private var mModeToggle: TextView? = null
+
+    private var mInvertibleButtons: Array<View>? = null
+    private var mInverseButtons: Array<View>? = null
+
+    private var mCurrentButton: View? = null
+    private var mCurrentAnimator: Animator? = null
+
+    // Characters that were recently entered at the end of the display that have not yet
+    // been added to the underlying expression.
+    private var mUnprocessedChars: String? = null
+
+    // Color to highlight unprocessed characters from physical keyboard.
+    // TODO: should probably match this to the error color?
+    private val mUnprocessedColorSpan = ForegroundColorSpan(Color.RED)
+
+    // Whether the display is one line.
+    private var mOneLine: Boolean = false
+
+    private enum class CalculatorState {
+        INPUT, // Result and formula both visible, no evaluation requested,
+        // Though result may be visible on bottom line.
+        EVALUATE, // Both visible, evaluation requested, evaluation/animation incomplete.
+        // Not used for instant result evaluation.
+        INIT, // Very temporary state used as alternative to EVALUATE
+        // during reinitialization.  Do not animate on completion.
+        ANIMATE, // Result computed, animation to enlarge result window in progress.
+        RESULT, // Result displayed, formula invisible.
+        // If we are in RESULT state, the formula was evaluated without
+        // error to initial precision.
+        ERROR           // Error displayed: Formula visible, result shows error message.
+        // Display similar to INPUT state.
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_calculator)
+        setActionBar(findViewById<View>(R.id.toolbar) as Toolbar)
+
+        // Hide all default options in the ActionBar.
+
+        actionBar!!.displayOptions = 0
+
+        // Ensure the toolbar stays visible while the options menu is displayed.
+        actionBar!!.addOnMenuVisibilityListener { isVisible -> mDisplayView!!.forceToolbarVisible = isVisible }
+
+        mDisplayView = findViewById(R.id.display)
+        mModeView = findViewById(R.id.mode)
+        mFormulaText = findViewById(R.id.formula)
+        mResultText = findViewById(R.id.result)
+        mFormulaContainer = findViewById(R.id.formula_container)
+
+        mPadViewPager = findViewById(R.id.pad_pager)
+        mDeleteButton = findViewById(R.id.del)
+        mClearButton = findViewById(R.id.clr)
+        mEqualButton = findViewById<View>(R.id.pad_numeric).findViewById(R.id.eq)
+        if (mEqualButton == null || mEqualButton!!.visibility != View.VISIBLE) {
+            mEqualButton = findViewById<View>(R.id.pad_operator).findViewById(R.id.eq)
+        }
+
+        mInverseToggle = findViewById(R.id.toggle_inv)
+        mModeToggle = findViewById(R.id.toggle_mode)
+
+        mOneLine = mResultText!!.visibility == View.INVISIBLE
+
+        mInvertibleButtons = arrayOf(findViewById(R.id.fun_sin), findViewById(R.id.fun_cos), findViewById(R.id.fun_tan), findViewById(R.id.fun_ln), findViewById(R.id.fun_log), findViewById(R.id.op_sqrt))
+        mInverseButtons = arrayOf(findViewById(R.id.fun_arcsin), findViewById(R.id.fun_arccos), findViewById(R.id.fun_arctan), findViewById(R.id.fun_exp), findViewById(R.id.fun_10pow), findViewById(R.id.op_sqr))
+
+        mEvaluator = Evaluator(this, mResultText)
+        mResultText!!.setEvaluator(mEvaluator)
+        KeyMaps.setActivity(this)
+
+        if (savedInstanceState != null) {
+            setState(CalculatorState.values()[savedInstanceState.getInt(KEY_DISPLAY_STATE,
+                    CalculatorState.INPUT.ordinal)])
+            val unprocessed = savedInstanceState.getCharSequence(KEY_UNPROCESSED_CHARS)
+            if (unprocessed != null) {
+                mUnprocessedChars = unprocessed.toString()
+            }
+            val state = savedInstanceState.getByteArray(KEY_EVAL_STATE)
+            if (state != null) {
+                try {
+                    ObjectInputStream(ByteArrayInputStream(state)).use { `in` -> mEvaluator!!.restoreInstanceState(`in`) }
+                } catch (ignored: Throwable) {
+                    // When in doubt, revert to clean state
+                    mCurrentState = CalculatorState.INPUT
+                    mEvaluator!!.clear()
+                }
+
+            }
+        } else {
+            mCurrentState = CalculatorState.INPUT
+            mEvaluator!!.clear()
+        }
+
+        mFormulaText!!.setOnTextSizeChangeListener(this)
+        mFormulaText!!.setOnPasteListener(this)
+        mFormulaText!!.addTextChangedListener(mFormulaTextWatcher)
+        mDeleteButton!!.setOnLongClickListener(this)
+
+        onInverseToggled(savedInstanceState != null && savedInstanceState.getBoolean(KEY_INVERSE_MODE))
+        onModeChanged(mEvaluator!!.degreeMode)
+
+        if (mCurrentState != CalculatorState.INPUT) {
+            // Just reevaluate.
+            redisplayFormula()
+            setState(CalculatorState.INIT)
+            mEvaluator!!.requireResult()
+        } else {
+            redisplayAfterFormulaChange()
+        }
+        // TODO: We're currently not saving and restoring scroll position.
+        //       We probably should.  Details may require care to deal with:
+        //         - new display size
+        //         - slow re-computation if we've scrolled far.
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // Always temporarily show the toolbar initially on launch.
+        showAndMaybeHideToolbar()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        mEvaluator!!.cancelAll(true)
+        // If there's an animation in progress, cancel it first to ensure our state is up-to-date.
+        if (mCurrentAnimator != null) {
+            mCurrentAnimator!!.cancel()
+        }
+
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_DISPLAY_STATE, mCurrentState!!.ordinal)
+        outState.putCharSequence(KEY_UNPROCESSED_CHARS, mUnprocessedChars)
+        val byteArrayStream = ByteArrayOutputStream()
+        try {
+            ObjectOutputStream(byteArrayStream).use { out -> mEvaluator!!.saveInstanceState(out) }
+        } catch (e: IOException) {
+            // Impossible; No IO involved.
+            throw AssertionError("Impossible IO exception", e)
+        }
+
+        outState.putByteArray(KEY_EVAL_STATE, byteArrayStream.toByteArray())
+        outState.putBoolean(KEY_INVERSE_MODE, mInverseToggle!!.isSelected)
+    }
+
+    // Set the state, updating delete label and display colors.
+    // This restores display positions on moving to INPUT.
+    // But movement/animation for moving to RESULT has already been done.
+    private fun setState(state: CalculatorState) {
+        if (mCurrentState != state) {
+            if (state == CalculatorState.INPUT) {
+                restoreDisplayPositions()
+            }
+            mCurrentState = state
+
+            if (mCurrentState == CalculatorState.RESULT) {
+                // No longer do this for ERROR; allow mistakes to be corrected.
+                mDeleteButton!!.visibility = View.GONE
+                mClearButton!!.visibility = View.VISIBLE
+            } else {
+                mDeleteButton!!.visibility = View.VISIBLE
+                mClearButton!!.visibility = View.GONE
+            }
+
+            if (mOneLine) {
+                if (mCurrentState == CalculatorState.RESULT
+                        || mCurrentState == CalculatorState.EVALUATE
+                        || mCurrentState == CalculatorState.ANIMATE) {
+                    mFormulaText!!.visibility = View.VISIBLE
+                    mResultText!!.visibility = View.VISIBLE
+                } else if (mCurrentState == CalculatorState.ERROR) {
+                    mFormulaText!!.visibility = View.INVISIBLE
+                    mResultText!!.visibility = View.VISIBLE
+                } else {
+                    mFormulaText!!.visibility = View.VISIBLE
+                    mResultText!!.visibility = View.INVISIBLE
+                }
+            }
+
+            if (mCurrentState == CalculatorState.ERROR) {
+                val errorColor = ContextCompat.getColor(this, R.color.calculator_error_color)
+                mFormulaText!!.setTextColor(errorColor)
+                mResultText!!.setTextColor(errorColor)
+                window.statusBarColor = errorColor
+            } else if (mCurrentState != CalculatorState.RESULT) {
+                mFormulaText!!.setTextColor(
+                        ContextCompat.getColor(this, R.color.display_formula_text_color))
+                mResultText!!.setTextColor(
+                        ContextCompat.getColor(this, R.color.display_result_text_color))
+                window.statusBarColor = ContextCompat.getColor(this, R.color.calculator_accent_color)
+            }
+
+            invalidateOptionsMenu()
+        }
+    }
+
+    override fun onActionModeStarted(mode: ActionMode) {
+        super.onActionModeStarted(mode)
+        if (mode.tag === CalculatorText.TAG_ACTION_MODE) {
+            mFormulaContainer!!.scrollTo(mFormulaText!!.right, 0)
+        }
+    }
+
+    /**
+     * Stop any active ActionMode or ContextMenu for copy/paste actions.
+     * Return true if there was one.
+     */
+    private fun stopActionModeOrContextMenu(): Boolean {
+        if (mResultText!!.stopActionModeOrContextMenu()) {
+            return true
+        }
+
+        return if (mFormulaText!!.stopActionModeOrContextMenu()) {
+            true
+        } else false
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+
+        // If there's an animation in progress, end it immediately, so the user interaction can
+        // be handled.
+        if (mCurrentAnimator != null) {
+            mCurrentAnimator!!.end()
+        }
+    }
+
+    override fun onBackPressed() {
+        if (!stopActionModeOrContextMenu()) {
+            if (mPadViewPager != null && mPadViewPager!!.currentItem != 0) {
+                // Select the previous pad.
+                mPadViewPager!!.currentItem = mPadViewPager!!.currentItem - 1
+            } else {
+                // If the user is currently looking at the first pad (or the pad is not paged),
+                // allow the system to handle the Back button.
+                super.onBackPressed()
+            }
+        }
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        // Allow the system to handle special key codes (e.g. "BACK" or "DPAD").
+        when (keyCode) {
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> return super.onKeyUp(keyCode, event)
+        }
+
+        // Stop the action mode or context menu if it's showing.
+        stopActionModeOrContextMenu()
+
+        // Always cancel unrequested in-progress evaluation, so that we don't have to worry about
+        // subsequent asynchronous completion.
+        // Requested in-progress evaluations are handled below.
+        if (mCurrentState != CalculatorState.EVALUATE) {
+            mEvaluator!!.cancelAll(true)
+        }
+
+        when (keyCode) {
+            KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
+                mCurrentButton = mEqualButton
+                onEquals()
+                return true
+            }
+            KeyEvent.KEYCODE_DEL -> {
+                mCurrentButton = mDeleteButton
+                onDelete()
+                return true
+            }
+            else -> {
+                cancelIfEvaluating(false)
+                val raw = event.keyCharacterMap.get(keyCode, event.metaState)
+                if (raw and KeyCharacterMap.COMBINING_ACCENT != 0) {
+                    return true // discard
+                }
+                // Try to discard non-printing characters and the like.
+                // The user will have to explicitly delete other junk that gets past us.
+                if (Character.isIdentifierIgnorable(raw) || Character.isWhitespace(raw)) {
+                    return true
+                }
+                val c = raw.toChar()
+                if (c == '=') {
+                    mCurrentButton = mEqualButton
+                    onEquals()
+                } else {
+                    addChars(c.toString(), true)
+                    redisplayAfterFormulaChange()
+                }
+                return true
+            }
+        }
+    }
+
+    /**
+     * Invoked whenever the inverse button is toggled to update the UI.
+     *
+     * @param showInverse `true` if inverse functions should be shown
+     */
+    private fun onInverseToggled(showInverse: Boolean) {
+        mInverseToggle!!.isSelected = showInverse
+        if (showInverse) {
+            mInverseToggle!!.contentDescription = getString(R.string.desc_inv_on)
+            for (invertibleButton in mInvertibleButtons!!) {
+                invertibleButton.visibility = View.GONE
+            }
+            for (inverseButton in mInverseButtons!!) {
+                inverseButton.visibility = View.VISIBLE
+            }
+        } else {
+            mInverseToggle!!.contentDescription = getString(R.string.desc_inv_off)
+            for (invertibleButton in mInvertibleButtons!!) {
+                invertibleButton.visibility = View.VISIBLE
+            }
+            for (inverseButton in mInverseButtons!!) {
+                inverseButton.visibility = View.GONE
+            }
+        }
+    }
+
+    /**
+     * Invoked whenever the deg/rad mode may have changed to update the UI.
+     *
+     * @param degreeMode `true` if in degree mode
+     */
+    private fun onModeChanged(degreeMode: Boolean) {
+        if (degreeMode) {
+            mModeView!!.setText(R.string.mode_deg)
+            mModeView!!.contentDescription = getString(R.string.desc_mode_deg)
+
+            mModeToggle!!.setText(R.string.mode_rad)
+            mModeToggle!!.contentDescription = getString(R.string.desc_switch_rad)
+        } else {
+            mModeView!!.setText(R.string.mode_rad)
+            mModeView!!.contentDescription = getString(R.string.desc_mode_rad)
+
+            mModeToggle!!.setText(R.string.mode_deg)
+            mModeToggle!!.contentDescription = getString(R.string.desc_switch_deg)
+        }
+
+        // Show the toolbar to highlight the mode change.
+        showAndMaybeHideToolbar()
+    }
+
+    /**
+     * Switch to INPUT from RESULT state in response to input of the specified button_id.
+     * View.NO_ID is treated as an incomplete function id.
+     */
+    private fun switchToInput(button_id: Int) {
+        if (KeyMaps.isBinary(button_id) || KeyMaps.isSuffix(button_id)) {
+            mEvaluator!!.collapse()
+        } else {
+            announceClearedForAccessibility()
+            mEvaluator!!.clear()
+        }
+        setState(CalculatorState.INPUT)
+    }
+
+    // Add the given button id to input expression.
+    // If appropriate, clear the expression before doing so.
+    private fun addKeyToExpr(id: Int) {
+        if (mCurrentState == CalculatorState.ERROR) {
+            setState(CalculatorState.INPUT)
+        } else if (mCurrentState == CalculatorState.RESULT) {
+            switchToInput(id)
+        }
+
+        if (!mEvaluator!!.append(id)) {
+            // TODO: Some user visible feedback?
+        }
+    }
+
+    /**
+     * Add the given button id to input expression, assuming it was explicitly
+     * typed/touched.
+     * We perform slightly more aggressive correction than in pasted expressions.
+     */
+    private fun addExplicitKeyToExpr(id: Int) {
+        if (mCurrentState == CalculatorState.INPUT && id == R.id.op_sub) {
+            mEvaluator!!.expr.removeTrailingAdditiveOperators()
+        }
+        addKeyToExpr(id)
+    }
+
+    private fun redisplayAfterFormulaChange() {
+        // TODO: Could do this more incrementally.
+        redisplayFormula()
+        setState(CalculatorState.INPUT)
+        if (haveUnprocessed()) {
+            mResultText!!.clear()
+            // Force reevaluation when text is deleted, even if expression is unchanged.
+            mEvaluator!!.touch()
+        } else {
+            if (mEvaluator!!.expr.hasInterestingOps()) {
+                mEvaluator!!.evaluateAndShowResult()
+            } else {
+                mResultText!!.clear()
+            }
+        }
+    }
+
+    /**
+     * Show the toolbar.
+     * Automatically hide it again if it's not relevant to current formula.
+     */
+    private fun showAndMaybeHideToolbar() {
+        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator!!.hasTrigFuncs()
+        mDisplayView!!.showToolbar(!shouldBeVisible)
+    }
+
+    /**
+     * Display or hide the toolbar depending on calculator state.
+     */
+    private fun showOrHideToolbar() {
+        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator!!.hasTrigFuncs()
+        if (shouldBeVisible) {
+            mDisplayView!!.showToolbar(false)
+        } else {
+            mDisplayView!!.hideToolbar()
+        }
+    }
+
+    @Suppress("unused")
+    fun onButtonClick(view: View) {
+        // Any animation is ended before we get here.
+        mCurrentButton = view
+        stopActionModeOrContextMenu()
+
+        // See onKey above for the rationale behind some of the behavior below:
+        if (mCurrentState != CalculatorState.EVALUATE) {
+            // Cancel evaluations that were not specifically requested.
+            mEvaluator!!.cancelAll(true)
+        }
+
+        val id = view.id
+        when (id) {
+            R.id.eq -> onEquals()
+            R.id.del -> onDelete()
+            R.id.clr -> {
+                onClear()
+                return   // Toolbar visibility adjusted at end of animation.
+            }
+            R.id.toggle_inv -> {
+                val selected = !mInverseToggle!!.isSelected
+                mInverseToggle!!.isSelected = selected
+                onInverseToggled(selected)
+                if (mCurrentState == CalculatorState.RESULT) {
+                    mResultText!!.redisplay()   // In case we cancelled reevaluation.
+                }
+            }
+            R.id.toggle_mode -> {
+                cancelIfEvaluating(false)
+                val mode = !mEvaluator!!.degreeMode
+                if (mCurrentState == CalculatorState.RESULT) {
+                    mEvaluator!!.collapse()  // Capture result evaluated in old mode
+                    redisplayFormula()
+                }
+                // In input mode, we reinterpret already entered trig functions.
+                mEvaluator!!.degreeMode = mode
+                onModeChanged(mode)
+                setState(CalculatorState.INPUT)
+                mResultText!!.clear()
+                if (!haveUnprocessed() && mEvaluator!!.expr.hasInterestingOps()) {
+                    mEvaluator!!.evaluateAndShowResult()
+                }
+                return   // onModeChanged adjusted toolbar visibility.
+            }
+            else -> {
+                cancelIfEvaluating(false)
+                if (haveUnprocessed()) {
+                    // For consistency, append as uninterpreted characters.
+                    // This may actually be useful for a left parenthesis.
+                    addChars(KeyMaps.toString(this, id), true)
+                } else {
+                    addExplicitKeyToExpr(id)
+                    redisplayAfterFormulaChange()
+                }
+            }
+        }
+        showOrHideToolbar()
+    }
+
+    internal fun redisplayFormula() {
+        val formula = mEvaluator!!.expr.toSpannableStringBuilder(this)
+        if (mUnprocessedChars != null) {
+            // Add and highlight characters we couldn't process.
+            formula.append(mUnprocessedChars, mUnprocessedColorSpan,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        mFormulaText!!.changeTextTo(formula)
+        mFormulaText!!.contentDescription = if (TextUtils.isEmpty(formula))
+            getString(R.string.desc_formula)
+        else
+            null
+    }
+
+    override fun onLongClick(view: View): Boolean {
+        mCurrentButton = view
+
+        if (view.id == R.id.del) {
+            onClear()
+            return true
+        }
+        return false
+    }
+
+    // Initial evaluation completed successfully.  Initiate display.
+    fun onEvaluate(initDisplayPrec: Int, msd: Int, leastDigPos: Int,
+                   truncatedWholeNumber: String) {
+        // Invalidate any options that may depend on the current result.
+        invalidateOptionsMenu()
+
+        mResultText!!.displayResult(initDisplayPrec, msd, leastDigPos, truncatedWholeNumber)
+        if (mCurrentState != CalculatorState.INPUT) { // in EVALUATE or INIT state
+            onResult(mCurrentState != CalculatorState.INIT)
+        }
+    }
+
+    // Reset state to reflect evaluator cancellation.  Invoked by evaluator.
+    fun onCancelled() {
+        // We should be in EVALUATE state.
+        setState(CalculatorState.INPUT)
+        mResultText!!.clear()
+    }
+
+    // Reevaluation completed; ask result to redisplay current value.
+    fun onReevaluate() {
+        mResultText!!.redisplay()
+    }
+
+    override fun onTextSizeChanged(textView: TextView, oldSize: Float) {
+        if (mCurrentState != CalculatorState.INPUT) {
+            // Only animate text changes that occur from user input.
+            return
+        }
+
+        // Calculate the values needed to perform the scale and translation animations,
+        // maintaining the same apparent baseline for the displayed text.
+        val textScale = oldSize / textView.textSize
+        val translationX = (1.0f - textScale) * (textView.width / 2.0f - textView.paddingEnd)
+        val translationY = (1.0f - textScale) * (textView.height / 2.0f - textView.paddingBottom)
+
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(
+                ObjectAnimator.ofFloat(textView, View.SCALE_X, textScale, 1.0f),
+                ObjectAnimator.ofFloat(textView, View.SCALE_Y, textScale, 1.0f),
+                ObjectAnimator.ofFloat(textView, View.TRANSLATION_X, translationX, 0.0f),
+                ObjectAnimator.ofFloat(textView, View.TRANSLATION_Y, translationY, 0.0f))
+        animatorSet.duration = resources.getInteger(android.R.integer.config_mediumAnimTime).toLong()
+        animatorSet.interpolator = AccelerateDecelerateInterpolator()
+        animatorSet.start()
+    }
+
+    /**
+     * Cancel any in-progress explicitly requested evaluations.
+     * @param quiet suppress pop-up message.  Explicit evaluation can change the expression
+     * value, and certainly changes the display, so it seems reasonable to warn.
+     * @return      true if there was such an evaluation
+     */
+    private fun cancelIfEvaluating(quiet: Boolean): Boolean {
+        if (mCurrentState == CalculatorState.EVALUATE) {
+            mEvaluator!!.cancelAll(quiet)
+            return true
+        } else {
+            return false
+        }
+    }
+
+    private fun haveUnprocessed(): Boolean {
+        return mUnprocessedChars != null && !mUnprocessedChars!!.isEmpty()
+    }
+
+    private fun onEquals() {
+        // Ignore if in non-INPUT state, or if there are no operators.
+        if (mCurrentState == CalculatorState.INPUT) {
+            if (haveUnprocessed()) {
+                setState(CalculatorState.EVALUATE)
+                onError(R.string.error_syntax)
+            } else if (mEvaluator!!.expr.hasInterestingOps()) {
+                setState(CalculatorState.EVALUATE)
+                mEvaluator!!.requireResult()
+            }
+        }
+    }
+
+    private fun onDelete() {
+        // Delete works like backspace; remove the last character or operator from the expression.
+        // Note that we handle keyboard delete exactly like the delete button.  For
+        // example the delete button can be used to delete a character from an incomplete
+        // function name typed on a physical keyboard.
+        // This should be impossible in RESULT state.
+        // If there is an in-progress explicit evaluation, just cancel it and return.
+        if (cancelIfEvaluating(false)) return
+        setState(CalculatorState.INPUT)
+        if (haveUnprocessed()) {
+            mUnprocessedChars = mUnprocessedChars!!.substring(0, mUnprocessedChars!!.length - 1)
+        } else {
+            mEvaluator!!.delete()
+        }
+        if (mEvaluator!!.expr.isEmpty && !haveUnprocessed()) {
+            // Resulting formula won't be announced, since it's empty.
+            announceClearedForAccessibility()
+        }
+        redisplayAfterFormulaChange()
+    }
+
+    private fun reveal(sourceView: View, colorRes: Int, listener: AnimatorListener) {
+        val groupOverlay = window.decorView.overlay as ViewGroupOverlay
+
+        val displayRect = Rect()
+        mDisplayView!!.getGlobalVisibleRect(displayRect)
+
+        // Make reveal cover the display and status bar.
+        val revealView = View(this)
+        revealView.bottom = displayRect.bottom
+        revealView.left = displayRect.left
+        revealView.right = displayRect.right
+        revealView.setBackgroundColor(ContextCompat.getColor(this, colorRes))
+        groupOverlay.add(revealView)
+
+        val clearLocation = IntArray(2)
+        sourceView.getLocationInWindow(clearLocation)
+        clearLocation[0] += sourceView.width / 2
+        clearLocation[1] += sourceView.height / 2
+
+        val revealCenterX = clearLocation[0] - revealView.left
+        val revealCenterY = clearLocation[1] - revealView.top
+
+        val x1_2 = Math.pow((revealView.left - revealCenterX).toDouble(), 2.0)
+        val x2_2 = Math.pow((revealView.right - revealCenterX).toDouble(), 2.0)
+        val y_2 = Math.pow((revealView.top - revealCenterY).toDouble(), 2.0)
+        val revealRadius = Math.max(Math.sqrt(x1_2 + y_2), Math.sqrt(x2_2 + y_2)).toFloat()
+
+        val revealAnimator = ViewAnimationUtils.createCircularReveal(revealView,
+                revealCenterX, revealCenterY, 0.0f, revealRadius)
+        revealAnimator.duration = resources.getInteger(android.R.integer.config_longAnimTime).toLong()
+        revealAnimator.addListener(listener)
+
+        val alphaAnimator = ObjectAnimator.ofFloat(revealView, View.ALPHA, 0.0f)
+        alphaAnimator.duration = resources.getInteger(android.R.integer.config_mediumAnimTime).toLong()
+
+        val animatorSet = AnimatorSet()
+        animatorSet.play(revealAnimator).before(alphaAnimator)
+        animatorSet.interpolator = AccelerateDecelerateInterpolator()
+        animatorSet.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animator: Animator) {
+                groupOverlay.remove(revealView)
+                mCurrentAnimator = null
+            }
+        })
+
+        mCurrentAnimator = animatorSet
+        animatorSet.start()
+    }
+
+    private fun announceClearedForAccessibility() {
+        mResultText!!.announceForAccessibility(resources.getString(R.string.cleared))
+    }
+
+    private fun onClear() {
+        if (mEvaluator!!.expr.isEmpty && !haveUnprocessed()) {
+            return
+        }
+        cancelIfEvaluating(true)
+        announceClearedForAccessibility()
+        reveal(mCurrentButton!!, R.color.calculator_accent_color, object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                mUnprocessedChars = null
+                mResultText!!.clear()
+                mEvaluator!!.clear()
+                setState(CalculatorState.INPUT)
+                showOrHideToolbar()
+                redisplayFormula()
+            }
+        })
+    }
+
+    // Evaluation encountered en error.  Display the error.
+    fun onError(errorResourceId: Int) {
+        if (mCurrentState == CalculatorState.EVALUATE) {
+            setState(CalculatorState.ANIMATE)
+            mResultText!!.announceForAccessibility(resources.getString(errorResourceId))
+            reveal(mCurrentButton!!, R.color.calculator_error_color,
+                    object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            setState(CalculatorState.ERROR)
+                            mResultText!!.displayError(errorResourceId)
+                        }
+                    })
+        } else if (mCurrentState == CalculatorState.INIT) {
+            setState(CalculatorState.ERROR)
+            mResultText!!.displayError(errorResourceId)
+        } else {
+            mResultText!!.clear()
+        }
+    }
+
+    // Animate movement of result into the top formula slot.
+    // Result window now remains translated in the top slot while the result is displayed.
+    // (We convert it back to formula use only when the user provides new input.)
+    // Historical note: In the Lollipop version, this invisibly and instantaneously moved
+    // formula and result displays back at the end of the animation.  We no longer do that,
+    // so that we can continue to properly support scrolling of the result.
+    // We assume the result already contains the text to be expanded.
+    private fun onResult(animate: Boolean) {
+        // Calculate the textSize that would be used to display the result in the formula.
+        // For scrollable results just use the minimum textSize to maximize the number of digits
+        // that are visible on screen.
+        var textSize = mFormulaText!!.minimumTextSize
+        if (!mResultText!!.isScrollable) {
+            textSize = mFormulaText!!.getVariableTextSize(mResultText!!.text.toString())
+        }
+
+        // Scale the result to match the calculated textSize, minimizing the jump-cut transition
+        // when a result is reused in a subsequent expression.
+        val resultScale = textSize / mResultText!!.textSize
+
+        // Set the result's pivot to match its gravity.
+        mResultText!!.pivotX = (mResultText!!.width - mResultText!!.paddingRight).toFloat()
+        mResultText!!.pivotY = (mResultText!!.height - mResultText!!.paddingBottom).toFloat()
+
+        // Calculate the necessary translations so the result takes the place of the formula and
+        // the formula moves off the top of the screen.
+        val resultTranslationY = (mFormulaContainer!!.bottom - mResultText!!.bottom - (mFormulaText!!.paddingBottom - mResultText!!.paddingBottom)).toFloat()
+        var formulaTranslationY = (-mFormulaContainer!!.bottom).toFloat()
+        if (mOneLine) {
+            // Position the result text.
+            mResultText!!.y = mResultText!!.bottom.toFloat()
+            formulaTranslationY = (-(findViewById<View>(R.id.toolbar).bottom + mFormulaContainer!!.bottom)).toFloat()
+        }
+
+        // Change the result's textColor to match the formula.
+        val formulaTextColor = mFormulaText!!.currentTextColor
+
+        if (animate) {
+            mResultText!!.announceForAccessibility(resources.getString(R.string.desc_eq))
+            mResultText!!.announceForAccessibility(mResultText!!.text)
+            setState(CalculatorState.ANIMATE)
+            val animatorSet = AnimatorSet()
+            animatorSet.playTogether(
+                    ObjectAnimator.ofPropertyValuesHolder(mResultText,
+                            PropertyValuesHolder.ofFloat(View.SCALE_X, resultScale),
+                            PropertyValuesHolder.ofFloat(View.SCALE_Y, resultScale),
+                            PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, resultTranslationY)),
+                    ObjectAnimator.ofArgb(mResultText, TEXT_COLOR, formulaTextColor),
+                    ObjectAnimator.ofFloat(mFormulaContainer, View.TRANSLATION_Y,
+                            formulaTranslationY))
+            animatorSet.duration = resources.getInteger(
+                    android.R.integer.config_longAnimTime).toLong()
+            animatorSet.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    setState(CalculatorState.RESULT)
+                    mCurrentAnimator = null
+                }
+            })
+
+            mCurrentAnimator = animatorSet
+            animatorSet.start()
+        } else
+        /* No animation desired; get there fast, e.g. when restarting */ {
+            mResultText!!.scaleX = resultScale
+            mResultText!!.scaleY = resultScale
+            mResultText!!.translationY = resultTranslationY
+            mResultText!!.setTextColor(formulaTextColor)
+            mFormulaContainer!!.translationY = formulaTranslationY
+            setState(CalculatorState.RESULT)
+        }
+    }
+
+    // Restore positions of the formula and result displays back to their original,
+    // pre-animation state.
+    private fun restoreDisplayPositions() {
+        // Clear result.
+        mResultText!!.text = ""
+        // Reset all of the values modified during the animation.
+        mResultText!!.scaleX = 1.0f
+        mResultText!!.scaleY = 1.0f
+        mResultText!!.translationX = 0.0f
+        mResultText!!.translationY = 0.0f
+        mFormulaContainer!!.translationY = 0.0f
+
+        mFormulaText!!.requestFocus()
+    }
+
+    override fun onClick(fragment: AlertDialogFragment, which: Int) {
+        if (which == DialogInterface.BUTTON_POSITIVE) {
+            // Timeout extension request.
+            mEvaluator!!.setLongTimeOut()
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        super.onCreateOptionsMenu(menu)
+
+        menuInflater.inflate(R.menu.activity_calculator, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        super.onPrepareOptionsMenu(menu)
+
+        // Show the leading option when displaying a result.
+        menu.findItem(R.id.menu_leading).isVisible = mCurrentState == CalculatorState.RESULT
+
+        // Show the fraction option when displaying a rational result.
+        menu.findItem(R.id.menu_fraction).isVisible = mCurrentState == CalculatorState.RESULT && mEvaluator!!.result.exactlyDisplayable()
+
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_leading -> {
+                displayFull()
+                return true
+            }
+            R.id.menu_fraction -> {
+                displayFraction()
+                return true
+            }
+            R.id.menu_licenses -> {
+                startActivity(Intent(this, Licenses::class.java))
+                return true
+            }
+            else -> return super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun displayMessage(s: String) {
+        AlertDialogFragment.showMessageDialog(this, s, null)
+    }
+
+    private fun displayFraction() {
+        val result = mEvaluator!!.result
+        displayMessage(KeyMaps.translateResult(result.toNiceString()))
+    }
+
+    // Display full result to currently evaluated precision
+    private fun displayFull() {
+        val res = resources
+        var msg = mResultText!!.getFullText(true /* withSeparators */) + " "
+        if (mResultText!!.fullTextIsExact()) {
+            msg += res.getString(R.string.exact)
+        } else {
+            msg += res.getString(R.string.approximate)
+        }
+        displayMessage(msg)
+    }
+
+    /**
+     * Add input characters to the end of the expression.
+     * Map them to the appropriate button pushes when possible.  Leftover characters
+     * are added to mUnprocessedChars, which is presumed to immediately precede the newly
+     * added characters.
+     * @param moreChars characters to be added
+     * @param explicit these characters were explicitly typed by the user, not pasted
+     */
+    private fun addChars(moreChars: String, explicit: Boolean) {
+        var localMoreChars = moreChars
+        if (mUnprocessedChars != null) {
+            localMoreChars = mUnprocessedChars!! + localMoreChars
+        }
+        var current = 0
+        val len = localMoreChars.length
+        var lastWasDigit = false
+        if (mCurrentState == CalculatorState.RESULT && len != 0) {
+            // Clear display immediately for incomplete function name.
+            switchToInput(KeyMaps.keyForChar(localMoreChars[current]))
+        }
+        val groupingSeparator = KeyMaps.translateResult(",")[0]
+        while (current < len) {
+            val c = localMoreChars[current]
+            if (Character.isSpaceChar(c) || c == groupingSeparator) {
+                ++current
+                continue
+            }
+            val k = KeyMaps.keyForChar(c)
+            if (!explicit) {
+                val expEnd: Int = Evaluator.exponentEnd(localMoreChars, current)
+                if (lastWasDigit && current != expEnd) {
+                    // Process scientific notation with 'E' when pasting, in spite of ambiguity
+                    // with base of natural log.
+                    // Otherwise the 10^x key is the user's friend.
+                    mEvaluator!!.addExponent(localMoreChars, current, expEnd)
+                    current = expEnd
+                    lastWasDigit = false
+                    continue
+                } else {
+                    val isDigit = KeyMaps.digVal(k) != KeyMaps.NOT_DIGIT
+                    if (current == 0 && (isDigit || k == R.id.dec_point)
+                            && mEvaluator!!.expr.hasTrailingConstant()) {
+                        // Refuse to concatenate pasted content to trailing constant.
+                        // This makes pasting of calculator results more consistent, whether or
+                        // not the old calculator instance is still around.
+                        addKeyToExpr(R.id.op_mul)
+                    }
+                    lastWasDigit = isDigit || lastWasDigit && k == R.id.dec_point
+                }
+            }
+            if (k != View.NO_ID) {
+                mCurrentButton = findViewById(k)
+                if (explicit) {
+                    addExplicitKeyToExpr(k)
+                } else {
+                    addKeyToExpr(k)
+                }
+                if (Character.isSurrogate(c)) {
+                    current += 2
+                } else {
+                    ++current
+                }
+                continue
+            }
+            val f = KeyMaps.funForString(localMoreChars, current)
+            if (f != View.NO_ID) {
+                mCurrentButton = findViewById(f)
+                if (explicit) {
+                    addExplicitKeyToExpr(f)
+                } else {
+                    addKeyToExpr(f)
+                }
+                if (f == R.id.op_sqrt) {
+                    // Square root entered as function; don't lose the parenthesis.
+                    addKeyToExpr(R.id.lparen)
+                }
+                current = localMoreChars.indexOf('(', current) + 1
+                continue
+            }
+            // There are characters left, but we can't convert them to button presses.
+            mUnprocessedChars = localMoreChars.substring(current)
+            redisplayAfterFormulaChange()
+            showOrHideToolbar()
+            return
+        }
+        mUnprocessedChars = null
+        redisplayAfterFormulaChange()
+        showOrHideToolbar()
+    }
+
+    override fun onPaste(clip: ClipData): Boolean {
+        val item = (if (clip.itemCount == 0) null else clip.getItemAt(0))
+                ?: // nothing to paste, bail early...
+                return false
+
+        // Check if the item is a previously copied result, otherwise paste as raw text.
+        val uri = item.uri
+        if (uri != null && mEvaluator!!.isLastSaved(uri)) {
+            if (mCurrentState == CalculatorState.ERROR || mCurrentState == CalculatorState.RESULT) {
+                setState(CalculatorState.INPUT)
+                mEvaluator!!.clear()
+            }
+            mEvaluator!!.appendSaved()
+            redisplayAfterFormulaChange()
+        } else {
+            addChars(item.coerceToText(this).toString(), false)
+        }
+        return true
+    }
+
+    /**
+     * Clean up animation for context menu.
+     */
+    override fun onContextMenuClosed(menu: Menu) {
+        stopActionModeOrContextMenu()
+    }
+
+    companion object {
+
+        /**
+         * Constant for an invalid resource id.
+         */
+        val INVALID_RES_ID = -1
+
+        private val NAME = "Calculator"
+        private val KEY_DISPLAY_STATE = NAME + "_display_state"
+        private val KEY_UNPROCESSED_CHARS = NAME + "_unprocessed_chars"
+        /**
+         * Associated value is a byte array holding the evaluator state.
+         */
+        private val KEY_EVAL_STATE = NAME + "_eval_state"
+        private val KEY_INVERSE_MODE = NAME + "_inverse_mode"
+    }
+}

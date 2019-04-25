@@ -203,7 +203,7 @@ class Evaluator {
         public final int newResultStringOffset;
         public final int initDisplayOffset;
         InitialResult(UnifiedReal v, String s, int p, int idp) {
-            errorResourceId = Calculator.INVALID_RES_ID;
+            errorResourceId = Calculator.Companion.getINVALID_RES_ID();
             val = v;
             newResultString = s;
             newResultStringOffset = p;
@@ -217,7 +217,7 @@ class Evaluator {
             initDisplayOffset = 0;
         }
         boolean isError() {
-            return errorResourceId != Calculator.INVALID_RES_ID;
+            return errorResourceId != Calculator.Companion.getINVALID_RES_ID();
         }
     }
 
