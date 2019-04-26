@@ -158,6 +158,7 @@ public class CalculatorFormula extends AlignedTextView implements MenuItem.OnMen
         return mMinimumTextSize;
     }
 
+    @SuppressWarnings("unused")
     public float getMaximumTextSize() {
         return mMaximumTextSize;
     }
@@ -386,6 +387,7 @@ public class CalculatorFormula extends AlignedTextView implements MenuItem.OnMen
     }
 
     public interface OnFormulaContextMenuClickListener {
+        @SuppressWarnings("UnusedReturnValue")
         boolean onPaste(ClipData clip);
         void onMemoryRecall();
     }

@@ -16,7 +16,7 @@
 
 package com.example.calculator2;
 
-import com.example.calculator2.CR;
+import org.jetbrains.annotations.NotNull;
 
 import java.math.BigInteger;
 import java.util.Objects;
@@ -24,7 +24,7 @@ import java.util.Random;
 
 /**
  * Rational numbers that may turn to null if they get too big.
- * For many operations, if the length of the nuumerator plus the length of the denominator exceeds
+ * For many operations, if the length of the numerator plus the length of the denominator exceeds
  * a maximum size, we simply return null, and rely on our caller do something else.
  * We currently never return null for a pure integer or for a BoundedRational that has just been
  * constructed.
@@ -32,6 +32,7 @@ import java.util.Random;
  * We also implement a number of irrational functions.  These return a non-null result only when
  * the result is known to be rational.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class BoundedRational {
     // TODO: Consider returning null for integers.  With some care, large factorials might become
     // much faster.
@@ -79,7 +80,7 @@ public class BoundedRational {
         final long sign = x < 0.0 ? -1 : 1;
         int exp = biased_exp - 1075;  // 1023 + 52; we treat mantissa as integer.
         if (biased_exp == 0) {
-            exp += 1;  // Denormal exponent is 1 greater.
+            exp += 1;  // De-normal exponent is 1 greater.
         } else {
             mantissa += (1L << 52);  // Implied leading one.
         }
@@ -120,6 +121,8 @@ public class BoundedRational {
      * Convert to String reflecting raw representation.
      * Debug or log messages only, not pretty.
      */
+    @NotNull
+    @Override
     public String toString() {
         return mNum.toString() + "/" + mDen.toString();
     }
@@ -172,8 +175,8 @@ public class BoundedRational {
             return -BoundedRational.negate(this).doubleValue();
         }
         // We get the mantissa by dividing the numerator by denominator, after
-        // suitably prescaling them so that the integral part of the result contains
-        // enough bits. We do the prescaling to avoid any precision loss, so the division result
+        // suitably pre-scaling them so that the integral part of the result contains
+        // enough bits. We do the pre-scaling to avoid any precision loss, so the division result
         // is correctly truncated towards zero.
         final int apprExp = mNum.bitLength() - mDen.bitLength();
         if (apprExp < -1100 || sign == 0) {
@@ -205,7 +208,7 @@ public class BoundedRational {
             throw new AssertionError("doubleValue internal error");
         }
         final long mantissa = bigMantissa.longValue();
-        final long bits = (mantissa & ((1l << 52) - 1)) | (((long) exponent + 1023) << 52);
+        final long bits = (mantissa & ((1L << 52) - 1)) | (((long) exponent + 1023) << 52);
         return Double.longBitsToDouble(bits);
     }
 
@@ -233,7 +236,7 @@ public class BoundedRational {
 
     /**
      * Is this number too big for us to continue with rational arithmetic?
-     * We return fals for integers on the assumption that we have no better fallback.
+     * We return false for integers on the assumption that we have no better fallback.
      */
     private boolean tooBig() {
         if (mDen.equals(BigInteger.ONE)) {
@@ -304,6 +307,7 @@ public class BoundedRational {
 
     @Override
     public boolean equals(Object r) {
+        //noinspection ConditionCoveredByFurtherCondition
         return r != null && r instanceof BoundedRational && compareTo((BoundedRational) r) == 0;
     }
 
@@ -345,6 +349,7 @@ public class BoundedRational {
         return new BoundedRational(r.mNum.negate(), r.mDen);
     }
 
+    @SuppressWarnings("unused")
     public static BoundedRational subtract(BoundedRational r1, BoundedRational r2) {
         return add(r1, negate(r2));
     }
@@ -553,7 +558,7 @@ public class BoundedRational {
         }
         // If the denominator has a factor of other than 2 or 5 (the divisors of 10), the decimal
         // expansion does not terminate.  Multiplying the fraction by any number of powers of 10
-        // will not cancel the demoniator.  (Recall the fraction was in lowest terms to start
+        // will not cancel the denominator.  (Recall the fraction was in lowest terms to start
         // with.) Otherwise the powers of 10 we need to cancel the denominator is the larger of
         // powersOfTwo and powersOfFive.
         if (!den.equals(BigInteger.ONE) && !den.equals(BIG_MINUS_ONE)) {

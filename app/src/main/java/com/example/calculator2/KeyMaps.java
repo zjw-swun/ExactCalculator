@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.content.res.Resources;
 import android.content.Context;
 import android.app.Activity;
@@ -34,6 +35,7 @@ import java.util.Locale;
  * KeyMap instances are not meaningful; everything here is static.
  * All functions are either pure, or are assumed to be called only from a single UI thread.
  */
+@SuppressWarnings("WeakerAccess")
 public class KeyMaps {
     /**
      * Map key id to corresponding (internationalized) display string.
@@ -488,10 +490,11 @@ public class KeyMaps {
     /**
      * Activity to use for looking up buttons.
      */
+    @SuppressLint("StaticFieldLeak")
     private static Activity mActivity;
 
     /**
-     * Set acttivity used for looking up button labels.
+     * Set activity used for looking up button labels.
      * Call only from UI thread.
      */
     public static void setActivity(Activity a) {
@@ -543,7 +546,7 @@ public class KeyMaps {
             default:
                 if (c == mDecimalPt) return R.id.dec_point;
                 if (c == mPiChar) return R.id.const_pi;
-                    // pi is not translated, but it might be typable on a Greek keyboard,
+                    // pi is not translated, but it might be type-able on a Greek keyboard,
                     // or pasted in, so we check ...
                 return View.NO_ID;
         }
@@ -554,7 +557,7 @@ public class KeyMaps {
      * when mapping keyboard input to button ids.
      */
     static void addButtonToFunMap(int button_id) {
-        Button button = (Button)mActivity.findViewById(button_id);
+        Button button = mActivity.findViewById(button_id);
         sKeyValForFun.put(button.getText().toString(), button_id);
     }
 
@@ -563,7 +566,7 @@ public class KeyMaps {
      * when translating numbers on output.
      */
     static void addButtonToOutputMap(char c, int button_id) {
-        Button button = (Button)mActivity.findViewById(button_id);
+        Button button = mActivity.findViewById(button_id);
         sOutputForResultChar.put(c, button.getText().toString());
     }
 
@@ -575,7 +578,7 @@ public class KeyMaps {
         Locale locale = Locale.getDefault();
         if (!locale.equals(sLocaleForMaps)) {
             Log.v ("Calculator", "Setting locale to: " + locale.toLanguageTag());
-            sKeyValForFun = new HashMap<String, Integer>();
+            sKeyValForFun = new HashMap<>();
             sKeyValForFun.put("sin", R.id.fun_sin);
             sKeyValForFun.put("cos", R.id.fun_cos);
             sKeyValForFun.put("tan", R.id.fun_tan);
@@ -609,7 +612,7 @@ public class KeyMaps {
                 mPiChar = piString.charAt(0);
             }
 
-            sOutputForResultChar = new HashMap<Character, String>();
+            sOutputForResultChar = new HashMap<>();
             sOutputForResultChar.put('e', "E");
             sOutputForResultChar.put('E', "E");
             sOutputForResultChar.put(' ', String.valueOf(CHAR_DIGIT_UNKNOWN));
@@ -671,7 +674,7 @@ public class KeyMaps {
                 if (translation == null) {
                     // Should not get here.  Report if we do.
                     Log.v("Calculator", "Bad character:" + c);
-                    result.append(String.valueOf(c));
+                    result.append(c);
                 } else {
                     result.append(translation);
                 }

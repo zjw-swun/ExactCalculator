@@ -20,6 +20,7 @@ package com.example.calculator2;
  * Some helpful methods operating on strings.
  */
 
+@SuppressWarnings("WeakerAccess")
 public class StringUtils {
 
     /**
@@ -62,7 +63,7 @@ public class StringUtils {
 
     /**
      * Ignoring all occurrences of c in both strings, check whether old is a prefix of new.
-     * If so, return the remaining subsequence of whole. If not, return null.
+     * If so, return the remaining sub-sequence of whole. If not, return null.
      */
     public static CharSequence getExtensionIgnoring(CharSequence whole, CharSequence prefix,
             char c) {

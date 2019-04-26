@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import androidx.viewpager.widget.PagerAdapter;
@@ -27,6 +28,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
+@SuppressWarnings("FieldCanBeLocal")
 public class CalculatorPadViewPager extends ViewPager {
 
     private final PagerAdapter mStaticPagerAdapter = new PagerAdapter() {
@@ -35,6 +37,7 @@ public class CalculatorPadViewPager extends ViewPager {
             return getChildCount();
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public View instantiateItem(ViewGroup container, final int position) {
             final View child = getChildAt(position);
@@ -49,6 +52,7 @@ public class CalculatorPadViewPager extends ViewPager {
             // Set an OnTouchListener to always return true for onTouch events so that a touch
             // sequence cannot pass through the item to the item below.
             child.setOnTouchListener(new OnTouchListener() {
+                @SuppressLint("ClickableViewAccessibility")
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
                     v.onTouchEvent(event);
@@ -73,11 +77,13 @@ public class CalculatorPadViewPager extends ViewPager {
             return child;
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public void destroyItem(ViewGroup container, int position, Object object) {
             removeViewAt(position);
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public boolean isViewFromObject(View view, Object object) {
             return view == object;
@@ -120,6 +126,7 @@ public class CalculatorPadViewPager extends ViewPager {
     };
 
     private final PageTransformer mPageTransformer = new PageTransformer() {
+        @SuppressWarnings("NullableProblems")
         @Override
         public void transformPage(View view, float position) {
             if (position < 0.0f) {
@@ -179,6 +186,7 @@ public class CalculatorPadViewPager extends ViewPager {
         super.onFinishInflate();
 
         // Invalidate the adapter's data set since children may have been added during inflation.
+        //noinspection ConstantConditions
         getAdapter().notifyDataSetChanged();
 
         // Let page change listener know about our initial position.
@@ -236,6 +244,7 @@ public class CalculatorPadViewPager extends ViewPager {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         try {

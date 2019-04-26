@@ -98,7 +98,7 @@
 // Added toStringFloatRep.      Hans.Boehm@hp.com 4/1/2004
 // Added get_appr() synchronization to allow access from multiple threads
 // hboehm@google.com 4/25/2014
-// Changed cos() prescaling to avoid logarithmic depth tree.
+// Changed cos() pre-scaling to avoid logarithmic depth tree.
 // hboehm@google.com 6/30/2014
 // Added explicit asin() implementation.  Remove one.  Add ZERO and ONE and
 // make them public.  hboehm@google.com 5/21/2015
@@ -112,7 +112,7 @@
 // Have comparison check for interruption. hboehm@google.com 10/31/2017
 // Fix precision overflow issue in most general compareTo function.
 // Fix a couple of unused variable bugs. Notably selector_sign was
-// accidentally locally redeclared. (This turns out to be safe but useless.)
+// accidentally locally re-declared. (This turns out to be safe but useless.)
 // hboehm@google.com 11/20/2018.
 // Fix an exception-safety issue in gl_pi_CR.approximate.
 // hboehm@google.com 3/3/2019.
@@ -145,18 +145,18 @@ import java.util.ArrayList;
 * prohibitively expensive for large numerical problems.
 * But it is perfectly appropriate for use in a desk calculator,
 * for small numerical problems, for the evaluation of expressions
-* computated by a symbolic algebra system, for testing of accuracy claims
+* computed by a symbolic algebra system, for testing of accuracy claims
 * for floating point code on small inputs, or the like.
 * <P>
 * We expect that the vast majority of uses will ignore the particular
-* implementation, and the member functons <TT>approximate</tt>
+* implementation, and the member functions <TT>approximate</tt>
 * and <TT>get_appr</tt>.  Such applications will treat <TT>CR</tt> as
 * a conventional numerical type, with an interface modelled on
 * <TT>java.math.BigInteger</tt>.  No subclasses of <TT>CR</tt>
 * will be explicitly mentioned by such a program.
 * <P>
 * All standard arithmetic operations, as well as a few algebraic
-* and transcendal functions are provided.  Constructive reals are
+* and transcendental functions are provided.  Constructive reals are
 * immutable; thus all of these operations return a new constructive real.
 * <P>
 * A few uses will require explicit construction of approximation functions.
@@ -171,11 +171,12 @@ import java.util.ArrayList;
 * cannot be used for this purpose, since CR inherits from <TT>Number</tt>.)
 * <P>
 * Any operation may also throw <TT>com.hp.creals.PrecisionOverflowException</tt>
-* If the precision request generated during any subcalculation overflows
+* If the precision request generated during any sub-calculation overflows
 * a 28-bit integer.  (This should be extremely unlikely, except as an
 * outcome of a division by zero, or other erroneous computation.)
 *
 */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public abstract class CR extends Number {
     // CR is the basic representation of a number.
     // Abstractly this is a function for computing an approximation
@@ -189,8 +190,10 @@ public abstract class CR extends Number {
  * This is unchecked, since Number methods may not raise checked
  * exceptions.
 */
+@SuppressWarnings("WeakerAccess")
 public static class AbortedException extends RuntimeException {
     public AbortedException() { super(); }
+    @SuppressWarnings("unused")
     public AbortedException(String s) { super(s); }
 }
 
@@ -201,8 +204,10 @@ public static class AbortedException extends RuntimeException {
  * This is likely to be a symptom of a diverging computation,
  * <I>e.g.</i> division by zero.
 */
+@SuppressWarnings("WeakerAccess")
 public static class PrecisionOverflowException extends RuntimeException {
     public PrecisionOverflowException() { super(); }
+    @SuppressWarnings("unused")
     public PrecisionOverflowException(String s) { super(s); }
 }
 
@@ -256,7 +261,7 @@ public volatile static boolean please_stop = false;
         return (int)Math.ceil(Math.log((double)(abs_n + 1))/Math.log(2.0));
       }
       // Check that a precision is at least a factor of 8 away from
-      // overflowng the integer used to hold a precision spec.
+      // overflowing the integer used to hold a precision spec.
       // We generally perform this check early on, and then convince
       // ourselves that none of the operations performed on precisions
       // inside a function can generate an overflow.
@@ -441,7 +446,7 @@ public volatile static boolean please_stop = false;
         return new String(a);
       }
 
-    // Natural log of 2.  Needed for some prescaling below.
+    // Natural log of 2.  Needed for some pre-scaling below.
     // ln(2) = 7ln(10/9) - 2ln(25/24) + 3ln(81/80)
         CR simple_ln() {
             return new prescaled_ln_CR(this.subtract(ONE));
@@ -565,7 +570,7 @@ public volatile static boolean please_stop = false;
 * textual representation and radix.
 *
 *       @param s        [-] digit* [. digit*]
-*       @param radix
+*       @param radix    radix of number in our string parameter
 */
 
       public static CR valueOf(String s, int radix)
@@ -590,7 +595,7 @@ public volatile static boolean please_stop = false;
 
 /**
 * Return a textual representation accurate to <TT>n</tt> places
-* to the right of the decimal point.  <TT>n</tt> must be nonnegative.
+* to the right of the decimal point.  <TT>n</tt> must be non-negative.
 *
 *       @param  n       Number of digits (>= 0) included to the right of decimal point
 *       @param  radix   Base ( >= 2, <= 16) for the resulting representation.
@@ -639,6 +644,7 @@ public volatile static boolean please_stop = false;
 /**
 * Equivalent to <TT>toString(10, 10)</tt>
 */
+    @SuppressWarnings("NullableProblems")
     public String toString() {
         return toString(10);
     }
@@ -647,7 +653,7 @@ public volatile static boolean please_stop = false;
 /**
 * Return a textual scientific notation representation accurate
 * to <TT>n</tt> places to the right of the decimal point.
-* <TT>n</tt> must be nonnegative.  A value smaller than
+* <TT>n</tt> must be non-negative.  A value smaller than
 * <TT>radix</tt>**-<TT>m</tt> may be displayed as 0.
 * The <TT>mantissa</tt> component of the result is either "0"
 * or exactly <TT>n</tt> digits long.  The <TT>sign</tt>
@@ -781,6 +787,7 @@ public volatile static boolean please_stop = false;
 * Add two constructive reals.
 */
     public CR add(CR x) {
+        //noinspection SuspiciousNameCombination
         return new add_CR(this, x);
     }
 
@@ -830,6 +837,7 @@ public volatile static boolean please_stop = false;
 * The product of two constructive reals
 */
     public CR multiply(CR x) {
+        //noinspection SuspiciousNameCombination
         return new mult_CR(this, x);
     }
 
@@ -869,6 +877,7 @@ public volatile static boolean please_stop = false;
 * The minimum of two constructive reals.
 */
     public CR min(CR x) {
+        //noinspection SuspiciousNameCombination
         return subtract(x).select(this, x);
     }
 
@@ -899,13 +908,14 @@ public volatile static boolean please_stop = false;
 /**
 * The ratio of a circle's circumference to its diameter.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static CR PI = new gl_pi_CR();
 
     // Our old PI implementation. Keep this around for now to allow checking.
     // This implementation may also be faster for BigInteger implementations
     // that support only quadratic multiplication, but exhibit high performance
     // for small computations.  (The standard Android 6 implementation supports
-    // subquadratic multiplication, but has high constant overhead.) Many other
+    // sub-quadratic multiplication, but has high constant overhead.) Many other
     // atan-based formulas are possible, but based on superficial
     // experimentation, this is roughly as good as the more complex formulas.
     public static CR atan_PI = four.multiply(four.multiply(atan_reciprocal(5))
@@ -945,7 +955,7 @@ public volatile static boolean please_stop = false;
     }
 
 /**
-* The trignonometric arc (inverse) sine function.
+* The trigonometric arc (inverse) sine function.
 */
     public CR asin() {
         BigInteger rough_appr = get_appr(-10);
@@ -960,7 +970,7 @@ public volatile static boolean please_stop = false;
     }
 
 /**
-* The trignonometric arc (inverse) cosine function.
+* The trigonometric arc (inverse) cosine function.
 */
     public CR acos() {
         return half_pi.subtract(asin());
@@ -1011,12 +1021,13 @@ public volatile static boolean please_stop = false;
 // A specialization of CR for cases in which approximate() calls
 // to increase evaluation precision are somewhat expensive.
 // If we need to (re)evaluate, we speculatively evaluate to slightly
-// higher precision, miminimizing reevaluations.
+// higher precision, minimizing reevaluations.
 // Note that this requires any arguments to be evaluated to higher
 // precision than absolutely necessary.  It can thus potentially
 // result in lots of wasted effort, and should be used judiciously.
 // This assumes that the order of magnitude of the number is roughly one.
 //
+@SuppressWarnings("WeakerAccess")
 abstract class slow_CR extends CR {
     static int max_prec = -64;
     static int prec_incr = 32;
@@ -1025,6 +1036,7 @@ abstract class slow_CR extends CR {
         if (appr_valid && precision >= min_prec) {
             return scale(max_appr, min_prec - precision);
         } else {
+            //noinspection PointlessBitwiseExpression
             int eval_prec = (precision >= max_prec? max_prec :
                              (precision - prec_incr + 1) & ~(prec_incr - 1));
             BigInteger result = approximate(eval_prec);
@@ -1038,6 +1050,7 @@ abstract class slow_CR extends CR {
 
 
 // Representation of an integer constant.  Private.
+@SuppressWarnings("WeakerAccess")
 class int_CR extends CR {
     BigInteger value;
     int_CR(BigInteger n) {
@@ -1051,6 +1064,7 @@ class int_CR extends CR {
 // Representation of a number that may not have been completely
 // evaluated, but is assumed to be an integer.  Hence we never
 // evaluate beyond the decimal point.
+@SuppressWarnings("WeakerAccess")
 class assumed_int_CR extends CR {
     CR value;
     assumed_int_CR(CR x) {
@@ -1066,6 +1080,7 @@ class assumed_int_CR extends CR {
 }
 
 // Representation of the sum of 2 constructive reals.  Private.
+@SuppressWarnings("WeakerAccess")
 class add_CR extends CR {
     CR op1;
     CR op2;
@@ -1082,6 +1097,7 @@ class add_CR extends CR {
 }
 
 // Representation of a CR multiplied by 2**n
+@SuppressWarnings("WeakerAccess")
 class shifted_CR extends CR {
     CR op;
     int count;
@@ -1095,6 +1111,7 @@ class shifted_CR extends CR {
 }
 
 // Representation of the negation of a constructive real.  Private.
+@SuppressWarnings("WeakerAccess")
 class neg_CR extends CR {
     CR op;
     neg_CR(CR x) {
@@ -1109,6 +1126,7 @@ class neg_CR extends CR {
 //      op1     if selector < 0
 //      op2     if selector >= 0
 // Assumes x = y if s = 0
+@SuppressWarnings("WeakerAccess")
 class select_CR extends CR {
     CR selector;
     int selector_sign;
@@ -1143,6 +1161,7 @@ class select_CR extends CR {
 }
 
 // Representation of the product of 2 constructive reals. Private.
+@SuppressWarnings("WeakerAccess")
 class mult_CR extends CR {
     CR op1;
     CR op2;
@@ -1190,6 +1209,7 @@ class mult_CR extends CR {
 
 // Representation of the multiplicative inverse of a constructive
 // real.  Private.  Should use Newton iteration to refine estimates.
+@SuppressWarnings("WeakerAccess")
 class inv_CR extends CR {
     CR op;
     inv_CR(CR x) { op = x; }
@@ -1234,6 +1254,7 @@ class inv_CR extends CR {
 // Note: this is known to be a bad algorithm for
 // floating point.  Unfortunately, other alternatives
 // appear to require precomputed information.
+@SuppressWarnings("WeakerAccess")
 class prescaled_exp_CR extends CR {
     CR op;
     prescaled_exp_CR(CR x) { op = x; }
@@ -1274,6 +1295,7 @@ class prescaled_exp_CR extends CR {
 
 // Representation of the cosine of a constructive real.  Private.
 // Uses a Taylor series expansion.  Assumes |x| < 1.
+@SuppressWarnings("WeakerAccess")
 class prescaled_cos_CR extends slow_CR {
     CR op;
     prescaled_cos_CR(CR x) {
@@ -1321,6 +1343,7 @@ class prescaled_cos_CR extends slow_CR {
 // The constructive real atan(1/n), where n is a small integer
 // > base.
 // This gives a simple and moderately fast way to compute PI.
+@SuppressWarnings("WeakerAccess")
 class integral_atan_CR extends slow_CR {
     int op;
     integral_atan_CR(int x) { op = x; }
@@ -1364,6 +1387,7 @@ class integral_atan_CR extends slow_CR {
 }
 
 // Representation for ln(1 + op)
+@SuppressWarnings("WeakerAccess")
 class prescaled_ln_CR extends slow_CR {
     CR op;
     prescaled_ln_CR(CR x) { op = x; }
@@ -1409,6 +1433,7 @@ class prescaled_ln_CR extends slow_CR {
 
 // Representation of the arcsine of a constructive real.  Private.
 // Uses a Taylor series expansion.  Assumes |x| < (1/2)^(1/3).
+@SuppressWarnings("WeakerAccess")
 class prescaled_asin_CR extends slow_CR {
     CR op;
     prescaled_asin_CR(CR x) {
@@ -1491,6 +1516,7 @@ class prescaled_asin_CR extends slow_CR {
   }
 
 
+@SuppressWarnings("WeakerAccess")
 class sqrt_CR extends CR {
     CR op;
     sqrt_CR(CR x) { op = x; }
@@ -1562,14 +1588,15 @@ class sqrt_CR extends CR {
 //
 //      pi is then approximated as (a[n+1]+b[n+1])^2 / 4*t[n+1].
 //
+@SuppressWarnings("WeakerAccess")
 class gl_pi_CR extends slow_CR {
     // In addition to the best approximation kept by the CR base class, we keep
     // the entire sequence b[n], to the extent we've needed it so far.  Each
     // reevaluation leads to slightly different sqrt arguments, but the
     // previous result can be used to avoid repeating low precision Newton
     // iterations for the sqrt approximation.
-    ArrayList<Integer> b_prec = new ArrayList<Integer>();
-    ArrayList<BigInteger> b_val = new ArrayList<BigInteger>();
+    ArrayList<Integer> b_prec = new ArrayList<>();
+    ArrayList<BigInteger> b_val = new ArrayList<>();
     gl_pi_CR() {
         b_prec.add(null);  // Zeroth entry unused.
         b_val.add(null);
@@ -1589,7 +1616,7 @@ class gl_pi_CR extends slow_CR {
         // We need roughly log2(p) iterations.  Each iteration should
         // contribute no more than 2 ulps to the error in the corresponding
         // term (a[n], b[n], or t[n]).  Thus 2log2(n) bits plus a few for the
-        // final calulation and rounding suffice.
+        // final calculation and rounding suffice.
         final int extra_eval_prec =
                 (int)Math.ceil(Math.log(-p) / Math.log(2)) + 10;
         // All our terms are implicitly scaled by eval_prec.

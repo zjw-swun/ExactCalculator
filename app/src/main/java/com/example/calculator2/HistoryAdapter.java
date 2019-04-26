@@ -29,8 +29,10 @@ import java.util.List;
 /**
  * Adapter for RecyclerView of HistoryItems.
  */
+@SuppressWarnings("WeakerAccess")
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
+    @SuppressWarnings("unused")
     private static final String TAG = "HistoryAdapter";
 
     private static final int EMPTY_VIEW_TYPE = 0;
@@ -51,6 +53,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         setHasStableIds(true);
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public HistoryAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         final View v;
@@ -64,6 +67,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         return new ViewHolder(v, viewType);
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public void onBindViewHolder(final HistoryAdapter.ViewHolder holder, int position) {
         final HistoryItem item = getItem(position);
@@ -93,6 +97,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         }
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public void onViewRecycled(ViewHolder holder) {
         if (holder.getItemViewType() == EMPTY_VIEW_TYPE) {
@@ -197,9 +202,9 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             if (viewType == EMPTY_VIEW_TYPE) {
                 return;
             }
-            mDate = (TextView) v.findViewById(R.id.history_date);
-            mFormula = (AlignedTextView) v.findViewById(R.id.history_formula);
-            mResult = (CalculatorResult) v.findViewById(R.id.history_result);
+            mDate = v.findViewById(R.id.history_date);
+            mFormula = v.findViewById(R.id.history_formula);
+            mResult = v.findViewById(R.id.history_result);
             mDivider = v.findViewById(R.id.history_divider);
         }
 

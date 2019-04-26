@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.transition.Fade;
 import android.transition.Transition;
@@ -106,7 +107,7 @@ public class CalculatorDisplay extends LinearLayout
     protected void onFinishInflate() {
         super.onFinishInflate();
 
-        mToolbar = (Toolbar) findViewById(R.id.toolbar);
+        mToolbar = findViewById(R.id.toolbar);
         mTransition = new Fade()
                 .setDuration(FADE_DURATION)
                 .addTarget(mToolbar);
@@ -142,6 +143,7 @@ public class CalculatorDisplay extends LinearLayout
         return super.onInterceptTouchEvent(event);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         return mTapDetector.onTouchEvent(event) || super.onTouchEvent(event);
@@ -150,6 +152,7 @@ public class CalculatorDisplay extends LinearLayout
     /**
      * Returns {@code true} if the toolbar should remain visible.
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean getForceToolbarVisible() {
         return mForceToolbarVisible || mAccessibilityManager.isEnabled();
     }

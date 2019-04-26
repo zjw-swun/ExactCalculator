@@ -24,6 +24,7 @@ import android.widget.TextView;
 /**
  * Contains the logic for animating the recyclerview elements on drag.
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public final class DragController {
 
     private static final String TAG = "DragController";
@@ -162,7 +163,7 @@ public final class DragController {
             divider.setTranslationY(mAnimationController.getDateTranslationY(yFraction));
         } else if (mIsDisplayEmpty) {
             // There is no current expression but we still need to collect information
-            // to translate the other viewholders.
+            // to translate the other ViewHolder's.
             if (!mAnimationInitialized) {
                 mAnimationController.initializeDisplayHeight();
                 mAnimationInitialized = true;
@@ -170,7 +171,7 @@ public final class DragController {
         }
 
         // Move up all ViewHolders above the current expression; if there is no current expression,
-        // we're translating all the viewholders.
+        // we're translating all the ViewHolder's.
         for (int i = recyclerView.getChildCount() - 1;
              i >= mAnimationController.getFirstTranslatedViewHolderIndex();
              --i) {
@@ -178,6 +179,7 @@ public final class DragController {
                     recyclerView.getChildViewHolder(recyclerView.getChildAt(i));
             if (vh2 != null) {
                 final View view = vh2.itemView;
+                //noinspection ConstantConditions
                 if (view != null) {
                     view.setTranslationY(
                         mAnimationController.getHistoryElementTranslationY(yFraction));
@@ -226,8 +228,8 @@ public final class DragController {
 
         float getHistoryElementTranslationY(float yFraction);
 
-        // Return the lowest index of the first Viewholder to be translated upwards.
-        // If there is no current expression, we translate all the viewholders; otherwise,
+        // Return the lowest index of the first ViewHolder to be translated upwards.
+        // If there is no current expression, we translate all the ViewHolder's otherwise,
         // we start at index 1.
         int getFirstTranslatedViewHolderIndex();
     }

@@ -19,6 +19,7 @@ package com.example.calculator2;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.PointF;
 import android.graphics.Rect;
@@ -50,6 +51,7 @@ public class DragLayout extends ViewGroup {
     private final List<DragCallback> mDragCallbacks = new CopyOnWriteArrayList<>();
     private CloseCallback mCloseCallback;
 
+    @SuppressLint("UseSparseArrays")
     private final Map<Integer, PointF> mLastMotionPoints = new HashMap<>();
     private final Rect mHitRect = new Rect();
 
@@ -63,7 +65,7 @@ public class DragLayout extends ViewGroup {
     @Override
     protected void onFinishInflate() {
         mDragHelper = ViewDragHelper.create(this, 1.0f, new DragHelperCallback());
-        mHistoryFrame = (FrameLayout) findViewById(R.id.history_frame);
+        mHistoryFrame = findViewById(R.id.history_frame);
         super.onFinishInflate();
     }
 
@@ -162,6 +164,7 @@ public class DragLayout extends ViewGroup {
         return mDragHelper.shouldInterceptTouchEvent(event);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         // Workaround: do not process the error case where multi-touch would cause a crash.
@@ -283,12 +286,14 @@ public class DragLayout extends ViewGroup {
         @Override
         public void onViewDragStateChanged(int state) {
             // The view stopped moving.
+            //noinspection ConstantConditions
             if (state == ViewDragHelper.STATE_IDLE
                     && mDragHelper.getCapturedView().getTop() < -(mVerticalRange / 2)) {
                 setClosed();
             }
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
             for (DragCallback c : mDragCallbacks) {
@@ -297,11 +302,13 @@ public class DragLayout extends ViewGroup {
             }
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public int getViewVerticalDragRange(View child) {
             return mVerticalRange;
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public boolean tryCaptureView(View view, int pointerId) {
             final PointF point = mLastMotionPoints.get(pointerId);
@@ -320,11 +327,13 @@ public class DragLayout extends ViewGroup {
             return true;
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public int clampViewPositionVertical(View child, int top, int dy) {
             return Math.max(Math.min(top, 0), -mVerticalRange);
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public void onViewCaptured(View capturedChild, int activePointerId) {
             super.onViewCaptured(capturedChild, activePointerId);
@@ -335,6 +344,7 @@ public class DragLayout extends ViewGroup {
             }
         }
 
+        @SuppressWarnings("NullableProblems")
         @Override
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
             final boolean settleToOpen;

@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 
 /**
  * A mathematical expression represented as a sequence of "tokens".
@@ -46,6 +45,7 @@ import java.util.HashSet;
  * computed values by writing out the expression that was used to compute them, and reevaluate
  * when reading it back in.
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 class CalculatorExpr {
     /**
      * An interface for resolving expression indices in embedded subexpressions to
@@ -78,7 +78,8 @@ class CalculatorExpr {
                                      // as a list of tokens.  Constant
                                      // tokens are always nonempty.
 
-    private static enum TokenKind { CONSTANT, OPERATOR, PRE_EVAL };
+    private enum TokenKind { CONSTANT, OPERATOR, PRE_EVAL }
+
     private static TokenKind[] tokenKindValues = TokenKind.values();
     private final static BigInteger BIG_MILLION = BigInteger.valueOf(1000000);
     private final static BigInteger BIG_BILLION = BigInteger.valueOf(1000000000);
@@ -111,7 +112,7 @@ class CalculatorExpr {
         Operator(int resId) {
             id = resId;
         }
-        Operator(byte op) throws IOException {
+        Operator(byte op) {
             id = KeyMaps.fromByte(op);
         }
         @Override
@@ -138,6 +139,7 @@ class CalculatorExpr {
      * Representation of a (possibly incomplete) numerical constant.
      * Supports addition and removal of trailing characters; hence mutable.
      */
+    @SuppressWarnings("WeakerAccess")
     private static class Constant extends Token implements Cloneable {
         private boolean mSawDecimal;
         private String mWhole;  // String preceding decimal point.
@@ -151,7 +153,7 @@ class CalculatorExpr {
             mFraction = "";
             // mSawDecimal = false;
             // mExponent = 0;
-        };
+        }
 
         Constant(DataInput in) throws IOException {
             mWhole = in.readUTF();
@@ -238,7 +240,7 @@ class CalculatorExpr {
         }
 
         public boolean isEmpty() {
-            return (mSawDecimal == false && mWhole.isEmpty());
+            return (!mSawDecimal && mWhole.isEmpty());
         }
 
         /**
@@ -246,6 +248,7 @@ class CalculatorExpr {
          * We do add digit grouping separators to the whole number, even if not typed.
          * Result is internationalized.
          */
+        @SuppressWarnings("NullableProblems")
         @Override
         public String toString() {
             String result;
@@ -300,6 +303,7 @@ class CalculatorExpr {
         }
 
         // Override clone to make it public
+        @SuppressWarnings("MethodDoesntCallSuperMethod")
         @Override
         public Object clone() {
             Constant result = new Constant();
@@ -323,8 +327,9 @@ class CalculatorExpr {
      * The representation includes a UnifiedReal value.  In order to
      * support saving and restoring, we also include the underlying expression itself, and the
      * context (currently just degree mode) used to evaluate it.  The short string representation
-     * is also stored in order to avoid potentially expensive recomputation in the UI thread.
+     * is also stored in order to avoid potentially expensive re-computation in the UI thread.
      */
+    @SuppressWarnings("WeakerAccess")
     private static class PreEval extends Token {
         public final long mIndex;
         private final String mShortRep;  // Not internationalized.
@@ -365,6 +370,7 @@ class CalculatorExpr {
     /**
      * Read token from in.
      */
+    @SuppressWarnings("WeakerAccess")
     public static Token newToken(DataInput in) throws IOException {
         byte kindByte = in.readByte();
         if (kindByte < 0x20) {
@@ -391,7 +397,7 @@ class CalculatorExpr {
     }
 
     CalculatorExpr() {
-        mExpr = new ArrayList<Token>();
+        mExpr = new ArrayList<>();
     }
 
     private CalculatorExpr(ArrayList<Token> expr) {
@@ -402,7 +408,7 @@ class CalculatorExpr {
      * Construct CalculatorExpr, by reading it from in.
      */
     CalculatorExpr(DataInput in) throws IOException {
-        mExpr = new ArrayList<Token>();
+        mExpr = new ArrayList<>();
         int size = in.readInt();
         for (int i = 0; i < size; ++i) {
             mExpr.add(newToken(in));
@@ -437,7 +443,7 @@ class CalculatorExpr {
 
     /**
      * Does this expression end with a numeric constant?
-     * As opposed to an operator or preevaluated expression.
+     * As opposed to an operator or pre-evaluated expression.
      */
     boolean hasTrailingConstant() {
         int s = mExpr.size();
@@ -599,6 +605,8 @@ class CalculatorExpr {
      * Returns a logical deep copy of the CalculatorExpr.
      * Operator and PreEval tokens are immutable, and thus aren't really copied.
      */
+    @SuppressWarnings("MethodDoesntCallSuperMethod")
+    @Override
     public Object clone() {
         CalculatorExpr result = new CalculatorExpr();
         for (Token t : mExpr) {
@@ -627,7 +635,6 @@ class CalculatorExpr {
      */
     public CalculatorExpr abbreviate(long index, String sr) {
         CalculatorExpr result = new CalculatorExpr();
-        @SuppressWarnings("unchecked")
         Token t = new PreEval(index, sr);
         result.mExpr.add(t);
         return result;
@@ -880,6 +887,7 @@ class CalculatorExpr {
 
     private EvalRet evalTerm(int i, EvalContext ec) throws SyntaxException {
         EvalRet tmp = evalSignedFactor(i, ec);
+        //noinspection UnusedAssignment
         boolean is_mul = false;
         boolean is_div = false;
         int cpos = tmp.pos;   // Current position in expression.
@@ -895,6 +903,7 @@ class CalculatorExpr {
                 val = val.multiply(tmp.val);
             }
             cpos = tmp.pos;
+            //noinspection UnusedAssignment
             is_mul = is_div = false;
         }
         return new EvalRet(cpos, val);
@@ -902,7 +911,7 @@ class CalculatorExpr {
 
     /**
      * Is the subexpression starting at pos a simple percent constant?
-     * This is used to recognize exppressions like 200+10%, which we handle specially.
+     * This is used to recognize expressions like 200+10%, which we handle specially.
      * This is defined as a Constant or PreEval token, followed by a percent sign, and followed
      * by either nothing or an additive operator.
      * Note that we are intentionally far more restrictive in recognizing such expressions than
@@ -933,7 +942,7 @@ class CalculatorExpr {
      * Compute the multiplicative factor corresponding to an N% addition or subtraction.
      * @param pos position of Constant or PreEval expression token corresponding to N.
      * @param isSubtraction this is a subtraction, as opposed to addition.
-     * @param ec usable evaluation contex; only length matters.
+     * @param ec usable evaluation context; only length matters.
      * @return UnifiedReal value and position, which is pos + 2, i.e. after percent sign
      */
     private EvalRet getPercentFactor(int pos, boolean isSubtraction, EvalContext ec)
@@ -1047,7 +1056,7 @@ class CalculatorExpr {
         // for positive and negative indices separately, but not their union. Currently we
         // just settle for reverse breadth-first-search order, which handles the common case
         // of simple dependency chains well.
-        ArrayList<Long> list = new ArrayList<Long>();
+        ArrayList<Long> list = new ArrayList<>();
         int scanned = 0;  // We've added expressions referenced by [0, scanned) to the list
         addReferencedExprs(list, er);
         while (scanned != list.size()) {

@@ -51,54 +51,63 @@ import java.math.BigInteger;
 * <TT>UnaryCRFunction</tt>.
 */
 // Naming vaguely follows ObjectSpace JGL convention.
+@SuppressWarnings({"unused", "WeakerAccess"})
 public abstract class UnaryCRFunction {
     abstract public CR execute(CR x);
 
 /**
 * The function object corresponding to the identity function.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction identityFunction =
         new identity_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>negate</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction negateFunction =
         new negate_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>inverse</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction inverseFunction =
         new inverse_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>abs</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction absFunction =
         new abs_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>exp</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction expFunction =
         new exp_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>cos</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction cosFunction =
         new cos_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>sin</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction sinFunction =
         new sin_UnaryCRFunction();
 
 /**
 * The function object corresponding to the tangent function.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction tanFunction =
         new tan_UnaryCRFunction();
 
@@ -107,6 +116,7 @@ public abstract class UnaryCRFunction {
 * The argument must be between -1 and 1 inclusive.  The result is between
 * -PI/2 and PI/2.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction asinFunction =
         new asin_UnaryCRFunction();
         // The following also works, but is slower:
@@ -119,6 +129,7 @@ public abstract class UnaryCRFunction {
 * The argument must be between -1 and 1 inclusive.  The result is between
 * 0 and PI.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction acosFunction =
         new acos_UnaryCRFunction();
 
@@ -126,18 +137,21 @@ public abstract class UnaryCRFunction {
 * The function object corresponding to the inverse cosine (arctangent) function.
 * The result is between -PI/2 and PI/2.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction atanFunction =
         new atan_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>ln</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction lnFunction =
         new ln_UnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>sqrt</tt> method of CR.
 */
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction sqrtFunction =
         new sqrt_UnaryCRFunction();
 
@@ -259,6 +273,7 @@ class sqrt_UnaryCRFunction extends UnaryCRFunction {
     }
 }
 
+@SuppressWarnings("WeakerAccess")
 class compose_UnaryCRFunction extends UnaryCRFunction {
     UnaryCRFunction f1;
     UnaryCRFunction f2;
@@ -271,26 +286,27 @@ class compose_UnaryCRFunction extends UnaryCRFunction {
     }
 }
 
+@SuppressWarnings("WeakerAccess")
 class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
-  // The following variables are final, so that they
-  // can be referenced from the inner class inverseIncreasingCR.
-  // I couldn't find a way to initialize these such that the
-  // compiler accepted them as final without turning them into arrays.
-    final UnaryCRFunction f[] = new UnaryCRFunction[1];
-                                // Monotone increasing.
-                                // If it was monotone decreasing, we
-                                // negate it.
-    final boolean f_negated[] = new boolean[1];
-    final CR low[] = new CR[1];
-    final CR high[] = new CR[1];
-    final CR f_low[] = new CR[1];
-    final CR f_high[] = new CR[1];
-    final int max_msd[] = new int[1];
-                        // Bound on msd of both f(high) and f(low)
-    final int max_arg_prec[] = new int[1];
-                                // base**max_arg_prec is a small fraction
-                                // of low - high.
-    final int deriv_msd[] = new int[1];
+    // The following variables are final, so that they
+    // can be referenced from the inner class inverseIncreasingCR.
+    // I couldn't find a way to initialize these such that the
+    // compiler accepted them as final without turning them into arrays.
+    final UnaryCRFunction[] f = new UnaryCRFunction[1];
+    // Monotone increasing.
+    // If it was monotone decreasing, we
+    // negate it.
+    final boolean[] f_negated = new boolean[1];
+    final CR[] low = new CR[1];
+    final CR[] high = new CR[1];
+    final CR[] f_low = new CR[1];
+    final CR[] f_high = new CR[1];
+    final int[] max_msd = new int[1];
+    // Bound on msd of both f(high) and f(low)
+    final int[] max_arg_prec = new int[1];
+    // base**max_arg_prec is a small fraction
+    // of low - high.
+    final int[] deriv_msd = new int[1];
                                 // Rough approx. of msd of first
                                 // derivative.
     final static BigInteger BIG1023 = BigInteger.valueOf(1023);
@@ -314,6 +330,7 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
             f_high[0] = tmp_f_high.negate();
         } else {
             f[0] = func;
+            //noinspection ConstantConditions
             f_negated[0] = false;
             f_low[0] = tmp_f_low;
             f_high[0] = tmp_f_high;
@@ -569,21 +586,22 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
     }
 }
 
+@SuppressWarnings("WeakerAccess")
 class monotoneDerivative_UnaryCRFunction extends UnaryCRFunction {
-  // The following variables are final, so that they
-  // can be referenced from the inner class inverseIncreasingCR.
-    final UnaryCRFunction f[] = new UnaryCRFunction[1];
-                                // Monotone increasing.
-                                // If it was monotone decreasing, we
-                                // negate it.
-    final CR low[] = new CR[1]; // endpoints and mispoint of interval
-    final CR mid[] = new CR[1];
-    final CR high[] = new CR[1];
-    final CR f_low[] = new CR[1]; // Corresponding function values.
-    final CR f_mid[] = new CR[1];
-    final CR f_high[] = new CR[1];
-    final int difference_msd[] = new int[1];  // msd of interval len.
-    final int deriv2_msd[] = new int[1];
+    // The following variables are final, so that they
+    // can be referenced from the inner class inverseIncreasingCR.
+    final UnaryCRFunction[] f = new UnaryCRFunction[1];
+    // Monotone increasing.
+    // If it was monotone decreasing, we
+    // negate it.
+    final CR[] low = new CR[1]; // endpoints and midpoint of interval
+    final CR[] mid = new CR[1];
+    final CR[] high = new CR[1];
+    final CR[] f_low = new CR[1]; // Corresponding function values.
+    final CR[] f_mid = new CR[1];
+    final CR[] f_high = new CR[1];
+    final int[] difference_msd = new int[1];  // msd of interval len.
+    final int[] deriv2_msd = new int[1];
                                 // Rough approx. of msd of second
                                 // derivative.
                                 // This is increased to be an appr. bound

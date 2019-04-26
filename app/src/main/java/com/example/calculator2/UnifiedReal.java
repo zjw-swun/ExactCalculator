@@ -17,9 +17,8 @@
 package com.example.calculator2;
 
 import java.math.BigInteger;
-import com.example.calculator2.CR;
-import com.example.calculator2.UnaryCRFunction;
 
+// TODO: both sSqrts and sLogs usage is possibly broken by change to equals method?
 /**
  * Computable real numbers, represented so that we can get exact decidable comparisons
  * for a number of interesting special cases, including rational computations.
@@ -39,6 +38,7 @@ import com.example.calculator2.UnaryCRFunction;
  * exceptions produced by the underlying CR and BoundedRational packages, including
  * CR.PrecisionOverflowException and CR.AbortedException.
  */
+@SuppressWarnings("WeakerAccess")
 public class UnifiedReal {
 
     private final BoundedRational mRatFactor;
@@ -49,8 +49,8 @@ public class UnifiedReal {
 
     /**
      * Perform some nontrivial consistency checks.
-     * @hide
      */
+    @SuppressWarnings("unused")
     public static boolean enableChecks = true;
 
     private static void check(boolean b) {
@@ -84,6 +84,7 @@ public class UnifiedReal {
         this(new BoundedRational(n));
     }
 
+    @SuppressWarnings("unused")
     public static UnifiedReal valueOf(double x) {
         if (x == 0.0 || x == 1.0) {
             return valueOf((long) x);
@@ -122,21 +123,21 @@ public class UnifiedReal {
     // We currently recognize only a small fixed collection, since the sqrt() function needs to
     // identify numbers of the form <SQRT[i]>*n^2, and we don't otherwise know of a good
     // algorithm for that.
-    private final static CR sSqrts[] = {
-            null,
+    private final static CR[] sSqrts = {
+            CR.valueOf(0),
             CR.ONE,
             CR_SQRT2,
             CR_SQRT3,
-            null,
+            CR.valueOf(2),
             CR.valueOf(5).sqrt(),
             CR.valueOf(6).sqrt(),
             CR.valueOf(7).sqrt(),
-            null,
-            null,
-            CR.valueOf(10).sqrt() };
+            CR.valueOf(8).sqrt(),
+            CR.valueOf(3),
+            CR.valueOf(10).sqrt()};
 
     // Natural logs of small integers that we try to recognize.
-    private final static CR sLogs[] = {
+    private final static CR[] sLogs = {
             null,
             null,
             CR_LN2,
@@ -147,7 +148,7 @@ public class UnifiedReal {
             CR_LN7,
             null,
             null,
-            CR_LN10 };
+            CR_LN10};
 
 
     // Some convenient UnifiedReal constants.
@@ -157,12 +158,15 @@ public class UnifiedReal {
     public static final UnifiedReal ONE = new UnifiedReal(BoundedRational.ONE);
     public static final UnifiedReal MINUS_ONE = new UnifiedReal(BoundedRational.MINUS_ONE);
     public static final UnifiedReal TWO = new UnifiedReal(BoundedRational.TWO);
+    @SuppressWarnings("unused")
     public static final UnifiedReal MINUS_TWO = new UnifiedReal(BoundedRational.MINUS_TWO);
     public static final UnifiedReal HALF = new UnifiedReal(BoundedRational.HALF);
+    @SuppressWarnings("unused")
     public static final UnifiedReal MINUS_HALF = new UnifiedReal(BoundedRational.MINUS_HALF);
     public static final UnifiedReal TEN = new UnifiedReal(BoundedRational.TEN);
     public static final UnifiedReal RADIANS_PER_DEGREE
             = new UnifiedReal(new BoundedRational(1, 180), CR_PI);
+    @SuppressWarnings("unused")
     private static final UnifiedReal SIX = new UnifiedReal(6);
     private static final UnifiedReal HALF_SQRT2 = new UnifiedReal(BoundedRational.HALF, CR_SQRT2);
     private static final UnifiedReal SQRT3 = new UnifiedReal(CR_SQRT3);
@@ -178,11 +182,11 @@ public class UnifiedReal {
      * Given a constructive real cr, try to determine whether cr is the square root of
      * a small integer.  If so, return its square as a BoundedRational.  Otherwise return null.
      * We make this determination by simple table lookup, so spurious null returns are
-     * entirely possible, or even likely.
+     * entirely possible, or even likely. TODO: make sure the change I made to sSqrts does not break things
      */
     private static BoundedRational getSquare(CR cr) {
         for (int i = 0; i < sSqrts.length; ++i) {
-             if (sSqrts[i] == cr) {
+            if (sSqrts[i].equals(cr)) {
                 return new BoundedRational(i);
              }
         }
@@ -197,7 +201,8 @@ public class UnifiedReal {
      */
     private BoundedRational getExp(CR cr) {
         for (int i = 0; i < sLogs.length; ++i) {
-             if (sLogs[i] == cr) {
+            //noinspection ConstantConditions
+            if (sLogs[i].equals(cr)) {
                 return new BoundedRational(i);
              }
         }
@@ -213,22 +218,22 @@ public class UnifiedReal {
      * (The latter is apparently an open problem.)
      */
     private static String crName(CR cr) {
-        if (cr == CR_ONE) {
+        if (cr.equals(CR_ONE)) {
             return "";
         }
-        if (cr == CR_PI) {
+        if (cr.equals(CR_PI)) {
             return "\u03C0";   // GREEK SMALL LETTER PI
         }
-        if (cr == CR_E) {
+        if (cr.equals(CR_E)) {
             return "e";
         }
         for (int i = 0; i < sSqrts.length; ++i) {
-            if (cr == sSqrts[i]) {
+            if (cr.equals(sSqrts[i])) {
                 return "\u221A" /* SQUARE ROOT */ + i;
             }
         }
         for (int i = 0; i < sLogs.length; ++i) {
-            if (cr == sLogs[i]) {
+            if (cr.equals(sLogs[i])) {
                 return "ln(" + i + ")";
             }
         }
@@ -239,16 +244,16 @@ public class UnifiedReal {
      * Would crName() return non-Null?
      */
     private static boolean isNamed(CR cr) {
-        if (cr == CR_ONE || cr == CR_PI || cr == CR_E) {
+        if (cr.equals(CR_ONE) || cr.equals(CR_PI) || cr.equals(CR_E)) {
             return true;
         }
         for (CR r: sSqrts) {
-            if (cr == r) {
+            if (cr.equals(r)) {
                 return true;
             }
         }
         for (CR r: sLogs) {
-            if (cr == r) {
+            if (cr.equals(r)) {
                 return true;
             }
         }
@@ -261,14 +266,14 @@ public class UnifiedReal {
      * constructive reals.
      */
     private static boolean definitelyAlgebraic(CR cr) {
-        return cr == CR_ONE || getSquare(cr) != null;
+        return cr.equals(CR_ONE) || getSquare(cr) != null;
     }
 
     /**
      * Is this number known to be rational?
      */
     public boolean definitelyRational() {
-        return mCrFactor == CR_ONE || mRatFactor.signum() == 0;
+        return mCrFactor.equals(CR_ONE) || mRatFactor.signum() == 0;
     }
 
     /**
@@ -290,6 +295,7 @@ public class UnifiedReal {
     /**
      * Is this number known to be transcendental?
      */
+    @SuppressWarnings("unused")
     public boolean definitelyTranscendental() {
         return !definitelyAlgebraic() && isNamed(mCrFactor);
     }
@@ -318,18 +324,19 @@ public class UnifiedReal {
         // This cannot happen for a log and a square root.
         // (The Lindemann-Weierstrass theorem tells us, among other things, that if
         // a is algebraic, then exp(a) is transcendental.  Thus if l in our finite
-        // set of logs where algebraic, expl(l), must be transacendental.
+        // set of logs where algebraic, expl(l), must be transcendental.
         // But exp(l) is an integer.  Thus the logs are transcendental.  But of course the
         // square roots are algebraic.  Thus they can't be rational multiples.)
         // Unfortunately, we do not know whether e/pi is rational.
-        if (r1 == r2) {
+        if (r1.equals(r2)) {
             return false;
         }
+        //noinspection unused
         CR other;
-        if (r1 == CR_E || r1 == CR_PI) {
+        if (r1.equals(CR_E) || r1.equals(CR_PI)) {
             return definitelyAlgebraic(r2);
         }
-        if (r2 == CR_E || r2 == CR_PI) {
+        if (r2.equals(CR_E) || r2.equals(CR_PI)) {
             return definitelyAlgebraic(r1);
         }
         return isNamed(r1) && isNamed(r2);
@@ -339,6 +346,7 @@ public class UnifiedReal {
      * Convert to String reflecting raw representation.
      * Debug or log messages only, not pretty.
      */
+    @SuppressWarnings("NullableProblems")
     public String toString() {
         return mRatFactor.toString() + "*" + mCrFactor.toString();
     }
@@ -348,7 +356,7 @@ public class UnifiedReal {
      * Intended for user output.  Produces exact expression when possible.
      */
     public String toNiceString() {
-        if (mCrFactor == CR_ONE || mRatFactor.signum() == 0) {
+        if (mCrFactor.equals(CR_ONE) || mRatFactor.signum() == 0) {
             return mRatFactor.toNiceString();
         }
         String name = crName(mCrFactor);
@@ -388,7 +396,7 @@ public class UnifiedReal {
      * @param n result precision, >= 0
      */
     public String toStringTruncated(int n) {
-        if (mCrFactor == CR_ONE || mRatFactor == BoundedRational.ZERO) {
+        if (mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.ZERO) {
             return mRatFactor.toStringTruncated(n);
         }
         final CR scaled = CR.valueOf(BigInteger.TEN.pow(n)).multiply(crValue());
@@ -431,7 +439,7 @@ public class UnifiedReal {
         // If the value is known irrational, then we can safely compare to rational approximations;
         // equality is impossible; hence the comparison must converge.
         // The only problem cases are the ones in which we don't know.
-        return mCrFactor == CR_ONE || mRatFactor == BoundedRational.ZERO || definitelyIrrational();
+        return mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.ZERO || definitelyIrrational();
     }
 
     /**
@@ -439,8 +447,9 @@ public class UnifiedReal {
      * Rational arguments are currently rounded to nearest, with ties away from zero.
      * TODO: Improve rounding.
      */
+    @SuppressWarnings("unused")
     public double doubleValue() {
-        if (mCrFactor == CR_ONE) {
+        if (mCrFactor.equals(CR_ONE)) {
             return mRatFactor.doubleValue(); // Hopefully correctly rounded
         } else {
             return crValue().doubleValue(); // Approximately correctly rounded
@@ -457,7 +466,7 @@ public class UnifiedReal {
     public boolean isComparable(UnifiedReal u) {
         // We check for ONE only to speed up the common case.
         // The use of a tolerance here means we can spuriously return false, not true.
-        return mCrFactor == u.mCrFactor
+        return mCrFactor.equals(u.mCrFactor)
                 && (isNamed(mCrFactor) || mCrFactor.signum(DEFAULT_COMPARE_TOLERANCE) != 0)
                 || mRatFactor.signum() == 0 && u.mRatFactor.signum() == 0
                 || definitelyIndependent(mCrFactor, u.mCrFactor)
@@ -471,7 +480,7 @@ public class UnifiedReal {
      */
     public int compareTo(UnifiedReal u) {
         if (definitelyZero() && u.definitelyZero()) return 0;
-        if (mCrFactor == u.mCrFactor) {
+        if (mCrFactor.equals(u.mCrFactor)) {
             int signum = mCrFactor.signum();  // Can diverge if mCRFactor == 0.
             return signum * mRatFactor.compareTo(u.mRatFactor);
         }
@@ -538,6 +547,7 @@ public class UnifiedReal {
 
     @Override
     public boolean equals(Object r) {
+        //noinspection ConditionCoveredByFurtherCondition
         if (r == null || !(r instanceof UnifiedReal)) {
             return false;
         }
@@ -549,13 +559,14 @@ public class UnifiedReal {
      * Returns true if values are definitely known not to be equal, false in all other cases.
      * Performs no approximate evaluation.
      */
+    @SuppressWarnings("unused")
     public boolean definitelyNotEquals(UnifiedReal u) {
         boolean isNamed = isNamed(mCrFactor);
         boolean uIsNamed = isNamed(u.mCrFactor);
         if (isNamed && uIsNamed) {
             if (definitelyIndependent(mCrFactor, u.mCrFactor)) {
                 return mRatFactor.signum() != 0 || u.mRatFactor.signum() != 0;
-            } else if (mCrFactor == u.mCrFactor) {
+            } else if (mCrFactor.equals(u.mCrFactor)) {
                 return !mRatFactor.equals(u.mRatFactor);
             }
             return !mRatFactor.equals(u.mRatFactor);
@@ -579,19 +590,21 @@ public class UnifiedReal {
      * Can this number be determined to be definitely nonzero without performing approximate
      * evaluation?
      */
+    @SuppressWarnings("unused")
     public boolean definitelyNonZero() {
         return isNamed(mCrFactor) && mRatFactor.signum() != 0;
     }
 
+    @SuppressWarnings("unused")
     public boolean definitelyOne() {
-        return mCrFactor == CR_ONE && mRatFactor.equals(BoundedRational.ONE);
+        return mCrFactor.equals(CR_ONE) && mRatFactor.equals(BoundedRational.ONE);
     }
 
     /**
      * Return equivalent BoundedRational, if known to exist, null otherwise
      */
     public BoundedRational boundedRationalValue() {
-        if (mCrFactor == CR_ONE || mRatFactor.signum() == 0) {
+        if (mCrFactor.equals(CR_ONE) || mRatFactor.signum() == 0) {
             return mRatFactor;
         }
         return null;
@@ -606,7 +619,7 @@ public class UnifiedReal {
     }
 
     public UnifiedReal add(UnifiedReal u) {
-        if (mCrFactor == u.mCrFactor) {
+        if (mCrFactor.equals(u.mCrFactor)) {
             BoundedRational nRatFactor = BoundedRational.add(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, mCrFactor);
@@ -632,13 +645,13 @@ public class UnifiedReal {
 
     public UnifiedReal multiply(UnifiedReal u) {
         // Preserve a preexisting mCrFactor when we can.
-        if (mCrFactor == CR_ONE) {
+        if (mCrFactor.equals(CR_ONE)) {
             BoundedRational nRatFactor = BoundedRational.multiply(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, u.mCrFactor);
             }
         }
-        if (u.mCrFactor == CR_ONE) {
+        if (u.mCrFactor.equals(CR_ONE)) {
             BoundedRational nRatFactor = BoundedRational.multiply(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, mCrFactor);
@@ -647,7 +660,7 @@ public class UnifiedReal {
         if (definitelyZero() || u.definitelyZero()) {
             return ZERO;
         }
-        if (mCrFactor == u.mCrFactor) {
+        if (mCrFactor.equals(u.mCrFactor)) {
             BoundedRational square = getSquare(mCrFactor);
             if (square != null) {
                 BoundedRational nRatFactor = BoundedRational.multiply(
@@ -691,7 +704,7 @@ public class UnifiedReal {
     }
 
     public UnifiedReal divide(UnifiedReal u) {
-        if (mCrFactor == u.mCrFactor) {
+        if (mCrFactor.equals(u.mCrFactor)) {
             if (u.definitelyZero()) {
                 throw new ZeroDivisionException();
             }
@@ -711,7 +724,7 @@ public class UnifiedReal {
         if (definitelyZero()) {
             return ZERO;
         }
-        if (mCrFactor == CR_ONE) {
+        if (mCrFactor.equals(CR_ONE)) {
             BoundedRational ratSqrt;
             // Check for all arguments of the form <perfect rational square> * small_int,
             // where small_int has a known sqrt.  This includes the small_int = 1 case.
@@ -733,7 +746,7 @@ public class UnifiedReal {
      */
     private BigInteger getPiTwelfths() {
         if (definitelyZero()) return BigInteger.ZERO;
-        if (mCrFactor == CR_PI) {
+        if (mCrFactor.equals(CR_PI)) {
             BigInteger quotient = BoundedRational.asBigInteger(
                     BoundedRational.multiply(mRatFactor, BoundedRational.TWELVE));
             if (quotient == null) {
@@ -805,6 +818,7 @@ public class UnifiedReal {
         return new UnifiedReal(crValue().cos());
     }
 
+    @SuppressWarnings("unused")
     public UnifiedReal tan() {
         BigInteger piTwelfths = getPiTwelfths();
         if (piTwelfths != null) {
@@ -869,7 +883,7 @@ public class UnifiedReal {
         if (halves != null) {
             return asinHalves(halves.intValue());
         }
-        if (mCrFactor == CR.ONE || mCrFactor != CR_SQRT2 ||mCrFactor != CR_SQRT3) {
+        if (mCrFactor.equals(CR.ONE) || !mCrFactor.equals(CR_SQRT2) || !mCrFactor.equals(CR_SQRT3)) {
             return asinNonHalves();
         }
         return new UnifiedReal(crValue().asin());
@@ -905,6 +919,7 @@ public class UnifiedReal {
         return new UnifiedReal(UnaryCRFunction.atanFunction.execute(crValue()));
     }
 
+    @SuppressWarnings("unused")
     private static final BigInteger BIG_TWO = BigInteger.valueOf(2);
 
     // The (in abs value) integral exponent for which we attempt to use a recursive
@@ -935,7 +950,7 @@ public class UnifiedReal {
 
     /**
      * Compute an integral power of a constructive real, using the exp function when
-     * we safely can. Use recursivePow when we can't. exp is known to be nozero.
+     * we safely can. Use recursivePow when we can't. exp is known to be nonzero.
      */
     private UnifiedReal expLnPow(BigInteger exp) {
         int sign = signum(DEFAULT_COMPARE_TOLERANCE);
@@ -979,7 +994,7 @@ public class UnifiedReal {
             return ONE;
         }
         BigInteger absExp = exp.abs();
-        if (mCrFactor == CR_ONE && absExp.compareTo(HARD_RECURSIVE_POW_LIMIT) <= 0) {
+        if (mCrFactor.equals(CR_ONE) && absExp.compareTo(HARD_RECURSIVE_POW_LIMIT) <= 0) {
             final BoundedRational ratPow = mRatFactor.pow(exp);
             // We count on this to fail, e.g. for very large exponents, when it would
             // otherwise be too expensive.
@@ -1013,7 +1028,7 @@ public class UnifiedReal {
      * We nonetheless try to do reasonable things at zero, when we recognize that case.
      */
     public UnifiedReal pow(UnifiedReal expon) {
-        if (mCrFactor == CR_E) {
+        if (mCrFactor.equals(CR_E)) {
             if (mRatFactor.equals(BoundedRational.ONE)) {
                 return expon.exp();
             } else {
@@ -1073,6 +1088,7 @@ public class UnifiedReal {
             return 0;
         }
         long result = 0;
+        //noinspection unused
         BigInteger remaining = n;
         BigInteger bigBase = BigInteger.valueOf(base);
         BigInteger base16th = null;  // base^16, computed lazily
@@ -1098,7 +1114,7 @@ public class UnifiedReal {
     }
 
     public UnifiedReal ln() {
-        if (mCrFactor == CR_E) {
+        if (mCrFactor.equals(CR_E)) {
             return new UnifiedReal(mRatFactor, CR_ONE).ln().add(ONE);
         }
         if (isComparable(ZERO)) {
@@ -1115,7 +1131,7 @@ public class UnifiedReal {
             }
             final BigInteger bi = BoundedRational.asBigInteger(mRatFactor);
             if (bi != null) {
-                if (mCrFactor == CR_ONE) {
+                if (mCrFactor.equals(CR_ONE)) {
                     // Check for a power of a small integer.  We can use sLogs[] to return
                     // a more useful answer for those.
                     for (int i = 0; i < sLogs.length; ++i) {
@@ -1241,7 +1257,7 @@ public class UnifiedReal {
      * if r is a power of ten.
      */
     public int digitsRequired() {
-        if (mCrFactor == CR_ONE || mRatFactor.signum() == 0) {
+        if (mCrFactor.equals(CR_ONE) || mRatFactor.signum() == 0) {
             return BoundedRational.digitsRequired(mRatFactor);
         } else {
             return Integer.MAX_VALUE;

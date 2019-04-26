@@ -19,6 +19,7 @@ package com.example.calculator2;
 import android.text.Spannable;
 import android.text.format.DateUtils;
 
+@SuppressWarnings("WeakerAccess")
 public class HistoryItem {
 
     private long mEvaluatorIndex;

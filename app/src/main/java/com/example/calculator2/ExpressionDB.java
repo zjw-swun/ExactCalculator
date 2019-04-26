@@ -15,7 +15,7 @@
  */
 
 // We make some strong assumptions about the databases we manipulate.
-// We maintain a single table containg expressions, their indices in the sequence of
+// We maintain a single table containing expressions, their indices in the sequence of
 // expressions, and some data associated with each expression.
 // All indices are used, except for a small gap around zero.  New rows are added
 // either just below the current minimum (negative) index, or just above the current
@@ -38,7 +38,7 @@
 
 package com.example.calculator2;
 
-import android.app.Activity;
+import android.annotation.SuppressLint;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.AbstractWindowedCursor;
@@ -50,8 +50,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.os.AsyncTask;
 import android.provider.BaseColumns;
 import android.util.Log;
-import android.view.View;
 
+@SuppressWarnings("WeakerAccess")
 public class ExpressionDB {
     private final boolean CONTINUE_WITH_BAD_DB = false;
 
@@ -65,6 +65,7 @@ public class ExpressionDB {
     }
 
     /* Data to be written to or read from a row in the table */
+    @SuppressWarnings("unused")
     public static class RowData {
         private static final int DEGREE_MODE = 2;
         private static final int LONG_TIMEOUT = 1;
@@ -174,7 +175,7 @@ public class ExpressionDB {
     private long mMinAccessible = -10000000L;
     private long mMaxAccessible = 10000000L;
 
-    // Never allocate new negative indicees (row ids) >= MAXIMUM_MIN_INDEX.
+    // Never allocate new negative indices (row ids) >= MAXIMUM_MIN_INDEX.
     public static final long MAXIMUM_MIN_INDEX = -10;
 
     // Minimum index value in DB.
@@ -203,7 +204,7 @@ public class ExpressionDB {
     // mAllCursorBase, mMinIndex, mMaxIndex, and mDBInitialized. We access mExpressionDB without
     // synchronization after it's known to be initialized.  Used to wait for database
     // initialization.
-    private Object mLock = new Object();
+    private final Object mLock = new Object();
 
     public ExpressionDB(Context context) {
         mExpressionDBHelper = new ExpressionDBHelper(context);
@@ -224,6 +225,7 @@ public class ExpressionDB {
     }
 
     // Is the index in the accessible range of the database?
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private boolean inAccessibleRange(long index) {
         if (!CONTINUE_WITH_BAD_DB) {
             return true;
@@ -249,7 +251,9 @@ public class ExpressionDB {
     /**
      * Initialize the database in the background.
      */
+    @SuppressLint("StaticFieldLeak")
     private class AsyncInitializer extends AsyncTask<ExpressionDBHelper, Void, SQLiteDatabase> {
+        @SuppressLint("Recycle")
         @Override
         protected SQLiteDatabase doInBackground(ExpressionDBHelper... helper) {
             try {
@@ -278,8 +282,8 @@ public class ExpressionDB {
                     mAllCursorBase = (int)mMaxIndex;
                     if (mMaxIndex != 0L || mMinIndex != MAXIMUM_MIN_INDEX) {
                         // Set up a cursor for reading the entire database.
-                        String args[] = new String[]
-                                { Long.toString(mAllCursorBase), Long.toString(mMinIndex) };
+                        String[] args = new String[]
+                                {Long.toString(mAllCursorBase), Long.toString(mMinIndex)};
                         mAllCursor = (AbstractWindowedCursor) db.rawQuery(SQL_GET_ALL, args);
                         if (!mAllCursor.moveToFirst()) {
                             setBadDB();
@@ -349,6 +353,7 @@ public class ExpressionDB {
      * currently in progress
      * These tasks must be executed on a serial executor to avoid reordering writes.
      */
+    @SuppressLint("StaticFieldLeak")
     private class AsyncEraser extends AsyncTask<Void, Void, Void> {
         @Override
         protected Void doInBackground(Void... nothings) {
@@ -398,7 +403,7 @@ public class ExpressionDB {
     // completing with in-flight database writes.
 
     private int mIncompleteWrites = 0;
-    private Object mWriteCountsLock = new Object();  // Protects the preceding field.
+    private final Object mWriteCountsLock = new Object();  // Protects the preceding field.
 
     private void writeCompleted() {
         synchronized(mWriteCountsLock) {
@@ -440,6 +445,7 @@ public class ExpressionDB {
      * Insert the given row in the database without blocking the UI thread.
      * These tasks must be executed on a serial executor to avoid reordering writes.
      */
+    @SuppressLint("StaticFieldLeak")
     private class AsyncWriter extends AsyncTask<ContentValues, Void, Long> {
         @Override
         protected Long doInBackground(ContentValues... cvs) {
@@ -479,6 +485,7 @@ public class ExpressionDB {
      * to complete.
      */
     public long addRow(boolean negativeIndex, RowData data) {
+        //noinspection unused
         long result;
         long newIndex;
         waitForDBInitialized();
@@ -526,7 +533,7 @@ public class ExpressionDB {
      */
     private RowData getRowDirect(long index) {
         RowData result;
-        String args[] = new String[] { Long.toString(index) };
+        String[] args = new String[]{Long.toString(index)};
         try (Cursor resultC = mExpressionDB.rawQuery(SQL_GET_ROW, args)) {
             if (!resultC.moveToFirst()) {
                 setBadDB();
@@ -545,6 +552,7 @@ public class ExpressionDB {
      * We assume that the database has been initialized, and the argument has been range checked.
      */
     private RowData getRowFromCursor(int offset) {
+        //noinspection unused
         RowData result;
         synchronized(mLock) {
             if (!mAllCursor.moveToPosition(offset)) {

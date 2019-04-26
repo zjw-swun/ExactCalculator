@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipDescription;
@@ -23,9 +24,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Build;
-import androidx.annotation.IntDef;
-import androidx.core.content.ContextCompat;
-import androidx.core.os.BuildCompat;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -47,11 +45,15 @@ import android.view.ViewConfiguration;
 import android.widget.OverScroller;
 import android.widget.Toast;
 
+import androidx.annotation.IntDef;
+import androidx.core.content.ContextCompat;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 // A text widget that is "infinitely" scrollable to the right,
 // and obtains the text to display via a callback to Logic.
+@SuppressWarnings("unused")
 public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenuItemClickListener,
         Evaluator.EvaluationListener, Evaluator.CharMetricsInfo {
     static final int MAX_RIGHT_SCROLL = 10000000;
@@ -79,7 +81,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
     // In the following, we use a suffix of Offset to denote a character position in a numeric
     // string relative to the decimal point.  Positive is to the right and negative is to
     // the left. 1 = tenths position, -1 = units.  Integer.MAX_VALUE is sometimes used
-    // for the offset of the last digit in an a nonterminating decimal expansion.
+    // for the offset of the last digit in an a non-terminating decimal expansion.
     // We use the suffix "Index" to denote a zero-based index into a string representing a
     // result.
     private int mMaxCharOffset;  // Character offset from decimal point of rightmost digit
@@ -97,7 +99,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                             // The result fits entirely in the display, even with an exponent,
                             // but not with grouping separators. Since the result is not
                             // scrollable, and we do not add the exponent to max. scroll position,
-                            // append an exponent insteadd of replacing trailing digits.
+                            // append an exponent instead of replacing trailing digits.
     private final Object mWidthLock = new Object();
                             // Protects the next five fields.  These fields are only
                             // updated by the UI thread, and read accesses by the UI thread
@@ -118,6 +120,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
     private float mNoEllipsisCredit;
                             // Fraction of digit width saved by both replacing ellipsis with digit
                             // and avoiding scientific notation.
+    @SuppressWarnings("WeakerAccess")
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE})
     public @interface EvaluationRequest {}
@@ -202,7 +205,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     }
                     int duration = (int)(e2.getEventTime() - e1.getEventTime());
                     if (duration < 1 || duration > 100) duration = 10;
-                    mScroller.startScroll(mCurrentPos, 0, distance, 0, (int)duration);
+                    mScroller.startScroll(mCurrentPos, 0, distance, 0, duration);
                     postInvalidateOnAnimation();
                     return true;
                 }
@@ -221,6 +224,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
             private float mInitialDownX;
             private float mInitialDownY;
 
+            @SuppressLint("ClickableViewAccessibility")
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 final int action = event.getActionMasked();
@@ -291,7 +295,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
         // Digits are presumed to have no more than newCharWidth.
         // There are two instances when we know that the result is otherwise narrower than
         // expected:
-        // 1. For standard scientific notation (our type 1), we know that we have a norrow decimal
+        // 1. For standard scientific notation (our type 1), we know that we have a narrow decimal
         // point and no (usually wide) ellipsis symbol. We allow one extra digit
         // (SCI_NOTATION_EXTRA) to compensate, and consider that in determining available width.
         // 2. If we are using digit grouping separators and a decimal point, we give ourselves
@@ -407,7 +411,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
 
     // Return the length of the exponent representation for the given exponent, in
     // characters.
-    private final int expLen(int exp) {
+    private int expLen(int exp) {
         if (exp == 0) return 0;
         final int abs_exp_digits = (int) Math.ceil(Math.log10(Math.abs((double)exp))
                 + 0.0000000001d /* Round whole numbers to next integer */);
@@ -492,13 +496,13 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
         mLsdOffset = lsdOffset;
         mAppendExponent = false;
         // Prevent scrolling past initial position, which is calculated to show leading digits.
-        mCurrentPos = mMinPos = (int) Math.round(initPrecOffset * mCharWidth);
+        mCurrentPos = mMinPos = Math.round(initPrecOffset * mCharWidth);
         if (msdIndex == Evaluator.INVALID_MSD) {
             // Possible zero value
             if (lsdOffset == Integer.MIN_VALUE) {
                 // Definite zero value.
                 mMaxPos = mMinPos;
-                mMaxCharOffset = (int) Math.round(mMaxPos/mCharWidth);
+                mMaxCharOffset = Math.round(mMaxPos/mCharWidth);
                 mScrollable = false;
             } else {
                 // May be very small nonzero value.  Allow user to find out.
@@ -553,7 +557,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                 } else {
                     mMaxCharOffset = Math.min(newMaxCharOffset, MAX_RIGHT_SCROLL);
                 }
-                mMaxPos = Math.min((int) Math.round(mMaxCharOffset * mCharWidth),
+                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth),
                         MAX_RIGHT_SCROLL);
             } else if (!mWholePartFits && !mScrollable) {
                 // Corner case in which entire number fits, but not with grouping separators.  We
@@ -561,7 +565,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                 // by one character will remove the exponent and reveal the last digits.  Note
                 // that in the forced scientific notation case, the exponent length is not
                 // factored into mMaxCharOffset, since we do not want such an increase to impact
-                // scrolling behavior.  In the unscrollable case, we thus have to append the
+                // scrolling behavior.  In the un-scrollable case, we thus have to append the
                 // exponent at the end using the forcePrecision argument to formatResult, in order
                 // to ensure that we get the entire result.
                 mScrollable = (mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset
@@ -574,7 +578,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     mAppendExponent = true;
                 }
             } else {
-                mMaxPos = Math.min((int) Math.round(mMaxCharOffset * mCharWidth),
+                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth),
                         MAX_RIGHT_SCROLL);
             }
             if (!mScrollable) {
@@ -662,16 +666,17 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                 We insert commas in a way that does consider the width of the actual localized digit
                 separator. Commas count towards maxDigs as the appropriate fraction of a digit.
      */
+    @SuppressWarnings("unused")
     private String formatResult(String in, int precOffset, int maxDigs, boolean truncated,
-            boolean negative, int lastDisplayedOffset[], boolean forcePrecision,
-            boolean forceSciNotation, boolean insertCommas) {
+                                boolean negative, int[] lastDisplayedOffset, boolean forcePrecision,
+                                boolean forceSciNotation, boolean insertCommas) {
         final int minusSpace = negative ? 1 : 0;
         final int msdIndex = truncated ? -1 : getNaiveMsdIndexOf(in);  // INVALID_MSD is OK.
         String result = in;
         boolean needEllipsis = false;
         if (truncated || (negative && result.charAt(0) != '-')) {
             needEllipsis = true;
-            result = KeyMaps.ELLIPSIS + result.substring(1, result.length());
+            result = KeyMaps.ELLIPSIS + result.substring(1);
             // Ellipsis may be removed again in the type(1) scientific notation case.
         }
         final int decIndex = result.indexOf('.');
@@ -682,7 +687,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                 && msdIndex - decIndex > MAX_LEADING_ZEROES + 1) &&  precOffset != -1) {
             // Either:
             // 1) No decimal point displayed, and it's not just to the right of the last digit, or
-            // 2) we are at the front of a number whos integral part is too large to allow
+            // 2) we are at the front of a number whose integral part is too large to allow
             // comma insertion, or
             // 3) we should suppress leading zeroes.
             // Add an exponent to let the user track which digits are currently displayed.
@@ -704,7 +709,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     // In the forceSciNotation, we can have a decimal point in the relevant digit
                     // range. Remove it.
                     result = result.substring(0, decIndex)
-                            + result.substring(decIndex + 1, result.length());
+                            + result.substring(decIndex + 1);
                     // msdIndex and precOffset unaffected.
                 }
                 final int resLen = result.length();
@@ -732,6 +737,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     // Type (2) exponent.
                     // Exponent depends on the number of digits we drop, which depends on
                     // exponent ...
+                    //noinspection StatementWithEmptyBody
                     for (dropDigits = 2; expLen(initExponent + dropDigits) > dropDigits;
                             ++dropDigits) {}
                     exponent = initExponent + dropDigits;
@@ -753,7 +759,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     lastDisplayedOffset[0] -= dropDigits;
                 }
             }
-            result = result + "E" + Integer.toString(exponent);
+            result = result + "E" + exponent;
         } else if (insertCommas) {
             // Add commas to the whole number section, and then truncate on left to fit,
             // counting commas as a fractional digit.
@@ -794,7 +800,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                 }
             }
             if (deletedChars > 0) {
-                result = KeyMaps.ELLIPSIS + result.substring(deletedChars, result.length());
+                result = KeyMaps.ELLIPSIS + result.substring(deletedChars);
             } else if (needEllipsis) {
                 result = KeyMaps.ELLIPSIS + result;
             }
@@ -813,11 +819,11 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      * @param forceSciNotation Force scientific notation, even if not required by maxSize.
      * @param insertCommas Insert commas as digit separators.
      */
-    private String getFormattedResult(int precOffset, int maxSize, int lastDisplayedOffset[],
-            boolean forcePrecision, boolean forceSciNotation, boolean insertCommas) {
-        final boolean truncated[] = new boolean[1];
-        final boolean negative[] = new boolean[1];
-        final int requestedPrecOffset[] = {precOffset};
+    private String getFormattedResult(int precOffset, int maxSize, int[] lastDisplayedOffset,
+                                      boolean forcePrecision, boolean forceSciNotation, boolean insertCommas) {
+        final boolean[] truncated = new boolean[1];
+        final boolean[] negative = new boolean[1];
+        final int[] requestedPrecOffset = {precOffset};
         final String rawResult = mEvaluator.getString(mIndex, requestedPrecOffset, mMaxCharOffset,
                 maxSize, truncated, negative, this);
         return formatResult(rawResult, requestedPrecOffset[0], maxSize, truncated[0], negative[0],
@@ -878,7 +884,6 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      */
     @Override
     public int getMaxChars() {
-        int result;
         synchronized(mWidthLock) {
             return (int) Math.floor(mWidthConstraint / mCharWidth);
         }
@@ -896,7 +901,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      * UI thread only.
      */
     int getCharOffset(int pos) {
-        return (int) Math.round(pos / mCharWidth);  // Lock not needed.
+        return Math.round(pos / mCharWidth);  // Lock not needed.
     }
 
     void clear() {
@@ -931,7 +936,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
             setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_POLITE);
         }
         int currentCharOffset = getCharOffset(mCurrentPos);
-        int lastDisplayedOffset[] = new int[1];
+        int[] lastDisplayedOffset = new int[1];
         String result = getFormattedResult(currentCharOffset, maxChars, lastDisplayedOffset,
                 mAppendExponent /* forcePrecision; preserve entire result */,
                 !mWholePartFits
@@ -1038,7 +1043,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
                     outRect.left = outRect.right - width;
                 }
 
-                if (!BuildCompat.isAtLeastN()) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                     // The CAB (prior to N) only takes the translation of a view into account, so
                     // if a scale is applied to the view then the offset outRect will end up being
                     // positioned incorrectly. We workaround that limitation by manually applying

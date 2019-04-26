@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -64,13 +65,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * When evaluation is requested, we invoke the eval() method on the CalculatorExpr from a
  * background AsyncTask.  A subsequent getString() call for the same expression index returns
  * immediately, though it may return a result containing placeholder ' ' characters.  If we had to
- * return palceholder characters, we start a background task, which invokes the onReevaluate()
+ * return placeholder characters, we start a background task, which invokes the onReevaluate()
  * callback when it completes.  In either case, the background task computes the appropriate
  * result digits by evaluating the UnifiedReal returned by CalculatorExpr.eval() to the required
  * precision.
  *
  * We cache the best decimal approximation we have already computed.  We compute generously to
- * allow for some scrolling without recomputation and to minimize the chance of digits flipping
+ * allow for some scrolling without re-computation and to minimize the chance of digits flipping
  * from "0000" to "9999".  The best known result approximation is maintained as a string by
  * mResultString (and often in a different format by the CR representation of the result).  When
  * we are in danger of not having digits to display in response to further scrolling, we also
@@ -93,8 +94,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * We ensure that only one evaluation of either kind (AsyncEvaluator or AsyncReevaluator) is
  * running at a time.
  */
+@SuppressWarnings("WeakerAccess")
 public class Evaluator implements CalculatorExpr.ExprResolver {
+    static final String TAG = "Evaluator";
 
+    @SuppressLint("StaticFieldLeak")
     private static Evaluator evaluator;
 
     public static String TIMEOUT_DIALOG_TAG = "timeout";
@@ -111,11 +115,11 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         /**
          * Called if evaluation was explicitly cancelled or evaluation timed out.
          */
-        public void onCancelled(long index);
+        void onCancelled(long index);
         /**
          * Called if evaluation resulted in an error.
          */
-        public void onError(long index, int errorId);
+        void onError(long index, int errorId);
         /**
          * Called if evaluation completed normally.
          * @param index index of expression whose evaluation completed
@@ -125,14 +129,14 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
          *        expansion
          * @param truncatedWholePart the integer part of the result
          */
-        public void onEvaluate(long index, int initPrecOffset, int msdIndex, int lsdOffset,
-                String truncatedWholePart);
+        void onEvaluate(long index, int initPrecOffset, int msdIndex, int lsdOffset,
+                        String truncatedWholePart);
         /**
          * Called in response to a reevaluation request, once more precision is available.
          * Typically the listener wil respond by calling getString() to retrieve the new
          * better approximation.
          */
-        public void onReevaluate(long index);  // More precision is now available; please redraw.
+        void onReevaluate(long index);  // More precision is now available; please redraw.
     }
 
     /**
@@ -146,7 +150,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
          * Return the maximum number of (adjusted, digit-width) characters that will fit in the
          * result display.  May be called asynchronously from non-UI thread.
          */
-       public int getMaxChars();
+        int getMaxChars();
         /**
          * Return the number of additional digit widths required to add digit separators to
          * the supplied string prefix.
@@ -154,17 +158,17 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
          * represent a whole number. Callable from non-UI thread.
          * Returns zero if metrics information is not yet available.
          */
-        public float separatorChars(String s, int len);
+        float separatorChars(String s, int len);
         /**
          * Return extra width credit for presence of a decimal point, as fraction of a digit width.
          * May be called by non-UI thread.
          */
-        public float getDecimalCredit();
+        float getDecimalCredit();
         /**
          * Return extra width credit for absence of ellipsis, as fraction of a digit width.
          * May be called by non-UI thread.
          */
-        public float getNoEllipsisCredit();
+        float getNoEllipsisCredit();
     }
 
     /**
@@ -210,7 +214,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     // When naming variables and fields, "Offset" denotes a character offset in a string
     // representing a decimal number, where the offset is relative to the decimal point.  1 =
     // tenths position, -1 = units position.  Integer.MAX_VALUE is sometimes used for the offset
-    // of the last digit in an a nonterminating decimal expansion.  We use the suffix "Index" to
+    // of the last digit in an a non-terminating decimal expansion.  We use the suffix "Index" to
     // denote a zero-based absolute index into such a string. (In other contexts, like above,
     // we also use "index" to refer to the key in mExprs below, the list of all known
     // expressions.)
@@ -227,11 +231,11 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
 
     // We adjust EXTRA_DIGITS by adding the length of the previous result divided by
     // EXTRA_DIVISOR.  This helps hide recompute latency when long results are requested;
-    // We start the recomputation substantially before the need is likely to be visible.
+    // We start the re-computation substantially before the need is likely to be visible.
     private static final int EXTRA_DIVISOR = 5;
 
     // In addition to insisting on extra digits (see above), we minimize reevaluation
-    // frequency by precomputing an extra PRECOMPUTE_DIGITS
+    // frequency by pre-computing an extra PRECOMPUTE_DIGITS
     // + <current_precision_offset>/PRECOMPUTE_DIVISOR digits, whenever we are forced to
     // reevaluate.  The last term is dropped if prec < 0.
     private static final int PRECOMPUTE_DIGITS = 30;
@@ -245,7 +249,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
 
     // The largest number of digits to the right of the decimal point to which we will evaluate to
     // compute proper scientific notation for values close to zero.  Chosen to ensure that we
-    // always to better than IEEE double precision at identifying nonzeros. And then some.
+    // always to better than IEEE double precision at identifying non-zeros. And then some.
     // This is used only when we cannot a priori determine the most significant digit position, as
     // we always can if we have a rational representation.
     private static final int MAX_MSD_PREC_OFFSET = 1100;
@@ -293,7 +297,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         public ExprInfo(CalculatorExpr expr, boolean dm) {
             mExpr = expr;
             mDegreeMode = dm;
-            mVal = new AtomicReference<UnifiedReal>();
+            mVal = new AtomicReference<>();
         }
 
         // Currently running expression evaluator, if any.  This is either an AsyncEvaluator
@@ -323,7 +327,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         public long mTimeStamp;
     }
 
-    private ConcurrentHashMap<Long, ExprInfo> mExprs = new ConcurrentHashMap<Long, ExprInfo>();
+    private ConcurrentHashMap<Long, ExprInfo> mExprs = new ConcurrentHashMap<>();
 
     // The database holding persistent expressions.
     private ExpressionDB mExprDB;
@@ -383,7 +387,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
 
     /**
      * Set the Callback for showing dialogs and notifying the UI about memory state changes.
-     * @param callback
+     * @param callback the Callback we should call
      */
     public void setCallback(Callback callback) {
         mCallback = callback;
@@ -434,7 +438,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     // Timeout handling.
     // Expressions are evaluated with a sort timeout or a long timeout.
     // Each implies different maxima on both computation time and bit length.
-    // We recheck bit length separetly to avoid wasting time on decimal conversions that are
+    // We recheck bit length separately to avoid wasting time on decimal conversions that are
     // destined to fail.
 
     /**
@@ -466,7 +470,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * to complete previously enqueued evaluations. Thus the longTimeout flag is not very
      * meaningful, and currently ignored.
      * Since this is only used for expressions that we have previously successfully evaluated,
-     * these timeouts hsould never trigger.
+     * these timeouts should never trigger.
      */
     private static final long NON_MAIN_TIMEOUT = 100000;
 
@@ -493,6 +497,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * completes.  Can result in an error display if something goes wrong.  By default we set a
      * timeout to catch runaway computations.
      */
+    @SuppressLint("StaticFieldLeak")
     class AsyncEvaluator extends AsyncTask<Void, Void, InitialResult> {
         private boolean mDm;  // degrees
         public boolean mRequired; // Result was requested by user.
@@ -512,6 +517,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             mRequired = required;
             mQuiet = !required || mIndex != MAIN_INDEX;
             mExprInfo = mExprs.get(mIndex);
+            //noinspection ConstantConditions
             if (mExprInfo.mEvaluator != null) {
                 throw new AssertionError("Evaluation already in progress!");
             }
@@ -521,6 +527,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             // Runs in UI thread.
             boolean running = (getStatus() != AsyncTask.Status.FINISHED);
             if (running && cancel(true)) {
+                //noinspection ConstantConditions
                 mExprs.get(mIndex).mEvaluator = null;
                 if (mRequired && mIndex == MAIN_INDEX) {
                     // Replace mExpr with clone to avoid races if task still runs for a while.
@@ -573,7 +580,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                     try {
                         res = mExprInfo.mExpr.eval(mDm, Evaluator.this);
                         if (isCancelled()) {
-                            // TODO: This remains very slightly racey. Fix this.
+                            // TODO: This remains very slightly racy. Fix this.
                             throw new CR.AbortedException();
                         }
                         res = putResultIfAbsent(mIndex, res);
@@ -584,7 +591,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                     }
                 }
                 if (isTooBig(res)) {
-                    // Avoid starting a long uninterruptible decimal conversion.
+                    // Avoid starting a long un-interruptible decimal conversion.
                     return new InitialResult(R.string.timeout);
                 }
                 int precOffset = INIT_PREC;
@@ -639,6 +646,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                 if (result.errorResourceId == R.string.timeout) {
                     // Emulating timeout due to large result.
                     if (mRequired && mIndex == MAIN_INDEX) {
+                        //noinspection ConstantConditions
                         displayTimeoutMessage(mExprs.get(mIndex).mLongTimeout);
                     }
                     mListener.onCancelled(mIndex);
@@ -656,7 +664,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             final int dotIndex = mExprInfo.mResultString.indexOf('.');
             String truncatedWholePart = mExprInfo.mResultString.substring(0, dotIndex);
             // Recheck display precision; it may change, since display dimensions may have been
-            // unknow the first time.  In that case the initial evaluation precision should have
+            // un-know the first time.  In that case the initial evaluation precision should have
             // been conservative.
             // TODO: Could optimize by remembering display size and checking for change.
             int initPrecOffset = result.initDisplayOffset;
@@ -670,6 +678,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             } else {
                 // They should be equal.  But nothing horrible should happen if they're not. e.g.
                 // because CalculatorResult.MAX_WIDTH was too small.
+                Log.i(TAG, "newInitPrecOffset was not less than initPrecOffset");
             }
             mListener.onEvaluate(mIndex, initPrecOffset, mExprInfo.mMsdIndex, leastDigOffset,
                     truncatedWholePart);
@@ -684,7 +693,6 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             } // Otherwise, if mRequired, timeout processing displayed message.
             mListener.onCancelled(mIndex);
             // Just drop the evaluation; Leave expression displayed.
-            return;
         }
     }
 
@@ -739,6 +747,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * This assumes that initial evaluation of the expression has been successfully
      * completed.
      */
+    @SuppressLint("StaticFieldLeak")
     private class AsyncReevaluator extends AsyncTask<Integer, Void, ReevalResult> {
         private long mIndex;  // Index of expression to evaluate.
         private EvaluationListener mListener;
@@ -753,7 +762,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         @Override
         protected ReevalResult doInBackground(Integer... prec) {
             try {
-                final int precOffset = prec[0].intValue();
+                final int precOffset = prec[0];
                 return new ReevalResult(mExprInfo.mVal.get().toStringTruncated(precOffset),
                         precOffset);
             } catch(ArithmeticException e) {
@@ -797,6 +806,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      */
     private void ensureCachePrec(long index, int precOffset, EvaluationListener listener) {
         ExprInfo ei = mExprs.get(index);
+        //noinspection ConstantConditions
         if (ei.mResultString != null && ei.mResultStringOffset >= precOffset
                 || ei.mResultStringOffsetReq >= precOffset) return;
         if (ei.mEvaluator != null) {
@@ -818,7 +828,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * @param val UnifiedReal value of result.
      * @param cache Current cached decimal string representation of result.
      * @param decIndex Index of decimal point in cache.
-     * @result Position of rightmost nonzero digit relative to decimal point.
+     * @return Position of rightmost nonzero digit relative to decimal point.
      *         Integer.MIN_VALUE if we cannot determine.  Integer.MAX_VALUE if there is no lsd,
      *         or we cannot determine it.
      */
@@ -827,6 +837,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         int result = val.digitsRequired();
         if (result == 0) {
             int i;
+            //noinspection StatementWithEmptyBody
             for (i = -1; decIndex + i > 0 && cache.charAt(decIndex + i) == '0'; --i) { }
             result = i;
         }
@@ -948,7 +959,8 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                 // Preferred display format in this case is with leading zeroes, even if
                 // it doesn't fit entirely.  Replicate that here.
                 msdIndex = dotIndex - 1;
-            } else if (lsdOffset <= SHORT_TARGET_LENGTH - negative - 2
+            } else //noinspection ConstantConditions
+                if (lsdOffset <= SHORT_TARGET_LENGTH - negative - 2
                     && lsdOffset <= CalculatorResult.MAX_LEADING_ZEROES + 1) {
                 // Fraction that fits entirely in allotted space.
                 // CalculatorResult would not use scientific notation either.
@@ -1009,13 +1021,14 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     }
 
     /**
-     * Return most significant digit index for the result of the expressin at the given index.
+     * Return most significant digit index for the result of the expression at the given index.
      * Returns an index in the result character array.  Return INVALID_MSD if the current result
      * is too close to zero to determine the result.
      * Result is almost consistent through reevaluations: It may increase by one, once.
      */
     private int getMsdIndex(long index) {
         ExprInfo ei = mExprs.get(index);
+        //noinspection ConstantConditions
         if (ei.mMsdIndex != INVALID_MSD) {
             // 0.100000... can change to 0.0999999...  We may have to correct once by one digit.
             if (ei.mResultString.charAt(ei.mMsdIndex) == '0') {
@@ -1034,7 +1047,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     }
 
     // Refuse to scroll past the point at which this many digits from the whole number
-    // part of the result are still displayed.  Avoids sily displays like 1E1.
+    // part of the result are still displayed.  Avoids silly displays like 1E1.
     private static final int MIN_DISPLAYED_DIGS = 5;
 
     /**
@@ -1065,6 +1078,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         ExprInfo ei = mExprs.get(index);
         int currentPrecOffset = precOffset[0];
         // Make sure we eventually get a complete answer
+        //noinspection ConstantConditions
         if (ei.mResultString == null) {
             ensureCachePrec(index, currentPrecOffset + EXTRA_DIGITS, listener);
             // Nothing else to do now; seems to happen on rare occasion with weird user input
@@ -1153,6 +1167,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         if (index == MAIN_INDEX) {
             clearMainCache();
         }  // Otherwise the expression is immutable.
+        //noinspection ConstantConditions
         AsyncEvaluator eval =  new AsyncEvaluator(index, listener, cmi, ei.mDegreeMode, required);
         ei.mEvaluator = eval;
         eval.execute();
@@ -1188,7 +1203,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             return;
         }
         ExprInfo ei = ensureExprIsCached(index);
-        if (ei.mResultString != null && ei.mResultString != ERRONEOUS_RESULT
+        if (ei.mResultString != null && !ei.mResultString.equals(ERRONEOUS_RESULT)
                 && !(index == MAIN_INDEX && mChangedValue)) {
             // Already done. Just notify.
             notifyImmediately(MAIN_INDEX, mMainExpr, listener, cmi);
@@ -1217,7 +1232,8 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                 // not already computed for the main expression. Pretend we timed out.
                 // The error case doesn't get here.
                 listener.onCancelled(index);
-            } else if ((ei.mEvaluator instanceof AsyncEvaluator)
+            } else //noinspection StatementWithEmptyBody
+                if ((ei.mEvaluator instanceof AsyncEvaluator)
                     && ((AsyncEvaluator)(ei.mEvaluator)).mRequired) {
                 // Duplicate request; ignore.
             } else {
@@ -1225,7 +1241,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
                 cancel(ei, true);
                 evaluateResult(index, listener, cmi, true);
             }
-        } else if (ei.mResultString == ERRONEOUS_RESULT) {
+        } else if (ei.mResultString.equals(ERRONEOUS_RESULT)) {
             // Just re-evaluate to generate a new notification.
             cancel(ei, true);
             evaluateResult(index, listener, cmi, true);
@@ -1264,7 +1280,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
             if (expr.mVal.get() != null) {
                 expr.mEvaluator.cancel(true);
                 expr.mResultStringOffsetReq = expr.mResultStringOffset;
-                // Backgound computation touches only constructive reals.
+                // Background computation touches only constructive reals.
                 // OK not to wait.
                 expr.mEvaluator = null;
             } else {
@@ -1290,6 +1306,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * @param quiet suppress cancellation message
      * @return true if we cancelled an initial evaluation
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean cancel(long index, boolean quiet)
     {
         ExprInfo ei = mExprs.get(index);
@@ -1403,14 +1420,16 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * We remove trailing binary operators in the copy.
      * mTimeStamp is not copied.
      */
+    @SuppressWarnings("SameParameterValue")
     private ExprInfo copy(long index, boolean copyValue) {
         ExprInfo fromEi = mExprs.get(index);
+        //noinspection ConstantConditions
         ExprInfo ei = new ExprInfo((CalculatorExpr)fromEi.mExpr.clone(), fromEi.mDegreeMode);
         while (ei.mExpr.hasTrailingBinary()) {
             ei.mExpr.delete();
         }
         if (copyValue) {
-            ei.mVal = new AtomicReference<UnifiedReal>(fromEi.mVal.get());
+            ei.mVal = new AtomicReference<>(fromEi.mVal.get());
             ei.mResultString = fromEi.mResultString;
             ei.mResultStringOffset = ei.mResultStringOffsetReq = fromEi.mResultStringOffset;
             ei.mMsdIndex = fromEi.mMsdIndex;
@@ -1453,6 +1472,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         result.add(op);
         result.append(collapsed2);
         ExprInfo resultEi = new ExprInfo(result, false /* dont care about degrees/radians */);
+        //noinspection ConstantConditions
         resultEi.mLongTimeout = mExprs.get(index1).mLongTimeout
                 || mExprs.get(index2).mLongTimeout;
         return resultEi;
@@ -1484,13 +1504,13 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     /**
      * Preserve a copy of the expression at old_index at a new index.
      * This is useful only of old_index is MAIN_INDEX or HISTORY_MAIN_INDEX.
-     * This assumes that initial evaluation completed suceessfully.
+     * This assumes that initial evaluation completed successfully.
      * @param in_history use a positive index so the result appears in the history.
      * @return the new index
      */
     public long preserve(long old_index, boolean in_history) {
         ExprInfo ei = copy(old_index, true);
-        if (ei.mResultString == null || ei.mResultString == ERRONEOUS_RESULT) {
+        if (ei.mResultString == null || ei.mResultString.equals(ERRONEOUS_RESULT)) {
             throw new AssertionError("Preserving unevaluated expression");
         }
         return addToDB(in_history, ei);
@@ -1511,7 +1531,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
 
     /**
      * Discard previous expression in HISTORY_MAIN_INDEX and replace it by a fresh copy
-     * of the main expression. Note that the HISTORY_MAIN_INDEX expresssion is not preserved
+     * of the main expression. Note that the HISTORY_MAIN_INDEX expression is not preserved
      * in the database or anywhere else; it is always reconstructed when needed.
      */
     public void copyMainToHistory() {
@@ -1530,12 +1550,13 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     private CalculatorExpr getCollapsedExpr(long index) {
         long real_index = isMutableIndex(index) ? preserve(index, false) : index;
         final ExprInfo ei = mExprs.get(real_index);
+        //noinspection ConstantConditions
         final String rs = ei.mResultString;
         // An error can occur here only under extremely unlikely conditions.
         // Check anyway, and just refuse.
         // rs *should* never be null, but it happens. Check as a workaround to protect against
         // crashes until we find the root cause (b/34801142)
-        if (rs == ERRONEOUS_RESULT || rs == null) {
+        if (rs == null || rs.equals(ERRONEOUS_RESULT)) {
             return null;
         }
         final int dotIndex = rs.indexOf('.');
@@ -1553,6 +1574,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * diverge, though it may generate errors of various kinds.  E.g.  sqrt(-10^-1000) .
      */
     public void collapse(long index) {
+        //noinspection ConstantConditions
         final boolean longTimeout = mExprs.get(index).mLongTimeout;
         final CalculatorExpr abbrvExpr = getCollapsedExpr(index);
         clearMain();
@@ -1665,8 +1687,9 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * mExpr is left alone.  Return false if result is unavailable.
      */
     private boolean copyToSaved(long index) {
+        //noinspection ConstantConditions
         if (mExprs.get(index).mResultString == null
-                || mExprs.get(index).mResultString == ERRONEOUS_RESULT) {
+                || mExprs.get(index).mResultString.equals(ERRONEOUS_RESULT)) {
             return false;
         }
         setSavedIndex(isMutableIndex(index) ? preserve(index, false) : index);
@@ -1736,6 +1759,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         // Generate a new (entirely private) URI for this result.
         // Attempt to conform to RFC4151, though it's unclear it matters.
         final TimeZone tz = TimeZone.getDefault();
+        @SuppressLint("SimpleDateFormat")
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
         df.setTimeZone(tz);
         final String isoDate = df.format(new Date());
@@ -1757,6 +1781,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     public void appendExpr(long index) {
         ExprInfo ei = mExprs.get(index);
         mChangedValue = true;
+        //noinspection ConstantConditions
         mMainExpr.mLongTimeout |= ei.mLongTimeout;
         CalculatorExpr collapsed = getCollapsedExpr(index);
         if (collapsed != null) {
@@ -1831,6 +1856,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     @Override
     public UnifiedReal putResultIfAbsent(long index, UnifiedReal result) {
         ExprInfo ei = mExprs.get(index);
+        //noinspection ConstantConditions
         if (ei.mVal.compareAndSet(null, result)) {
             return result;
         } else {
@@ -1921,6 +1947,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * Generate a String representation of all expressions in the database.
      * Debugging only.
      */
+    @SuppressWarnings("unused")
     public String historyAsString() {
         final long startIndex = getMinIndex();
         final long endIndex = getMaxIndex();
@@ -1945,8 +1972,8 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
 
     /**
      * Destroy the current evaluator, forcing getEvaluator to allocate a new one.
-     * This is needed for testing, since Robolectric apparently doesn't let us preserve
-     * an open databse across tests. Cf. https://github.com/robolectric/robolectric/issues/1890 .
+     * This is needed for testing, since Roboelectric apparently doesn't let us preserve
+     * an open database across tests. Cf. https://github.com/robolectric/robolectric/issues/1890 .
      */
     public void destroyEvaluator() {
         mExprDB.close();

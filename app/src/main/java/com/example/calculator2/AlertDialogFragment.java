@@ -16,6 +16,7 @@
 
 package com.example.calculator2;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -29,7 +30,7 @@ import android.view.LayoutInflater;
 import android.widget.TextView;
 
 /**
- * Display a message with a dismiss putton, and optionally a second button.
+ * Display a message with a dismiss button, and optionally a second button.
  */
 public class AlertDialogFragment extends DialogFragment implements DialogInterface.OnClickListener {
 
@@ -107,7 +108,7 @@ public class AlertDialogFragment extends DialogFragment implements DialogInterfa
         final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
 
         final LayoutInflater inflater = LayoutInflater.from(builder.getContext());
-        final TextView messageView = (TextView) inflater.inflate(
+        @SuppressLint("InflateParams") final TextView messageView = (TextView) inflater.inflate(
                 R.layout.dialog_message, null /* root */);
         messageView.setText(args.getCharSequence(KEY_MESSAGE));
         builder.setView(messageView);

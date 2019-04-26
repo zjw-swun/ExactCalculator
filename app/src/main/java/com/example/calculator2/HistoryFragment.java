@@ -60,10 +60,11 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         final View view = inflater.inflate(
                 R.layout.fragment_history, container, false /* attachToRoot */);
 
-        mDragLayout = (DragLayout) container.getRootView().findViewById(R.id.drag_layout);
+        mDragLayout = container.getRootView().findViewById(R.id.drag_layout);
         mDragLayout.addDragCallback(this);
 
-        mRecyclerView = (RecyclerView) view.findViewById(R.id.history_recycler_view);
+        mRecyclerView = view.findViewById(R.id.history_recycler_view);
+        //noinspection NullableProblems
         mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
@@ -78,7 +79,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         mRecyclerView.setHasFixedSize(true);
         mRecyclerView.setAdapter(mAdapter);
 
-        final Toolbar toolbar = (Toolbar) view.findViewById(R.id.history_toolbar);
+        final Toolbar toolbar = view.findViewById(R.id.history_toolbar);
         toolbar.inflateMenu(R.menu.fragment_history);
         toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
             @Override
