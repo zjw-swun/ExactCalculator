@@ -17,7 +17,7 @@
 package com.example.calculator2;
 
 import android.animation.Animator;
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.os.Bundle;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -54,6 +54,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         mAdapter = new HistoryAdapter(mDataSet);
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
@@ -82,6 +83,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         final Toolbar toolbar = view.findViewById(R.id.history_toolbar);
         toolbar.inflateMenu(R.menu.fragment_history);
         toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
+            @SuppressWarnings("ConstantConditions")
             @Override
             public boolean onMenuItemClick(MenuItem item) {
                 if (item.getItemId() == R.id.menu_clear_history) {
@@ -98,6 +100,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         toolbar.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //noinspection ConstantConditions
                 getActivity().onBackPressed();
             }
         });
@@ -112,6 +115,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         mEvaluator = Evaluator.getInstance(activity);
         mAdapter.setEvaluator(mEvaluator);
 
+        //noinspection ConstantConditions
         final boolean isResultLayout = activity.isResultLayout();
         final boolean isOneLine = activity.isOneLine();
 
@@ -159,6 +163,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         super.onStart();
 
         final Calculator2 activity = (Calculator2) getActivity();
+        //noinspection ConstantConditions
         mDragController.initializeAnimation(activity.isResultLayout(), activity.isOneLine(),
                 mIsDisplayEmpty);
     }
@@ -184,6 +189,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
     }
 
     private void initializeController(boolean isResult, boolean isOneLine, boolean isDisplayEmpty) {
+        //noinspection ConstantConditions
         mDragController.setDisplayFormula(
                 (CalculatorFormula) getActivity().findViewById(R.id.formula));
         mDragController.setDisplayResult(
