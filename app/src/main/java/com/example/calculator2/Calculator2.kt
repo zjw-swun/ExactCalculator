@@ -78,6 +78,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     // TODO: Possibly save a bit more information, e.g. its initial display string
     // or most significant digit position, to speed up restart.
 
+    /**
+     * [Property] that is used to animate the current color selected for normal text, it is used
+     * by the [onResult] method to animate the "textColor" property of the [CalculatorResult] TextView
+     * when displaying a result.
+     */
     private val textColor = object : Property<TextView, Int>(Int::class.java, "textColor") {
         override fun get(textView: TextView): Int {
             return textView.currentTextColor
@@ -88,10 +93,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * OnPreDrawListener that scrolls the [CalculatorScrollView] formula container (with resource id
+     * R.id.formula_container) to the right side of the TextView holding the current formula as
+     * characters are added to it.
+     */
     private val mPreDrawListener = object : ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
-            mFormulaContainer!!.scrollTo(mFormulaText!!.right, 0)
-            val observer = mFormulaContainer!!.viewTreeObserver
+            mFormulaContainer.scrollTo(mFormulaText.right, 0)
+            val observer = mFormulaContainer.viewTreeObserver
             if (observer.isAlive) {
                 observer.removeOnPreDrawListener(this)
             }
@@ -99,9 +109,16 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * Callback used by the [Evaluator] when the history changes, or its AsyncTask is canceled, and
+     * this class uses when the history has been cleared as well. The onMemoryStateChanged override
+     * calls the onMemoryStateChanged method of the TextView holding our formula which enables/disables
+     * its on long click behavior appropriately (used for copy/paste). The showMessageDialog override
+     * displays an alert dialog when the [Evaluator] is cancelled or a computation times out.
+     */
     private val mEvaluatorCallback = object : Evaluator.Callback {
         override fun onMemoryStateChanged() {
-            mFormulaText!!.onMemoryStateChanged()
+            mFormulaText.onMemoryStateChanged()
         }
 
         override fun showMessageDialog(@StringRes title: Int, @StringRes message: Int,
@@ -112,12 +129,22 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * Tests that the [Evaluator] memory index into its expression Map (and history database) is
+     * non-zero. It is set to zero temporarily when an expression is being evaluated, then updated
+     * with the new index when it is done.
+     */
     private val mOnDisplayMemoryOperationsListener = object : OnDisplayMemoryOperationsListener {
         override fun shouldDisplayMemory(): Boolean {
-            return mEvaluator!!.memoryIndex != 0L
+            return mEvaluator.memoryIndex != 0L
         }
     }
 
+    /**
+     * Used when the formula TextView is long clicked and its context menu used to either paste from
+     * the clipboard (our onPaste override) or recall the last expression from memory and append it
+     * to the current one (our onMemoryRecall override).
+     */
     private val mOnFormulaContextMenuClickListener = object : OnFormulaContextMenuClickListener {
         override fun onPaste(clip: ClipData): Boolean {
             val item = (if (clip.itemCount == 0) null else clip.getItemAt(0))
@@ -126,9 +153,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
             // Check if the item is a previously copied result, otherwise paste as raw text.
             val uri = item.uri
-            if (uri != null && mEvaluator!!.isLastSaved(uri)) {
+            if (uri != null && mEvaluator.isLastSaved(uri)) {
                 clearIfNotInputState()
-                mEvaluator!!.appendExpr(mEvaluator!!.savedIndex)
+                mEvaluator.appendExpr(mEvaluator.savedIndex)
                 redisplayAfterFormulaChange()
             } else {
                 addChars(item.coerceToText(this@Calculator2).toString(), false)
@@ -138,22 +165,26 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         override fun onMemoryRecall() {
             clearIfNotInputState()
-            val memoryIndex = mEvaluator!!.memoryIndex
+            val memoryIndex = mEvaluator.memoryIndex
             if (memoryIndex != 0L) {
-                mEvaluator!!.appendExpr(mEvaluator!!.memoryIndex)
+                mEvaluator.appendExpr(mEvaluator.memoryIndex)
                 redisplayAfterFormulaChange()
             }
         }
     }
 
-
+    /**
+     * [TextWatcher] for the formula TextView, the afterTextChanged override adds our OnPreDrawListener
+     * [mPreDrawListener] to the ViewTreeObserver of the HorizontalScrollView holding [TextWatcher]
+     * which will scroll the scroll view as new characters are added to the formula.
+     */
     private val mFormulaTextWatcher = object : TextWatcher {
         override fun beforeTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
 
         override fun onTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
 
         override fun afterTextChanged(editable: Editable) {
-            val observer = mFormulaContainer!!.viewTreeObserver
+            val observer = mFormulaContainer.viewTreeObserver
             if (observer.isAlive) {
                 observer.removeOnPreDrawListener(mPreDrawListener)
                 observer.addOnPreDrawListener(mPreDrawListener)
@@ -161,16 +192,45 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
-    private var mCurrentState: CalculatorState? = null
-    private var mEvaluator: Evaluator? = null
+    /**
+     * The current [CalculatorState] of the calculator.
+     */
+    private lateinit var mCurrentState: CalculatorState
+    /**
+     * The [Evaluator] instance we use to evaluate the formulas entered.
+     */
+    private lateinit var mEvaluator: Evaluator
 
-    private var mDisplayView: CalculatorDisplay? = null
-    private var mModeView: TextView? = null
-    private var mFormulaText: CalculatorFormula? = null
-    private var mResultText: CalculatorResult? = null
-    private var mFormulaContainer: HorizontalScrollView? = null
-    private var mDragLayout: DragLayout? = null
+    /**
+     * The [CalculatorDisplay] in our ui with id R.id.main_calculator, it is a LinearLayout which
+     * contains the logic to control the widgets that make up the ui
+     */
+    private lateinit var mDisplayView: CalculatorDisplay
+    /**
+     * The [TextView] in our ui which displays whether we are in degree mode or radian mode
+     */
+    private lateinit var mModeView: TextView
+    /**
+     * The [CalculatorFormula] TextView displaying the current formula.
+     */
+    private lateinit var mFormulaText: CalculatorFormula
+    /**
+     * The [CalculatorResult] TextView displaying the results of our calculations.
+     */
+    private lateinit var mResultText: CalculatorResult
+    /**
+     * The [HorizontalScrollView] holding our infinite [CalculatorFormula] formula TextView
+     */
+    private lateinit var mFormulaContainer: HorizontalScrollView
+    /**
+     * The [DragLayout] with id R.id.drag_layout which holds the FrameLayout for our history
+     */
+    private lateinit var mDragLayout: DragLayout
 
+    /**
+     * The [CalculatorPadViewPager] ViewPager used only in portrait orientation for the extra keypad
+     * (it is null when in landscape orientation).
+     */
     private var mPadViewPager: ViewPager? = null
     private var mDeleteButton: View? = null
     private var mClearButton: View? = null
@@ -270,18 +330,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         val state = savedInstanceState.getByteArray(KEY_EVAL_STATE)
         if (state != null) {
             try {
-                ObjectInputStream(ByteArrayInputStream(state)).use { `in` -> mEvaluator!!.restoreInstanceState(`in`) }
+                ObjectInputStream(ByteArrayInputStream(state)).use { `in` -> mEvaluator.restoreInstanceState(`in`) }
             } catch (ignored: Throwable) {
                 // When in doubt, revert to clean state
                 mCurrentState = CalculatorState.INPUT
-                mEvaluator!!.clearMain()
+                mEvaluator.clearMain()
             }
 
         }
         if (savedInstanceState.getBoolean(KEY_SHOW_TOOLBAR, true)) {
             showAndMaybeHideToolbar()
         } else {
-            mDisplayView!!.hideToolbar()
+            mDisplayView.hideToolbar()
         }
         onInverseToggled(savedInstanceState.getBoolean(KEY_INVERSE_MODE))
         // TODO: We're currently not saving and restoring scroll position.
@@ -291,18 +351,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     private fun restoreDisplay() {
-        onModeChanged(mEvaluator!!.getDegreeMode(Evaluator.MAIN_INDEX))
+        onModeChanged(mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX))
         if (mCurrentState != CalculatorState.RESULT && mCurrentState != CalculatorState.INIT_FOR_RESULT) {
             redisplayFormula()
         }
         if (mCurrentState == CalculatorState.INPUT) {
             // This resultText will explicitly call evaluateAndNotify when ready.
-            mResultText!!.setShouldEvaluateResult(CalculatorResult.SHOULD_EVALUATE, this)
+            mResultText.setShouldEvaluateResult(CalculatorResult.SHOULD_EVALUATE, this)
         } else {
             // Just reevaluate.
-            setState(mapFromSaved(mCurrentState!!))
+            setState(mapFromSaved(mCurrentState))
             // Request evaluation when we know display width.
-            mResultText!!.setShouldEvaluateResult(CalculatorResult.SHOULD_REQUIRE, this)
+            mResultText.setShouldEvaluateResult(CalculatorResult.SHOULD_REQUIRE, this)
         }
     }
 
@@ -317,7 +377,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         actionBar!!.displayOptions = 0
 
         // Ensure the toolbar stays visible while the options menu is displayed.
-        actionBar!!.addOnMenuVisibilityListener { isVisible -> mDisplayView!!.forceToolbarVisible = isVisible }
+        actionBar!!.addOnMenuVisibilityListener { isVisible -> mDisplayView.forceToolbarVisible = isVisible }
 
         mMainCalculator = findViewById(R.id.main_calculator)
         mDisplayView = findViewById(R.id.display)
@@ -326,8 +386,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mResultText = findViewById(R.id.result)
         mFormulaContainer = findViewById(R.id.formula_container)
         mEvaluator = Evaluator.getInstance(this)
-        mEvaluator!!.setCallback(mEvaluatorCallback)
-        mResultText!!.setEvaluator(mEvaluator, Evaluator.MAIN_INDEX)
+        mEvaluator.setCallback(mEvaluatorCallback)
+        mResultText.setEvaluator(mEvaluator, Evaluator.MAIN_INDEX)
         KeyMaps.setActivity(this)
 
         mPadViewPager = findViewById(R.id.pad_pager)
@@ -344,28 +404,28 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mInverseToggle = findViewById(R.id.toggle_inv)
         mModeToggle = findViewById(R.id.toggle_mode)
 
-        isOneLine = mResultText!!.visibility == View.INVISIBLE
+        isOneLine = mResultText.visibility == View.INVISIBLE
 
         mInvertibleButtons = arrayOf(findViewById(R.id.fun_sin), findViewById(R.id.fun_cos), findViewById(R.id.fun_tan), findViewById(R.id.fun_ln), findViewById(R.id.fun_log), findViewById(R.id.op_sqrt))
         mInverseButtons = arrayOf(findViewById(R.id.fun_arcsin), findViewById(R.id.fun_arccos), findViewById(R.id.fun_arctan), findViewById(R.id.fun_exp), findViewById(R.id.fun_10pow), findViewById(R.id.op_sqr))
 
         mDragLayout = findViewById(R.id.drag_layout)
-        mDragLayout!!.removeDragCallback(this)
-        mDragLayout!!.addDragCallback(this)
-        mDragLayout!!.setCloseCallback(this)
+        mDragLayout.removeDragCallback(this)
+        mDragLayout.addDragCallback(this)
+        mDragLayout.setCloseCallback(this)
 
-        mFormulaText!!.setOnContextMenuClickListener(mOnFormulaContextMenuClickListener)
-        mFormulaText!!.setOnDisplayMemoryOperationsListener(mOnDisplayMemoryOperationsListener)
+        mFormulaText.setOnContextMenuClickListener(mOnFormulaContextMenuClickListener)
+        mFormulaText.setOnDisplayMemoryOperationsListener(mOnDisplayMemoryOperationsListener)
 
-        mFormulaText!!.setOnTextSizeChangeListener(this)
-        mFormulaText!!.addTextChangedListener(mFormulaTextWatcher)
+        mFormulaText.setOnTextSizeChangeListener(this)
+        mFormulaText.addTextChangedListener(mFormulaTextWatcher)
         mDeleteButton!!.setOnLongClickListener(this)
 
         if (savedInstanceState != null) {
             restoreInstanceState(savedInstanceState)
         } else {
             mCurrentState = CalculatorState.INPUT
-            mEvaluator!!.clearMain()
+            mEvaluator.clearMain()
             showAndMaybeHideToolbar()
             onInverseToggled(false)
         }
@@ -374,7 +434,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     override fun onResume() {
         super.onResume()
-        if (mDisplayView!!.isToolbarVisible) {
+        if (mDisplayView.isToolbarVisible) {
             showAndMaybeHideToolbar()
         }
         // If HistoryFragment is showing, hide the main Calculator elements from accessibility.
@@ -382,25 +442,25 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // and RelativeLayout is the base class of DragLayout.
         // If we did not do this, it would be possible to traverse to main Calculator elements from
         // HistoryFragment.
-        mMainCalculator!!.importantForAccessibility = if (mDragLayout!!.isOpen)
+        mMainCalculator!!.importantForAccessibility = if (mDragLayout.isOpen)
             View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         else
             View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        mEvaluator!!.cancelAll(true)
+        mEvaluator.cancelAll(true)
         // If there's an animation in progress, cancel it first to ensure our state is up-to-date.
         if (mCurrentAnimator != null) {
             mCurrentAnimator!!.cancel()
         }
 
         super.onSaveInstanceState(outState)
-        outState.putInt(KEY_DISPLAY_STATE, mCurrentState!!.ordinal)
+        outState.putInt(KEY_DISPLAY_STATE, mCurrentState.ordinal)
         outState.putCharSequence(KEY_UNPROCESSED_CHARS, mUnprocessedChars)
         val byteArrayStream = ByteArrayOutputStream()
         try {
-            ObjectOutputStream(byteArrayStream).use { out -> mEvaluator!!.saveInstanceState(out) }
+            ObjectOutputStream(byteArrayStream).use { out -> mEvaluator.saveInstanceState(out) }
         } catch (e: IOException) {
             // Impossible; No IO involved.
             throw AssertionError("Impossible IO exception", e)
@@ -408,10 +468,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         outState.putByteArray(KEY_EVAL_STATE, byteArrayStream.toByteArray())
         outState.putBoolean(KEY_INVERSE_MODE, mInverseToggle!!.isSelected)
-        outState.putBoolean(KEY_SHOW_TOOLBAR, mDisplayView!!.isToolbarVisible)
+        outState.putBoolean(KEY_SHOW_TOOLBAR, mDisplayView.isToolbarVisible)
         // We must wait for asynchronous writes to complete, since outState may contain
         // references to expressions being written.
-        mEvaluator!!.waitForWrites()
+        mEvaluator.waitForWrites()
     }
 
     // Set the state, updating delete label and display colors.
@@ -421,7 +481,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (mCurrentState != state) {
             if (state == CalculatorState.INPUT) {
                 // We'll explicitly request evaluation from now on.
-                mResultText!!.setShouldEvaluateResult(CalculatorResult.SHOULD_NOT_EVALUATE, null)
+                mResultText.setShouldEvaluateResult(CalculatorResult.SHOULD_NOT_EVALUATE, null)
                 restoreDisplayPositions()
             }
             mCurrentState = state
@@ -439,26 +499,26 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 if (mCurrentState == CalculatorState.RESULT
                         || mCurrentState == CalculatorState.EVALUATE
                         || mCurrentState == CalculatorState.ANIMATE) {
-                    mFormulaText!!.visibility = View.VISIBLE
-                    mResultText!!.visibility = View.VISIBLE
+                    mFormulaText.visibility = View.VISIBLE
+                    mResultText.visibility = View.VISIBLE
                 } else if (mCurrentState == CalculatorState.ERROR) {
-                    mFormulaText!!.visibility = View.INVISIBLE
-                    mResultText!!.visibility = View.VISIBLE
+                    mFormulaText.visibility = View.INVISIBLE
+                    mResultText.visibility = View.VISIBLE
                 } else {
-                    mFormulaText!!.visibility = View.VISIBLE
-                    mResultText!!.visibility = View.INVISIBLE
+                    mFormulaText.visibility = View.VISIBLE
+                    mResultText.visibility = View.INVISIBLE
                 }
             }
 
             if (mCurrentState == CalculatorState.ERROR) {
                 val errorColor = ContextCompat.getColor(this, R.color.calculator_error_color)
-                mFormulaText!!.setTextColor(errorColor)
-                mResultText!!.setTextColor(errorColor)
+                mFormulaText.setTextColor(errorColor)
+                mResultText.setTextColor(errorColor)
                 window.statusBarColor = errorColor
             } else if (mCurrentState != CalculatorState.RESULT) {
-                mFormulaText!!.setTextColor(
+                mFormulaText.setTextColor(
                         ContextCompat.getColor(this, R.color.display_formula_text_color))
-                mResultText!!.setTextColor(
+                mResultText.setTextColor(
                         ContextCompat.getColor(this, R.color.display_result_text_color))
                 window.statusBarColor = ContextCompat.getColor(this, R.color.calculator_statusbar_color)
             }
@@ -468,7 +528,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     override fun onDestroy() {
-        mDragLayout!!.removeDragCallback(this)
+        mDragLayout.removeDragCallback(this)
         super.onDestroy()
     }
 
@@ -477,13 +537,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     @Suppress("unused")
     fun destroyEvaluator() {
-        mEvaluator!!.destroyEvaluator()
+        mEvaluator.destroyEvaluator()
     }
 
     override fun onActionModeStarted(mode: ActionMode) {
         super.onActionModeStarted(mode)
         if (mode.tag === CalculatorFormula.TAG_ACTION_MODE) {
-            mFormulaContainer!!.scrollTo(mFormulaText!!.right, 0)
+            mFormulaContainer.scrollTo(mFormulaText.right, 0)
         }
     }
 
@@ -492,7 +552,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * Return true if there was one.
      */
     private fun stopActionModeOrContextMenu(): Boolean {
-        return mResultText!!.stopActionModeOrContextMenu() || mFormulaText!!.stopActionModeOrContextMenu()
+        return mResultText.stopActionModeOrContextMenu() || mFormulaText.stopActionModeOrContextMenu()
     }
 
     override fun onUserInteraction() {
@@ -510,7 +570,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             stopActionModeOrContextMenu()
 
             val historyFragment = historyFragment
-            if (mDragLayout!!.isOpen && historyFragment != null) {
+            if (mDragLayout.isOpen && historyFragment != null) {
                 historyFragment.stopActionModeOrContextMenu()
             }
         }
@@ -520,7 +580,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     override fun onBackPressed() {
         if (!stopActionModeOrContextMenu()) {
             val historyFragment = historyFragment
-            if (mDragLayout!!.isOpen && historyFragment != null) {
+            if (mDragLayout.isOpen && historyFragment != null) {
                 if (!historyFragment.stopActionModeOrContextMenu()) {
                     removeHistoryFragment()
                 }
@@ -625,14 +685,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun onModeChanged(degreeMode: Boolean) {
         if (degreeMode) {
-            mModeView!!.setText(R.string.mode_deg)
-            mModeView!!.contentDescription = getString(R.string.desc_mode_deg)
+            mModeView.setText(R.string.mode_deg)
+            mModeView.contentDescription = getString(R.string.desc_mode_deg)
 
             mModeToggle!!.setText(R.string.mode_rad)
             mModeToggle!!.contentDescription = getString(R.string.desc_switch_rad)
         } else {
-            mModeView!!.setText(R.string.mode_rad)
-            mModeView!!.contentDescription = getString(R.string.desc_mode_rad)
+            mModeView.setText(R.string.mode_rad)
+            mModeView.contentDescription = getString(R.string.desc_mode_rad)
 
             mModeToggle!!.setText(R.string.mode_deg)
             mModeToggle!!.contentDescription = getString(R.string.desc_switch_deg)
@@ -655,10 +715,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun switchToInput(button_id: Int) {
         if (KeyMaps.isBinary(button_id) || KeyMaps.isSuffix(button_id)) {
-            mEvaluator!!.collapse(mEvaluator!!.maxIndex /* Most recent history entry */)
+            mEvaluator.collapse(mEvaluator.maxIndex /* Most recent history entry */)
         } else {
             announceClearedForAccessibility()
-            mEvaluator!!.clearMain()
+            mEvaluator.clearMain()
         }
         setState(CalculatorState.INPUT)
     }
@@ -672,7 +732,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             switchToInput(id)
         }
 
-        if (!mEvaluator!!.append(id)) {
+        if (!mEvaluator.append(id)) {
             // TODO: Some user visible feedback?
         }
     }
@@ -684,14 +744,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun addExplicitKeyToExpr(id: Int) {
         if (mCurrentState == CalculatorState.INPUT && id == R.id.op_sub) {
-            mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).removeTrailingAdditiveOperators()
+            mEvaluator.getExpr(Evaluator.MAIN_INDEX).removeTrailingAdditiveOperators()
         }
         addKeyToExpr(id)
     }
 
     fun evaluateInstantIfNecessary() {
-        if (mCurrentState == CalculatorState.INPUT && mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
-            mEvaluator!!.evaluateAndNotify(Evaluator.MAIN_INDEX, this, mResultText)
+        if (mCurrentState == CalculatorState.INPUT && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
+            mEvaluator.evaluateAndNotify(Evaluator.MAIN_INDEX, this, mResultText)
         }
     }
 
@@ -699,10 +759,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // TODO: Could do this more incrementally.
         redisplayFormula()
         setState(CalculatorState.INPUT)
-        mResultText!!.clear()
+        mResultText.clear()
         if (haveUnprocessed()) {
             // Force reevaluation when text is deleted, even if expression is unchanged.
-            mEvaluator!!.touch()
+            mEvaluator.touch()
         } else {
             evaluateInstantIfNecessary()
         }
@@ -713,19 +773,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * Automatically hide it again if it's not relevant to current formula.
      */
     private fun showAndMaybeHideToolbar() {
-        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator!!.hasTrigFuncs()
-        mDisplayView!!.showToolbar(!shouldBeVisible)
+        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs()
+        mDisplayView.showToolbar(!shouldBeVisible)
     }
 
     /**
      * Display or hide the toolbar depending on calculator state.
      */
     private fun showOrHideToolbar() {
-        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator!!.hasTrigFuncs()
+        val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs()
         if (shouldBeVisible) {
-            mDisplayView!!.showToolbar(false)
+            mDisplayView.showToolbar(false)
         } else {
-            mDisplayView!!.hideToolbar()
+            mDisplayView.hideToolbar()
         }
     }
 
@@ -752,24 +812,24 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 mInverseToggle!!.isSelected = selected
                 onInverseToggled(selected)
                 if (mCurrentState == CalculatorState.RESULT) {
-                    mResultText!!.redisplay()   // In case we cancelled reevaluation.
+                    mResultText.redisplay()   // In case we cancelled reevaluation.
                 }
             }
             R.id.toggle_mode -> {
                 cancelIfEvaluating(false)
-                val mode = !mEvaluator!!.getDegreeMode(Evaluator.MAIN_INDEX)
-                if (mCurrentState == CalculatorState.RESULT && mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
+                val mode = !mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX)
+                if (mCurrentState == CalculatorState.RESULT && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
                     // Capture current result evaluated in old mode.
-                    mEvaluator!!.collapse(mEvaluator!!.maxIndex)
+                    mEvaluator.collapse(mEvaluator.maxIndex)
                     redisplayFormula()
                 }
                 // In input mode, we reinterpret already entered trig functions.
-                mEvaluator!!.setDegreeMode(mode)
+                mEvaluator.setDegreeMode(mode)
                 onModeChanged(mode)
                 // Show the toolbar to highlight the mode change.
                 showAndMaybeHideToolbar()
                 setState(CalculatorState.INPUT)
-                mResultText!!.clear()
+                mResultText.clear()
                 if (!haveUnprocessed()) {
                     evaluateInstantIfNecessary()
                 }
@@ -791,14 +851,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     fun redisplayFormula() {
-        val formula = mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).toSpannableStringBuilder(this)
+        val formula = mEvaluator.getExpr(Evaluator.MAIN_INDEX).toSpannableStringBuilder(this)
         if (mUnprocessedChars != null) {
             // Add and highlight characters we couldn't process.
             formula.append(mUnprocessedChars, mUnprocessedColorSpan,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        mFormulaText!!.changeTextTo(formula)
-        mFormulaText!!.contentDescription = if (TextUtils.isEmpty(formula))
+        mFormulaText.changeTextTo(formula)
+        mFormulaText.contentDescription = if (TextUtils.isEmpty(formula))
             getString(R.string.desc_formula)
         else
             null
@@ -824,7 +884,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // Invalidate any options that may depend on the current result.
         invalidateOptionsMenu()
 
-        mResultText!!.onEvaluate(index, initDisplayPrec, msd, leastDigPos, truncatedWholeNumber)
+        mResultText.onEvaluate(index, initDisplayPrec, msd, leastDigPos, truncatedWholeNumber)
         if (mCurrentState != CalculatorState.INPUT) {
             // In EVALUATE, INIT, RESULT, or INIT_FOR_RESULT state.
             onResult(mCurrentState == CalculatorState.EVALUATE /* animate */,
@@ -836,13 +896,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     override fun onCancelled(index: Long) {
         // Index is Evaluator.MAIN_INDEX. We should be in EVALUATE state.
         setState(CalculatorState.INPUT)
-        mResultText!!.onCancelled(index)
+        mResultText.onCancelled(index)
     }
 
     // Reevaluation completed; ask result to redisplay current value.
     override fun onReevaluate(index: Long) {
         // Index is Evaluator.MAIN_INDEX.
-        mResultText!!.onReevaluate(index)
+        mResultText.onReevaluate(index)
     }
 
     override fun onTextSizeChanged(textView: TextView, oldSize: Float) {
@@ -876,7 +936,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun cancelIfEvaluating(quiet: Boolean): Boolean {
         return if (mCurrentState == CalculatorState.EVALUATE) {
-            mEvaluator!!.cancel(Evaluator.MAIN_INDEX, quiet)
+            mEvaluator.cancel(Evaluator.MAIN_INDEX, quiet)
             true
         } else {
             false
@@ -886,7 +946,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     private fun cancelUnrequested() {
         if (mCurrentState == CalculatorState.INPUT) {
-            mEvaluator!!.cancel(Evaluator.MAIN_INDEX, true)
+            mEvaluator.cancel(Evaluator.MAIN_INDEX, true)
         }
     }
 
@@ -900,9 +960,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             if (haveUnprocessed()) {
                 setState(CalculatorState.EVALUATE)
                 onError(Evaluator.MAIN_INDEX, R.string.error_syntax)
-            } else if (mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
+            } else if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
                 setState(CalculatorState.EVALUATE)
-                mEvaluator!!.requireResult(Evaluator.MAIN_INDEX, this, mResultText)
+                mEvaluator.requireResult(Evaluator.MAIN_INDEX, this, mResultText)
             }
         }
     }
@@ -919,9 +979,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (haveUnprocessed()) {
             mUnprocessedChars = mUnprocessedChars!!.substring(0, mUnprocessedChars!!.length - 1)
         } else {
-            mEvaluator!!.delete()
+            mEvaluator.delete()
         }
-        if (mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
+        if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
             // Resulting formula won't be announced, since it's empty.
             announceClearedForAccessibility()
         }
@@ -932,7 +992,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         val groupOverlay = window.decorView.overlay as ViewGroupOverlay
 
         val displayRect = Rect()
-        mDisplayView!!.getGlobalVisibleRect(displayRect)
+        mDisplayView.getGlobalVisibleRect(displayRect)
 
         // Make reveal cover the display and status bar.
         val revealView = View(this)
@@ -978,19 +1038,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     private fun announceClearedForAccessibility() {
-        mResultText!!.announceForAccessibility(resources.getString(R.string.cleared))
+        mResultText.announceForAccessibility(resources.getString(R.string.cleared))
     }
 
     fun onClearAnimationEnd() {
         mUnprocessedChars = null
-        mResultText!!.clear()
-        mEvaluator!!.clearMain()
+        mResultText.clear()
+        mEvaluator.clearMain()
         setState(CalculatorState.INPUT)
         redisplayFormula()
     }
 
     private fun onClear() {
-        if (mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
+        if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
             return
         }
         cancelIfEvaluating(true)
@@ -1010,19 +1070,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
         if (mCurrentState == CalculatorState.EVALUATE) {
             setState(CalculatorState.ANIMATE)
-            mResultText!!.announceForAccessibility(resources.getString(errorResourceId))
+            mResultText.announceForAccessibility(resources.getString(errorResourceId))
             reveal(mCurrentButton!!, R.color.calculator_error_color,
                     object : AnimatorListenerAdapter() {
                         override fun onAnimationEnd(animation: Animator) {
                             setState(CalculatorState.ERROR)
-                            mResultText!!.onError(index, errorResourceId)
+                            mResultText.onError(index, errorResourceId)
                         }
                     })
         } else if (mCurrentState == CalculatorState.INIT || mCurrentState == CalculatorState.INIT_FOR_RESULT /* very unlikely */) {
             setState(CalculatorState.ERROR)
-            mResultText!!.onError(index, errorResourceId)
+            mResultText.onError(index, errorResourceId)
         } else {
-            mResultText!!.clear()
+            mResultText.clear()
         }
     }
 
@@ -1037,43 +1097,43 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // Calculate the textSize that would be used to display the result in the formula.
         // For scrollable results just use the minimum textSize to maximize the number of digits
         // that are visible on screen.
-        var textSize = mFormulaText!!.minimumTextSize
-        if (!mResultText!!.isScrollable) {
-            textSize = mFormulaText!!.getVariableTextSize(mResultText!!.text.toString())
+        var textSize = mFormulaText.minimumTextSize
+        if (!mResultText.isScrollable) {
+            textSize = mFormulaText.getVariableTextSize(mResultText.text.toString())
         }
 
         // Scale the result to match the calculated textSize, minimizing the jump-cut transition
         // when a result is reused in a subsequent expression.
-        val resultScale = textSize / mResultText!!.textSize
+        val resultScale = textSize / mResultText.textSize
 
         // Set the result's pivot to match its gravity.
-        mResultText!!.pivotX = (mResultText!!.width - mResultText!!.paddingRight).toFloat()
-        mResultText!!.pivotY = (mResultText!!.height - mResultText!!.paddingBottom).toFloat()
+        mResultText.pivotX = (mResultText.width - mResultText.paddingRight).toFloat()
+        mResultText.pivotY = (mResultText.height - mResultText.paddingBottom).toFloat()
 
         // Calculate the necessary translations so the result takes the place of the formula and
         // the formula moves off the top of the screen.
-        val resultTranslationY = (mFormulaContainer!!.bottom - mResultText!!.bottom - (mFormulaText!!.paddingBottom - mResultText!!.paddingBottom)).toFloat()
-        var formulaTranslationY = (-mFormulaContainer!!.bottom).toFloat()
+        val resultTranslationY = (mFormulaContainer.bottom - mResultText.bottom - (mFormulaText.paddingBottom - mResultText.paddingBottom)).toFloat()
+        var formulaTranslationY = (-mFormulaContainer.bottom).toFloat()
         if (isOneLine) {
             // Position the result text.
-            mResultText!!.y = mResultText!!.bottom.toFloat()
-            formulaTranslationY = (-(findViewById<View>(R.id.toolbar).bottom + mFormulaContainer!!.bottom)).toFloat()
+            mResultText.y = mResultText.bottom.toFloat()
+            formulaTranslationY = (-(findViewById<View>(R.id.toolbar).bottom + mFormulaContainer.bottom)).toFloat()
         }
 
         // Change the result's textColor to match the formula.
-        val formulaTextColor = mFormulaText!!.currentTextColor
+        val formulaTextColor = mFormulaText.currentTextColor
 
         if (resultWasPreserved) {
             // Result was previously added to history.
-            mEvaluator!!.represerve()
+            mEvaluator.represerve()
         } else {
             // Add current result to history.
-            mEvaluator!!.preserve(Evaluator.MAIN_INDEX, true)
+            mEvaluator.preserve(Evaluator.MAIN_INDEX, true)
         }
 
         if (animate) {
-            mResultText!!.announceForAccessibility(resources.getString(R.string.desc_eq))
-            mResultText!!.announceForAccessibility(mResultText!!.text)
+            mResultText.announceForAccessibility(resources.getString(R.string.desc_eq))
+            mResultText.announceForAccessibility(mResultText.text)
             setState(CalculatorState.ANIMATE)
             val animatorSet = AnimatorSet()
             animatorSet.playTogether(
@@ -1097,11 +1157,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             animatorSet.start()
         } else
         /* No animation desired; get there fast when restarting */ {
-            mResultText!!.scaleX = resultScale
-            mResultText!!.scaleY = resultScale
-            mResultText!!.translationY = resultTranslationY
-            mResultText!!.setTextColor(formulaTextColor)
-            mFormulaContainer!!.translationY = formulaTranslationY
+            mResultText.scaleX = resultScale
+            mResultText.scaleY = resultScale
+            mResultText.translationY = resultTranslationY
+            mResultText.setTextColor(formulaTextColor)
+            mFormulaContainer.translationY = formulaTranslationY
             setState(CalculatorState.RESULT)
         }
     }
@@ -1110,15 +1170,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     // pre-animation state.
     private fun restoreDisplayPositions() {
         // Clear result.
-        mResultText!!.text = ""
+        mResultText.text = ""
         // Reset all of the values modified during the animation.
-        mResultText!!.scaleX = 1.0f
-        mResultText!!.scaleY = 1.0f
-        mResultText!!.translationX = 0.0f
-        mResultText!!.translationY = 0.0f
-        mFormulaContainer!!.translationY = 0.0f
+        mResultText.scaleX = 1.0f
+        mResultText.scaleY = 1.0f
+        mResultText.translationX = 0.0f
+        mResultText.translationY = 0.0f
+        mFormulaContainer.translationY = 0.0f
 
-        mFormulaText!!.requestFocus()
+        mFormulaText.requestFocus()
     }
 
     override fun onClick(fragment: AlertDialogFragment, which: Int) {
@@ -1127,7 +1187,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 HistoryFragment.CLEAR_DIALOG_TAG == fragment.tag -> {
                     // TODO: Try to preserve the current, saved, and memory expressions. How should we
                     // handle expressions to which they refer?
-                    mEvaluator!!.clearEverything()
+                    mEvaluator.clearEverything()
                     // TODO: It's not clear what we should really do here. This is an initial hack.
                     // May want to make onClearAnimationEnd() private if/when we fix this.
                     onClearAnimationEnd()
@@ -1135,7 +1195,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                     onBackPressed()
                 }
                 Evaluator.TIMEOUT_DIALOG_TAG == fragment.tag -> // Timeout extension request.
-                    mEvaluator!!.setLongTimeout()
+                    mEvaluator.setLongTimeout()
                 else -> Log.e(TAG, "Unknown AlertDialogFragment click:" + fragment.tag)
             }
         }
@@ -1156,7 +1216,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         // Show the fraction option when displaying a rational result.
         var visible = mCurrentState == CalculatorState.RESULT
-        val mainResult = mEvaluator!!.getResult(Evaluator.MAIN_INDEX)
+        val mainResult = mEvaluator.getResult(Evaluator.MAIN_INDEX)
         // mainResult should never be null, but it happens. Check as a workaround to protect
         // against crashes until we find the root cause (b/34763650).
         visible = visible and (mainResult != null && mainResult.exactlyDisplayable())
@@ -1198,7 +1258,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     /* Begin override DragCallback methods */
 
     override fun onStartDraggingOpen() {
-        mDisplayView!!.hideToolbar()
+        mDisplayView.hideToolbar()
         showHistoryFragment()
     }
 
@@ -1207,11 +1267,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     override fun whileDragging(yFraction: Float) {}
 
     override fun shouldCaptureView(view: View, x: Int, y: Int): Boolean {
-        return view.id == R.id.history_frame && (mDragLayout!!.isMoving || mDragLayout!!.isViewUnder(view, x, y))
+        return view.id == R.id.history_frame && (mDragLayout.isMoving || mDragLayout.isViewUnder(view, x, y))
     }
 
     override fun getDisplayHeight(): Int {
-        return mDisplayView!!.measuredHeight
+        return mDisplayView.measuredHeight
     }
 
     /* End override DragCallback methods */
@@ -1255,7 +1315,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         val manager = supportFragmentManager
         if (manager.isDestroyed || !prepareForHistory()) {
             // If the history fragment can not be shown, close the DragLayout.
-            mDragLayout!!.setClosed()
+            mDragLayout.setClosed()
             return
         }
 
@@ -1276,7 +1336,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     private fun displayFraction() {
-        val result = mEvaluator!!.getResult(Evaluator.MAIN_INDEX)
+        val result = mEvaluator.getResult(Evaluator.MAIN_INDEX)
         displayMessage(getString(R.string.menu_fraction),
                 KeyMaps.translateResult(result.toNiceString()))
     }
@@ -1284,8 +1344,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     // Display full result to currently evaluated precision
     private fun displayFull() {
         val res = resources
-        var msg = mResultText!!.getFullText(true /* withSeparators */) + " "
-        msg += if (mResultText!!.fullTextIsExact()) {
+        var msg = mResultText.getFullText(true /* withSeparators */) + " "
+        msg += if (mResultText.fullTextIsExact()) {
             res.getString(R.string.exact)
         } else {
             res.getString(R.string.approximate)
@@ -1327,14 +1387,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                     // Process scientific notation with 'E' when pasting, in spite of ambiguity
                     // with base of natural log.
                     // Otherwise the 10^x key is the user's friend.
-                    mEvaluator!!.addExponent(myMoreChars, current, expEnd)
+                    mEvaluator.addExponent(myMoreChars, current, expEnd)
                     current = expEnd
                     lastWasDigit = false
                     continue
                 } else {
                     val isDigit = KeyMaps.digVal(k) != KeyMaps.NOT_DIGIT
                     if (current == 0 && (isDigit || k == R.id.dec_point)
-                            && mEvaluator!!.getExpr(Evaluator.MAIN_INDEX).hasTrailingConstant()) {
+                            && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrailingConstant()) {
                         // Refuse to concatenate pasted content to trailing constant.
                         // This makes pasting of calculator results more consistent, whether or
                         // not the old calculator instance is still around.
@@ -1386,7 +1446,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     private fun clearIfNotInputState() {
         if (mCurrentState == CalculatorState.ERROR || mCurrentState == CalculatorState.RESULT) {
             setState(CalculatorState.INPUT)
-            mEvaluator!!.clearMain()
+            mEvaluator.clearMain()
         }
     }
 
