@@ -122,7 +122,7 @@ public class UnifiedReal {
     // Square roots that we try to recognize.
     // We currently recognize only a small fixed collection, since the sqrt() function needs to
     // identify numbers of the form <SQRT[i]>*n^2, and we don't otherwise know of a good
-    // algorithm for that.
+    // algorithm for that. TODO: Make sure this is correctly done
     private final static CR[] sSqrts = {
             CR.valueOf(0),
             CR.ONE,
@@ -136,7 +136,7 @@ public class UnifiedReal {
             CR.valueOf(3),
             CR.valueOf(10).sqrt()};
 
-    // Natural logs of small integers that we try to recognize.
+    // Natural logs of small integers that we try to recognize. TODO: Make sure this is correctly done
     private final static CR[] sLogs = {
             null,
             null,
@@ -197,7 +197,7 @@ public class UnifiedReal {
      * Given a constructive real cr, try to determine whether cr is the logarithm of a small
      * integer.  If so, return exp(cr) as a BoundedRational.  Otherwise return null.
      * We make this determination by simple table lookup, so spurious null returns are
-     * entirely possible, or even likely.
+     * entirely possible, or even likely. TODO: Make sure this is correctly done
      */
     private BoundedRational getExp(CR cr) {
         for (int i = 0; i < sLogs.length; ++i) {

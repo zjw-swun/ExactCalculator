@@ -78,8 +78,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     // TODO: Possibly save a bit more information, e.g. its initial display string
     // or most significant digit position, to speed up restart.
 
-    @Suppress("PrivatePropertyName")
-    private val TEXT_COLOR = object : Property<TextView, Int>(Int::class.java, "textColor") {
+    private val textColor = object : Property<TextView, Int>(Int::class.java, "textColor") {
         override fun get(textView: TextView): Int {
             return textView.currentTextColor
         }
@@ -1082,7 +1081,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                             PropertyValuesHolder.ofFloat(View.SCALE_X, resultScale),
                             PropertyValuesHolder.ofFloat(View.SCALE_Y, resultScale),
                             PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, resultTranslationY)),
-                    ObjectAnimator.ofArgb(mResultText, TEXT_COLOR, formulaTextColor),
+                    ObjectAnimator.ofArgb(mResultText, textColor, formulaTextColor),
                     ObjectAnimator.ofFloat(mFormulaContainer, View.TRANSLATION_Y,
                             formulaTranslationY))
             animatorSet.duration = resources.getInteger(
