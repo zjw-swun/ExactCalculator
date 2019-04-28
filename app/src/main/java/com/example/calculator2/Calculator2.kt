@@ -257,11 +257,27 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * The INV button (id R.id.toggle_inv) toggles transcendental functions to/from their inverse
      */
     private lateinit var mInverseToggle: TextView
-    private var mModeToggle: TextView? = null
+    /**
+     * Button used to toggle the RAD/DEG trigonometric mode currently in effect
+     */
+    private lateinit var mModeToggle: TextView
 
-    private var mInvertibleButtons: Array<View>? = null
-    private var mInverseButtons: Array<View>? = null
+    /**
+     * Array containing references to all the transcendental function buttons: R.id.fun_sin,
+     * R.id.fun_cos, R.id.fun_tan, R.id.fun_ln, R.id.fun_log, and R.id.op_sqrt (the visibility
+     * of these buttons is toggled VISIBLE/GONE by the INV button)
+     */
+    private lateinit var mInvertibleButtons: Array<View>
+    /**
+     * Array containing references to all the inverse transcendental function buttons: R.id.fun_arcsin,
+     * R.id.fun_arccos, R.id.fun_arctan, R.id.fun_exp, R.id.fun_10pow, and R.id.op_sqr (the visibility
+     * of these buttons is toggled VISIBLE/GONE by the INV button)
+     */
+    private lateinit var mInverseButtons: Array<View>
 
+    /**
+     *
+     */
     private var mCurrentButton: View? = null
     private var mCurrentAnimator: Animator? = null
 
@@ -427,8 +443,12 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         isOneLine = mResultText.visibility == View.INVISIBLE
 
-        mInvertibleButtons = arrayOf(findViewById(R.id.fun_sin), findViewById(R.id.fun_cos), findViewById(R.id.fun_tan), findViewById(R.id.fun_ln), findViewById(R.id.fun_log), findViewById(R.id.op_sqrt))
-        mInverseButtons = arrayOf(findViewById(R.id.fun_arcsin), findViewById(R.id.fun_arccos), findViewById(R.id.fun_arctan), findViewById(R.id.fun_exp), findViewById(R.id.fun_10pow), findViewById(R.id.op_sqr))
+        mInvertibleButtons = arrayOf(findViewById(R.id.fun_sin), findViewById(R.id.fun_cos),
+                findViewById(R.id.fun_tan), findViewById(R.id.fun_ln), findViewById(R.id.fun_log),
+                findViewById(R.id.op_sqrt))
+        mInverseButtons = arrayOf(findViewById(R.id.fun_arcsin), findViewById(R.id.fun_arccos),
+                findViewById(R.id.fun_arctan), findViewById(R.id.fun_exp),
+                findViewById(R.id.fun_10pow), findViewById(R.id.op_sqr))
 
         mDragLayout = findViewById(R.id.drag_layout)
         mDragLayout.removeDragCallback(this)
@@ -681,18 +701,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mInverseToggle.isSelected = showInverse
         if (showInverse) {
             mInverseToggle.contentDescription = getString(R.string.desc_inv_on)
-            for (invertibleButton in mInvertibleButtons!!) {
+            for (invertibleButton in mInvertibleButtons) {
                 invertibleButton.visibility = View.GONE
             }
-            for (inverseButton in mInverseButtons!!) {
+            for (inverseButton in mInverseButtons) {
                 inverseButton.visibility = View.VISIBLE
             }
         } else {
             mInverseToggle.contentDescription = getString(R.string.desc_inv_off)
-            for (invertibleButton in mInvertibleButtons!!) {
+            for (invertibleButton in mInvertibleButtons) {
                 invertibleButton.visibility = View.VISIBLE
             }
-            for (inverseButton in mInverseButtons!!) {
+            for (inverseButton in mInverseButtons) {
                 inverseButton.visibility = View.GONE
             }
         }
@@ -709,14 +729,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             mModeView.setText(R.string.mode_deg)
             mModeView.contentDescription = getString(R.string.desc_mode_deg)
 
-            mModeToggle!!.setText(R.string.mode_rad)
-            mModeToggle!!.contentDescription = getString(R.string.desc_switch_rad)
+            mModeToggle.setText(R.string.mode_rad)
+            mModeToggle.contentDescription = getString(R.string.desc_switch_rad)
         } else {
             mModeView.setText(R.string.mode_rad)
             mModeView.contentDescription = getString(R.string.desc_mode_rad)
 
-            mModeToggle!!.setText(R.string.mode_deg)
-            mModeToggle!!.contentDescription = getString(R.string.desc_switch_deg)
+            mModeToggle.setText(R.string.mode_deg)
+            mModeToggle.contentDescription = getString(R.string.desc_switch_deg)
         }
     }
 
