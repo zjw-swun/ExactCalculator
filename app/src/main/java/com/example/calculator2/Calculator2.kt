@@ -232,8 +232,17 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * (it is null when in landscape orientation).
      */
     private var mPadViewPager: ViewPager? = null
-    private var mDeleteButton: View? = null
-    private var mClearButton: View? = null
+    /**
+     * The DEL key (id R.id.del) deletes character from forumla on click, clears display on long click
+     */
+    private lateinit var mDeleteButton: View
+    /**
+     * The CLR key (id R.id.clr) clears display, only visible after pressing '=' key
+     */
+    private lateinit var mClearButton: View
+    /**
+     *
+     */
     private var mEqualButton: View? = null
     private var mMainCalculator: View? = null
 
@@ -419,7 +428,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         mFormulaText.setOnTextSizeChangeListener(this)
         mFormulaText.addTextChangedListener(mFormulaTextWatcher)
-        mDeleteButton!!.setOnLongClickListener(this)
+        mDeleteButton.setOnLongClickListener(this)
 
         mCurrentState = CalculatorState.INPUT
         if (savedInstanceState != null) {
@@ -488,11 +497,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
             if (mCurrentState == CalculatorState.RESULT) {
                 // No longer do this for ERROR; allow mistakes to be corrected.
-                mDeleteButton!!.visibility = View.GONE
-                mClearButton!!.visibility = View.VISIBLE
+                mDeleteButton.visibility = View.GONE
+                mClearButton.visibility = View.VISIBLE
             } else {
-                mDeleteButton!!.visibility = View.VISIBLE
-                mClearButton!!.visibility = View.GONE
+                mDeleteButton.visibility = View.VISIBLE
+                mClearButton.visibility = View.GONE
             }
 
             if (isOneLine) {
