@@ -253,7 +253,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private lateinit var mMainCalculator: View
 
-    private var mInverseToggle: TextView? = null
+    /**
+     * The INV button (id R.id.toggle_inv) toggles transcendental functions to/from their inverse
+     */
+    private lateinit var mInverseToggle: TextView
     private var mModeToggle: TextView? = null
 
     private var mInvertibleButtons: Array<View>? = null
@@ -485,7 +488,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
 
         outState.putByteArray(KEY_EVAL_STATE, byteArrayStream.toByteArray())
-        outState.putBoolean(KEY_INVERSE_MODE, mInverseToggle!!.isSelected)
+        outState.putBoolean(KEY_INVERSE_MODE, mInverseToggle.isSelected)
         outState.putBoolean(KEY_SHOW_TOOLBAR, mDisplayView.isToolbarVisible)
         // We must wait for asynchronous writes to complete, since outState may contain
         // references to expressions being written.
@@ -675,9 +678,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * @param showInverse `true` if inverse functions should be shown
      */
     private fun onInverseToggled(showInverse: Boolean) {
-        mInverseToggle!!.isSelected = showInverse
+        mInverseToggle.isSelected = showInverse
         if (showInverse) {
-            mInverseToggle!!.contentDescription = getString(R.string.desc_inv_on)
+            mInverseToggle.contentDescription = getString(R.string.desc_inv_on)
             for (invertibleButton in mInvertibleButtons!!) {
                 invertibleButton.visibility = View.GONE
             }
@@ -685,7 +688,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 inverseButton.visibility = View.VISIBLE
             }
         } else {
-            mInverseToggle!!.contentDescription = getString(R.string.desc_inv_off)
+            mInverseToggle.contentDescription = getString(R.string.desc_inv_off)
             for (invertibleButton in mInvertibleButtons!!) {
                 invertibleButton.visibility = View.VISIBLE
             }
@@ -826,8 +829,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 return   // Toolbar visibility adjusted at end of animation.
             }
             R.id.toggle_inv -> {
-                val selected = !mInverseToggle!!.isSelected
-                mInverseToggle!!.isSelected = selected
+                val selected = !mInverseToggle.isSelected
+                mInverseToggle.isSelected = selected
                 onInverseToggled(selected)
                 if (mCurrentState == CalculatorState.RESULT) {
                     mResultText.redisplay()   // In case we cancelled reevaluation.
