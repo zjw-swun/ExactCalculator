@@ -237,13 +237,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private lateinit var mDeleteButton: View
     /**
-     * The CLR key (id R.id.clr) clears display, only visible after pressing '=' key
+     * The CLR key (id R.id.clr) clears display, only visible after pressing '=' key (replaces DEL)
      */
     private lateinit var mClearButton: View
     /**
-     *
+     * The '=' key (id R.id.eq) starts evaluation of the current formual
      */
-    private var mEqualButton: View? = null
+    private lateinit var mEqualButton: View
     private var mMainCalculator: View? = null
 
     private var mInverseToggle: TextView? = null
@@ -403,9 +403,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mDeleteButton = findViewById(R.id.del)
         mClearButton = findViewById(R.id.clr)
         val numberPad = findViewById<View>(R.id.pad_numeric)
-        mEqualButton = numberPad.findViewById(R.id.eq)
-        if (mEqualButton == null || mEqualButton!!.visibility != View.VISIBLE) {
-            mEqualButton = findViewById<View>(R.id.pad_operator).findViewById(R.id.eq)
+        val numberPadEquals: View? = numberPad.findViewById(R.id.eq)
+        mEqualButton = if (numberPadEquals == null || numberPadEquals.visibility != View.VISIBLE) {
+            findViewById<View>(R.id.pad_operator).findViewById(R.id.eq)
+        } else {
+            numberPadEquals
         }
         val decimalPointButton = numberPad.findViewById<TextView>(R.id.dec_point)
         decimalPointButton.text = decimalSeparator
