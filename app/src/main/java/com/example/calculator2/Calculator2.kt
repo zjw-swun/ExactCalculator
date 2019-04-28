@@ -276,9 +276,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     private lateinit var mInverseButtons: Array<View>
 
     /**
-     *
+     * Last button pressed before a call to [onError] or [onClear] methods, its location is used as
+     * the center of the [reveal] method's animation which sweeps over the display and status bar.
      */
-    private var mCurrentButton: View? = null
+    private lateinit var mCurrentButton: View
     private var mCurrentAnimator: Animator? = null
 
     // Characters that were recently entered at the end of the display that have not yet
@@ -1096,7 +1097,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
         cancelIfEvaluating(true)
         announceClearedForAccessibility()
-        reveal(mCurrentButton!!, R.color.calculator_primary_color, object : AnimatorListenerAdapter() {
+        reveal(mCurrentButton, R.color.calculator_primary_color, object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 onClearAnimationEnd()
                 showOrHideToolbar()
@@ -1112,14 +1113,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (mCurrentState == CalculatorState.EVALUATE) {
             setState(CalculatorState.ANIMATE)
             mResultText.announceForAccessibility(resources.getString(errorResourceId))
-            reveal(mCurrentButton!!, R.color.calculator_error_color,
+            reveal(mCurrentButton, R.color.calculator_error_color,
                     object : AnimatorListenerAdapter() {
                         override fun onAnimationEnd(animation: Animator) {
                             setState(CalculatorState.ERROR)
                             mResultText.onError(index, errorResourceId)
                         }
                     })
-        } else if (mCurrentState == CalculatorState.INIT || mCurrentState == CalculatorState.INIT_FOR_RESULT /* very unlikely */) {
+        } else if (mCurrentState == CalculatorState.INIT ||
+                mCurrentState == CalculatorState.INIT_FOR_RESULT /* very unlikely */) {
             setState(CalculatorState.ERROR)
             mResultText.onError(index, errorResourceId)
         } else {
