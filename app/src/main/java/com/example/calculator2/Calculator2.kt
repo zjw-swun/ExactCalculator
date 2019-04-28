@@ -88,8 +88,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             return textView.currentTextColor
         }
 
-        override fun set(textView: TextView, textColor: Int?) {
-            textView.setTextColor(textColor!!)
+        override fun set(textView: TextView, textColor: Int) {
+            textView.setTextColor(textColor)
         }
     }
 
@@ -280,24 +280,47 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * the center of the [reveal] method's animation which sweeps over the display and status bar.
      */
     private lateinit var mCurrentButton: View
+    /**
+     * [AnimatorSet] set in action by [reveal] or [onResult] methods (or null when they are done)
+     */
     private var mCurrentAnimator: Animator? = null
 
-    // Characters that were recently entered at the end of the display that have not yet
-    // been added to the underlying expression.
+    /**
+     * Characters that were recently entered at the end of the display that have not yet been added
+     * to the underlying expression. (TODO: get rid of use of !! not null assertion somehow)
+     */
     private var mUnprocessedChars: String? = null
 
-    // Color to highlight unprocessed characters from physical keyboard.
-    // TODO: should probably match this to the error color?
+    /**
+     * Color to highlight unprocessed characters from physical keyboard.
+     * TODO: should probably match this to the error color?
+     */
     private val mUnprocessedColorSpan = ForegroundColorSpan(Color.RED)
 
-    // Whether the display is one line.
+    /**
+     * Whether the display is one line. If true the display layout file display_one_line.xml is being
+     * used (it is used for the default as well as values-w520dp-h220dp-land, values-w375dp-h220dp
+     * and values-w230dp-h220dp) In display_one_line.xml the result TextView starts out invisible and
+     * swaps with the formula TextView when the calculation is finished.
+     */
     var isOneLine: Boolean = false
         private set
 
-    // Note that ERROR has INPUT, not RESULT layout.
+    /**
+     * Used by our [HistoryFragment] to determine whether our display contains an expression that is
+     * in progress (false) in which case it displays that expression as the "Current Expression", or
+     * if the display displays only the result (true) in which case it just displays the history.
+     * Note that ERROR has INPUT, not RESULT layout.
+     */
     val isResultLayout: Boolean
         get() = mCurrentState == CalculatorState.INIT_FOR_RESULT || mCurrentState == CalculatorState.RESULT
 
+    /**
+     * Our [HistoryFragment], it is added to the R.id.history_frame ViewGroup by our [showHistoryFragment]
+     * method with the tag HistoryFragment.TAG ("HistoryFragment") either by the selection of the option
+     * menu item with id R.id.menu_history ("History") or by our [onStartDraggingOpen] override when
+     * the user drags it down from display View.
+     */
     private val historyFragment: HistoryFragment?
         get() {
             val manager = supportFragmentManager
@@ -493,9 +516,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     override fun onSaveInstanceState(outState: Bundle) {
         mEvaluator.cancelAll(true)
         // If there's an animation in progress, cancel it first to ensure our state is up-to-date.
-        if (mCurrentAnimator != null) {
-            mCurrentAnimator!!.cancel()
-        }
+        mCurrentAnimator?.cancel()
 
         super.onSaveInstanceState(outState)
         outState.putInt(KEY_DISPLAY_STATE, mCurrentState.ordinal)
@@ -602,9 +623,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         // If there's an animation in progress, end it immediately, so the user interaction can
         // be handled.
-        if (mCurrentAnimator != null) {
-            mCurrentAnimator!!.end()
-        }
+        mCurrentAnimator?.end()
     }
 
     override fun dispatchTouchEvent(e: MotionEvent): Boolean {
@@ -1019,7 +1038,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (cancelIfEvaluating(false)) return
         setState(CalculatorState.INPUT)
         if (haveUnprocessed()) {
-            mUnprocessedChars = mUnprocessedChars!!.substring(0, mUnprocessedChars!!.length - 1)
+            mUnprocessedChars = mUnprocessedChars?.substring(0, mUnprocessedChars!!.length - 1)
         } else {
             mEvaluator.delete()
         }
@@ -1330,9 +1349,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 // onUserInteraction is unreliable and onAnimationEnd() is asynchronous, so we
                 // aren't guaranteed to be out of the ANIMATE state by the time prepareForHistory is
                 // called.
-                if (mCurrentAnimator != null) {
-                    mCurrentAnimator!!.end()
-                }
+                mCurrentAnimator?.end()
                 return false
             } // Easiest to just refuse.  Otherwise we can see a state change
             // while in history mode, which causes all sorts of problems.
