@@ -244,7 +244,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * The '=' key (id R.id.eq) starts evaluation of the current formual
      */
     private lateinit var mEqualButton: View
-    private var mMainCalculator: View? = null
+    /**
+     * The layout file that is resolved from the "activity_calculator" value for the particular
+     * screen size of our device, could be layout/activity_calculator_port.xml, or could be
+     * layout/activity_calculator_land.xml or layout/activity_calculator_tablet_port.xml which
+     * is then included in our main layout file layout/activity_calculator_main.xml. It appears
+     * to be only used for accessibility
+     */
+    private lateinit var mMainCalculator: View
 
     private var mInverseToggle: TextView? = null
     private var mModeToggle: TextView? = null
@@ -453,7 +460,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // and RelativeLayout is the base class of DragLayout.
         // If we did not do this, it would be possible to traverse to main Calculator elements from
         // HistoryFragment.
-        mMainCalculator!!.importantForAccessibility = if (mDragLayout.isOpen)
+        mMainCalculator.importantForAccessibility = if (mDragLayout.isOpen)
             View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         else
             View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
@@ -717,7 +724,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
 
         // When HistoryFragment is hidden, the main Calculator is important for accessibility again.
-        mMainCalculator!!.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        mMainCalculator.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
     /**
@@ -1338,7 +1345,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 .commit()
 
         // When HistoryFragment is visible, hide all descendants of the main Calculator view.
-        mMainCalculator!!.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        mMainCalculator.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         // TODO: pass current scroll position of result
     }
 
