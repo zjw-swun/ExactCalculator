@@ -421,10 +421,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mFormulaText.addTextChangedListener(mFormulaTextWatcher)
         mDeleteButton!!.setOnLongClickListener(this)
 
+        mCurrentState = CalculatorState.INPUT
         if (savedInstanceState != null) {
             restoreInstanceState(savedInstanceState)
         } else {
-            mCurrentState = CalculatorState.INPUT
             mEvaluator.clearMain()
             showAndMaybeHideToolbar()
             onInverseToggled(false)
