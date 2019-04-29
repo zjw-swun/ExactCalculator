@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Logically this maintains a signed integer indexed set of expressions, one of which
  * is distinguished as the main expression.
  * The main expression is constructed and edited with append(), delete(), etc.
- * An evaluation an then be started with a call to evaluateAndNotify() or requireResult().
+ * An evaluation can then be started with a call to evaluateAndNotify() or requireResult().
  * This starts an asynchronous computation, which requests display of the initial result, when
  * available.  When initial evaluation is complete, it calls the associated listener's
  * onEvaluate() method.  This occurs in a separate event, possibly quite a bit later.  Once a

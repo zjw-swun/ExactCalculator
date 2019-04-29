@@ -332,7 +332,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
 
     /**
-     * Since we only support LTR format, using the RTL comma does not make sense.
+     * The character to be used for the decimal sign text in our decimal button. Since we only
+     * support LTR format, using the RTL comma does not make sense.
      */
     private val decimalSeparator: String
         get() {
@@ -341,6 +342,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             return if (defaultSeparator == rtlComma) "," else defaultSeparator.toString()
         }
 
+    /**
+     * The state that the current calculation is in
+     */
     private enum class CalculatorState {
         INPUT, // Result and formula both visible, no evaluation requested,
         // Though result may be visible on bottom line.
@@ -355,12 +359,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // If we are in RESULT state, the formula was evaluated without
         // error to initial precision.
         // The current formula is now also the last history entry.
-        ERROR           // Error displayed: Formula visible, result shows error message.
+        ERROR // Error displayed: Formula visible, result shows error message.
         // Display similar to INPUT state.
     }
 
     /**
-     * Map the old saved state to a new state reflecting requested result reevaluation.
+     * This is called from our [restoreDisplay] method which is called from our [onCreate] override
+     * in order to convert any saved [CalculatorState] from before a possible orientation change to
+     * an appropriate continuation state (Maps the old saved state to a new state reflecting requested
+     * result reevaluation). We just branch based on the saved [CalculatorState] passed us, returning
+     * INIT_FOR_RESULT for both RESULT and INIT_FOR_RESULT saved state, returning INIT for both
+     * ERROR and INIT saved state, and returning the state unchanged for both EVALUATE and INPUT
+     * state.
      */
     private fun mapFromSaved(savedState: CalculatorState): CalculatorState {
         return when (savedState) {
@@ -375,12 +385,29 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Restore Evaluator state and mCurrentState from savedInstanceState.
-     * Return true if the toolbar should be visible.
+     * Restore Evaluator state and [mCurrentState] from [savedInstanceState], called from [onCreate].
+     * First we retrieve the 'indexOfEnum' into the [CalculatorState] enum's that was stored in
+     * [savedInstanceState] by [onSaveInstanceState], then we retrieve the [CalculatorState] value
+     * that corresponds to that index into 'savedState' and call our method [setState] to configure
+     * our UI appropriately for that [CalculatorState]. We retrieve the [CharSequence] that was
+     * possibly stored in [savedInstanceState] under the key KEY_UNPROCESSED_CHARS ("_unprocessed_chars")
+     * to 'unprocessed', and if that is not null we store the string value of that in our field
+     * [mUnprocessedChars]. We retrieve the byte array stored in [savedInstanceState] under the key
+     * KEY_EVAL_STATE ("_eval_state") into 'state', and if this is not null we wrap in a try block
+     * whose catch block will default to a clean state ([mCurrentState] = INPUT, and a cleared
+     * [mEvaluator]), a call to the 'restoreInstanceState' method of [mEvaluator] with an
+     * [ObjectInputStream] created from an [ByteArrayInputStream] created from 'state'. We retrieve
+     * the [Boolean] stored in [savedInstanceState] under the key KEY_SHOW_TOOLBAR ("_show_toolbar")
+     * (defaulting to true) and if it is true we call our method [showAndMaybeHideToolbar] to show
+     * or hide the tool bar depending on the value of [mCurrentState], and if it is false we call
+     * the 'hideToolbar' method of [mDisplayView] to hiae the tool bar. We then call our method
+     * [onInverseToggled] with the value in [savedInstanceState] stored under the key KEY_INVERSE_MODE
+     * ("_inverse_mode") to have it restore the state of the inverse functions keys in our UI.
      */
     private fun restoreInstanceState(savedInstanceState: Bundle) {
-        val savedState = CalculatorState.values()[savedInstanceState.getInt(KEY_DISPLAY_STATE,
-                CalculatorState.INPUT.ordinal)]
+        val indexOfEnum = savedInstanceState
+                .getInt(KEY_DISPLAY_STATE, CalculatorState.INPUT.ordinal)
+        val savedState = CalculatorState.values()[indexOfEnum]
         setState(savedState)
         val unprocessed = savedInstanceState.getCharSequence(KEY_UNPROCESSED_CHARS)
         if (unprocessed != null) {
@@ -389,7 +416,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         val state = savedInstanceState.getByteArray(KEY_EVAL_STATE)
         if (state != null) {
             try {
-                ObjectInputStream(ByteArrayInputStream(state)).use { `in` -> mEvaluator.restoreInstanceState(`in`) }
+                ObjectInputStream(ByteArrayInputStream(state)).use {
+                    `in` -> mEvaluator.restoreInstanceState(`in`)
+                }
             } catch (ignored: Throwable) {
                 // When in doubt, revert to clean state
                 mCurrentState = CalculatorState.INPUT
@@ -409,6 +438,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         //         - slow re-computation if we've scrolled far.
     }
 
+    /**
+     * Called from [onCreate] to set the deg/rad mode to that of the formula that [mEvaluator] last
+     * worked on, redisplay the formula if [mCurrentState] is not in a state where it is invisible
+     * (RESULT, and INIT_FOR_RESULT should remain invisible) by calling [redisplayFormula] to display
+     * the latest formula in [mFormulaText]. If our current state [mCurrentState] is INPUT we call
+     * the 'setShouldEvaluateResult' method of [mResultText] to have it evaluate result on layout
+     * (SHOULD_EVALUATE), otherwise we call our [setState] method to set our state to that which
+     * our method [mapFromSaved] determines to be appropriate given the value of [mCurrentState]
+     * and then we call the 'setShouldEvaluateResult' method of [mResultText] with the value
+     * SHOULD_REQUIRE to have it call the 'requireResult' method of Evaluator on layout so that it
+     * will start the evaluation of the expression.
+     */
     private fun restoreDisplay() {
         onModeChanged(mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX))
         if (mCurrentState != CalculatorState.RESULT && mCurrentState != CalculatorState.INIT_FOR_RESULT) {
@@ -425,18 +466,45 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * Called when our [FragmentActivity] is starting. First we call our super's implementation of
+     * [onCreate], then we set our content view to our layout file R.layout.activity_calculator_main.
+     * We set the action bar to the [Toolbar] with id R.id.toolbar (it is included by the display
+     * layouts, both 'display_one_line.xml' and 'display_two_line.xml'). We set the 'displayOptions'
+     * property of the 'actionBar' to 0 to hide all the default options, and add a lambda as an
+     * 'OnMenuVisibilityListener' that will respond to menu visibility change events by forcing
+     * [mDisplayView] to have the tool bar visible while the options menu is displayed. We initialize
+     * [mMainCalculator] by finding the view with id R.id.main_calculator (it is the 'LinearLayout'
+     * which contains our calculator UI and is important for accessibility), [mDisplayView] by finding
+     * the view with id R.id.display (it contains both our current formula, and our result TextView's),
+     * [mModeView] by finding the view with id R.id.mode (the [TextView] in our ui which displays
+     * whether we are in degree mode or radian mode), [mFormulaText] by finding the view with id
+     * R.id.formula (the [CalculatorFormula] TextView displaying the current formula), [mResultText]
+     * by finding the view with id R.id.result (the [CalculatorResult] TextView displaying the results
+     * of our calculations), and [mFormulaContainer] by finding the view with id R.id.formula_container
+     * (the [HorizontalScrollView] holding our infinite [CalculatorFormula] formula TextView). We
+     * initialize [mEvaluator] with a new instance of [Evaluator], set its [Evaluator.Callback] to
+     * our [mEvaluatorCallback], then set the [Evaluator] of [mResultText] to [mEvaluator] with its
+     * index the main expression MAIN_INDEX. We call the 'setActivity' method of [KeyMaps] to have
+     * it set the activity used for looking up button labels to 'this'.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after previously being shut
+     * down then this Bundle contains the data it most recently supplied in [onSaveInstanceState].
+     * Note: Otherwise it is null.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_calculator_main)
+
         setActionBar(findViewById<View>(R.id.toolbar) as Toolbar)
 
         // Hide all default options in the ActionBar.
-
-        actionBar!!.displayOptions = 0
+        actionBar?.displayOptions = 0
 
         // Ensure the toolbar stays visible while the options menu is displayed.
-        actionBar!!.addOnMenuVisibilityListener { isVisible -> mDisplayView.forceToolbarVisible = isVisible }
+        actionBar?.addOnMenuVisibilityListener {
+            isVisible -> mDisplayView.forceToolbarVisible = isVisible
+        }
 
         mMainCalculator = findViewById(R.id.main_calculator)
         mDisplayView = findViewById(R.id.display)
@@ -444,6 +512,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mFormulaText = findViewById(R.id.formula)
         mResultText = findViewById(R.id.result)
         mFormulaContainer = findViewById(R.id.formula_container)
+
         mEvaluator = Evaluator.getInstance(this)
         mEvaluator.setCallback(mEvaluatorCallback)
         mResultText.setEvaluator(mEvaluator, Evaluator.MAIN_INDEX)

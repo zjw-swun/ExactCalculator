@@ -370,7 +370,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      * @param request one of SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE
      */
     public void setShouldEvaluateResult(@EvaluationRequest int request,
-            Evaluator.EvaluationListener listener) {
+                                        Evaluator.EvaluationListener listener) {
         mEvaluationListener = listener;
         mEvaluationRequest = request;
     }
