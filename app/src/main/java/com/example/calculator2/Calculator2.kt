@@ -486,7 +486,41 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * initialize [mEvaluator] with a new instance of [Evaluator], set its [Evaluator.Callback] to
      * our [mEvaluatorCallback], then set the [Evaluator] of [mResultText] to [mEvaluator] with its
      * index the main expression MAIN_INDEX. We call the 'setActivity' method of [KeyMaps] to have
-     * it set the activity used for looking up button labels to 'this'.
+     * it set the activity used for looking up button labels to 'this'. We initialize [mPadViewPager]
+     * by finding the view with id R.id.pad_pager, [mDeleteButton] by finding the view with id
+     * R.id.del, and [mClearButton] by finding the view with id R.id.clr. We initialize our variable
+     * 'numberPad' by finding the view with id R.id.pad_numeric, and try to initialize our variable
+     * 'numberPadEquals' by finding the view in 'numberPad' with id R.id.eq. We then initialize
+     * [mEqualButton] to 'numberPadEquals' if it is not null, and is VISIBLE, or to the view
+     * inside the view with id R.id.pad_operator which has the id R.id.eq if 'numberPadEquals' is
+     * null or is not VISIBLE. We initialize our variable 'decimalPointButton' by finding the view
+     * with id R.id.dec_point and set its text to the decimal point string [decimalSeparator]. We
+     * initialize [mInverseToggle] by finding the view with id R.id.toggle_inv and [mModeToggle] by
+     * finding the view with id R.id.toggle_mode. We initialize [isOneLine] to true if [mResultText]
+     * is INVISIBLE (it is invisible in layout/display_one_line.xml). We fill [mInvertibleButtons]
+     * with the views with ids: R.id.fun_sin, R.id.fun_cos, R.id.fun_tan, R.id.fun_ln, R.id.fun_log,
+     * and R.id.op_sqrt (these are the invertible transcendental functions) and fill [mInverseButtons]
+     * with the views with ids: R.id.fun_arcsin, R.id.fun_arccos, R.id.fun_arctan, R.id.fun_exp,
+     * R.id.fun_10pow, and R.id.op_sqr (these are the inverses of the functions in [mInvertibleButtons],
+     * the visibility of the views in [mInvertibleButtons], and [mInverseButtons] are swapped when
+     * [mInverseToggle] is used to toggle between them). We initialize [mDragLayout] by finding the
+     * view with id R.id.drag_layout, call its 'removeDragCallback' method to remove 'this' as a
+     * callback (just in case -- we don't want to called twice), call its 'addDragCallback' method to
+     * add 'this' as a callback, and call its 'setCloseCallback' method to add 'this' as a
+     * 'CloseCallback'. We call the 'setOnContextMenuClickListener' method of [mFormulaText] to set
+     * its [OnFormulaContextMenuClickListener] to [mOnFormulaContextMenuClickListener], call its
+     * 'setOnDisplayMemoryOperationsListener' method to set its [OnDisplayMemoryOperationsListener]
+     * to 'this' and call its 'addTextChangedListener' to add [mFormulaTextWatcher] as a [TextWatcher].
+     * We set the [OnLongClickListener] of [mDeleteButton] to 'this' (a long click on it will clear
+     * it). If [savedInstanceState] is not null (we are being restarted) we pass it to our method
+     * [restoreInstanceState] to restore our state from the values stored by [onSaveInstanceState],
+     * if it is null we are just being started so we call the 'clearMain' method of [mEvaluator] to
+     * have it initialize itself, call our [showAndMaybeHideToolbar] method to instruct [mDisplayView]
+     * to show the tool bar when it is relevant, and call our [onInverseToggled] method with 'false'
+     * so that it starts out showing the views in [mInvertibleButtons] (instead of the inverse functions
+     * in [mInverseButtons]. Finally we call our [restoreDisplay] method to update [mEvaluator],
+     * [mCurrentState], [mFormulaText] and [mResultText] to reflect the initializations we have just
+     * completed.
      *
      * @param savedInstanceState If the activity is being re-initialized after previously being shut
      * down then this Bundle contains the data it most recently supplied in [onSaveInstanceState].
@@ -521,6 +555,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mPadViewPager = findViewById(R.id.pad_pager)
         mDeleteButton = findViewById(R.id.del)
         mClearButton = findViewById(R.id.clr)
+
         val numberPad = findViewById<View>(R.id.pad_numeric)
         val numberPadEquals: View? = numberPad.findViewById(R.id.eq)
         mEqualButton = if (numberPadEquals == null || numberPadEquals.visibility != View.VISIBLE) {
@@ -528,6 +563,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         } else {
             numberPadEquals
         }
+
         val decimalPointButton = numberPad.findViewById<TextView>(R.id.dec_point)
         decimalPointButton.text = decimalSeparator
 
@@ -550,9 +586,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         mFormulaText.setOnContextMenuClickListener(mOnFormulaContextMenuClickListener)
         mFormulaText.setOnDisplayMemoryOperationsListener(mOnDisplayMemoryOperationsListener)
-
         mFormulaText.setOnTextSizeChangeListener(this)
         mFormulaText.addTextChangedListener(mFormulaTextWatcher)
+
         mDeleteButton.setOnLongClickListener(this)
 
         mCurrentState = CalculatorState.INPUT
@@ -566,6 +602,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         restoreDisplay()
     }
 
+    /**
+     *
+     */
     override fun onResume() {
         super.onResume()
         if (mDisplayView.isToolbarVisible) {
