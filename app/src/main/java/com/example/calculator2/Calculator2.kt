@@ -386,21 +386,21 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     /**
      * Restore Evaluator state and [mCurrentState] from [savedInstanceState], called from [onCreate].
-     * First we retrieve the 'indexOfEnum' into the [CalculatorState] enum's that was stored in
+     * First we retrieve the *indexOfEnum* into the [CalculatorState] enum's that was stored in
      * [savedInstanceState] by [onSaveInstanceState], then we retrieve the [CalculatorState] value
-     * that corresponds to that index into 'savedState' and call our method [setState] to configure
+     * that corresponds to that index into *savedState* and call our method [setState] to configure
      * our UI appropriately for that [CalculatorState]. We retrieve the [CharSequence] that was
      * possibly stored in [savedInstanceState] under the key KEY_UNPROCESSED_CHARS ("_unprocessed_chars")
-     * to 'unprocessed', and if that is not null we store the string value of that in our field
+     * to *unprocessed*, and if that is not null we store the string value of that in our field
      * [mUnprocessedChars]. We retrieve the byte array stored in [savedInstanceState] under the key
-     * KEY_EVAL_STATE ("_eval_state") into 'state', and if this is not null we wrap in a try block
+     * KEY_EVAL_STATE ("_eval_state") into *state*, and if this is not null we wrap in a try block
      * whose catch block will default to a clean state ([mCurrentState] = INPUT, and a cleared
-     * [mEvaluator]), a call to the 'restoreInstanceState' method of [mEvaluator] with an
-     * [ObjectInputStream] created from an [ByteArrayInputStream] created from 'state'. We retrieve
+     * [mEvaluator]), a call to the *restoreInstanceState* method of [mEvaluator] with an
+     * [ObjectInputStream] created from an [ByteArrayInputStream] created from *state*. We retrieve
      * the [Boolean] stored in [savedInstanceState] under the key KEY_SHOW_TOOLBAR ("_show_toolbar")
      * (defaulting to true) and if it is true we call our method [showAndMaybeHideToolbar] to show
      * or hide the tool bar depending on the value of [mCurrentState], and if it is false we call
-     * the 'hideToolbar' method of [mDisplayView] to hiae the tool bar. We then call our method
+     * the *hideToolbar* method of [mDisplayView] to hide the tool bar. We then call our method
      * [onInverseToggled] with the value in [savedInstanceState] stored under the key KEY_INVERSE_MODE
      * ("_inverse_mode") to have it restore the state of the inverse functions keys in our UI.
      */
@@ -443,11 +443,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * worked on, redisplay the formula if [mCurrentState] is not in a state where it is invisible
      * (RESULT, and INIT_FOR_RESULT should remain invisible) by calling [redisplayFormula] to display
      * the latest formula in [mFormulaText]. If our current state [mCurrentState] is INPUT we call
-     * the 'setShouldEvaluateResult' method of [mResultText] to have it evaluate result on layout
+     * the *setShouldEvaluateResult* method of [mResultText] to have it evaluate result on layout
      * (SHOULD_EVALUATE), otherwise we call our [setState] method to set our state to that which
      * our method [mapFromSaved] determines to be appropriate given the value of [mCurrentState]
-     * and then we call the 'setShouldEvaluateResult' method of [mResultText] with the value
-     * SHOULD_REQUIRE to have it call the 'requireResult' method of Evaluator on layout so that it
+     * and then we call the *setShouldEvaluateResult* method of [mResultText] with the value
+     * SHOULD_REQUIRE to have it call the *requireResult* method of Evaluator on layout so that it
      * will start the evaluation of the expression.
      */
     private fun restoreDisplay() {
@@ -470,11 +470,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * Called when our [FragmentActivity] is starting. First we call our super's implementation of
      * [onCreate], then we set our content view to our layout file R.layout.activity_calculator_main.
      * We set the action bar to the [Toolbar] with id R.id.toolbar (it is included by the display
-     * layouts, both 'display_one_line.xml' and 'display_two_line.xml'). We set the 'displayOptions'
-     * property of the 'actionBar' to 0 to hide all the default options, and add a lambda as an
-     * 'OnMenuVisibilityListener' that will respond to menu visibility change events by forcing
+     * layouts, both 'display_one_line.xml' and 'display_two_line.xml'). We set the *displayOptions*
+     * property of the *actionBar* to 0 to hide all the default options, and add a lambda as an
+     * *OnMenuVisibilityListener* that will respond to menu visibility change events by forcing
      * [mDisplayView] to have the tool bar visible while the options menu is displayed. We initialize
-     * [mMainCalculator] by finding the view with id R.id.main_calculator (it is the 'LinearLayout'
+     * [mMainCalculator] by finding the view with id R.id.main_calculator (it is the *LinearLayout*
      * which contains our calculator UI and is important for accessibility), [mDisplayView] by finding
      * the view with id R.id.display (it contains both our current formula, and our result TextView's),
      * [mModeView] by finding the view with id R.id.mode (the [TextView] in our ui which displays
@@ -485,15 +485,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * (the [HorizontalScrollView] holding our infinite [CalculatorFormula] formula TextView). We
      * initialize [mEvaluator] with a new instance of [Evaluator], set its [Evaluator.Callback] to
      * our [mEvaluatorCallback], then set the [Evaluator] of [mResultText] to [mEvaluator] with its
-     * index the main expression MAIN_INDEX. We call the 'setActivity' method of [KeyMaps] to have
-     * it set the activity used for looking up button labels to 'this'. We initialize [mPadViewPager]
+     * index the main expression MAIN_INDEX. We call the *setActivity* method of [KeyMaps] to have
+     * it set the activity used for looking up button labels to *this*. We initialize [mPadViewPager]
      * by finding the view with id R.id.pad_pager, [mDeleteButton] by finding the view with id
      * R.id.del, and [mClearButton] by finding the view with id R.id.clr. We initialize our variable
-     * 'numberPad' by finding the view with id R.id.pad_numeric, and try to initialize our variable
-     * 'numberPadEquals' by finding the view in 'numberPad' with id R.id.eq. We then initialize
-     * [mEqualButton] to 'numberPadEquals' if it is not null, and is VISIBLE, or to the view
-     * inside the view with id R.id.pad_operator which has the id R.id.eq if 'numberPadEquals' is
-     * null or is not VISIBLE. We initialize our variable 'decimalPointButton' by finding the view
+     * *numberPad* by finding the view with id R.id.pad_numeric, and try to initialize our variable
+     * *numberPadEquals* by finding the view in *numberPad* with id R.id.eq. We then initialize
+     * [mEqualButton] to *numberPadEquals* if it is not null, and is VISIBLE, or to the view
+     * inside the view with id R.id.pad_operator which has the id R.id.eq if *numberPadEquals* is
+     * null or is not VISIBLE. We initialize our variable *decimalPointButton* by finding the view
      * with id R.id.dec_point and set its text to the decimal point string [decimalSeparator]. We
      * initialize [mInverseToggle] by finding the view with id R.id.toggle_inv and [mModeToggle] by
      * finding the view with id R.id.toggle_mode. We initialize [isOneLine] to true if [mResultText]
@@ -504,19 +504,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * R.id.fun_10pow, and R.id.op_sqr (these are the inverses of the functions in [mInvertibleButtons],
      * the visibility of the views in [mInvertibleButtons], and [mInverseButtons] are swapped when
      * [mInverseToggle] is used to toggle between them). We initialize [mDragLayout] by finding the
-     * view with id R.id.drag_layout, call its 'removeDragCallback' method to remove 'this' as a
-     * callback (just in case -- we don't want to called twice), call its 'addDragCallback' method to
-     * add 'this' as a callback, and call its 'setCloseCallback' method to add 'this' as a
-     * 'CloseCallback'. We call the 'setOnContextMenuClickListener' method of [mFormulaText] to set
+     * view with id R.id.drag_layout, call its *removeDragCallback* method to remove *this* as a
+     * callback (just in case -- we don't want to be called twice), call its *addDragCallback* method
+     * to add *this* as a callback, and call its *setCloseCallback* method to add *this* as a
+     * *CloseCallback*. We call the *setOnContextMenuClickListener* method of [mFormulaText] to set
      * its [OnFormulaContextMenuClickListener] to [mOnFormulaContextMenuClickListener], call its
-     * 'setOnDisplayMemoryOperationsListener' method to set its [OnDisplayMemoryOperationsListener]
-     * to 'this' and call its 'addTextChangedListener' to add [mFormulaTextWatcher] as a [TextWatcher].
-     * We set the [OnLongClickListener] of [mDeleteButton] to 'this' (a long click on it will clear
+     * *setOnDisplayMemoryOperationsListener* method to set its [OnDisplayMemoryOperationsListener]
+     * to *this* and call its *addTextChangedListener* to add [mFormulaTextWatcher] as a [TextWatcher].
+     * We set the [OnLongClickListener] of [mDeleteButton] to *this* (a long click on it will clear
      * it). If [savedInstanceState] is not null (we are being restarted) we pass it to our method
      * [restoreInstanceState] to restore our state from the values stored by [onSaveInstanceState],
-     * if it is null we are just being started so we call the 'clearMain' method of [mEvaluator] to
+     * if it is null we are just being started so we call the *clearMain* method of [mEvaluator] to
      * have it initialize itself, call our [showAndMaybeHideToolbar] method to instruct [mDisplayView]
-     * to show the tool bar when it is relevant, and call our [onInverseToggled] method with 'false'
+     * to show the tool bar when it is relevant, and call our [onInverseToggled] method with *false*
      * so that it starts out showing the views in [mInvertibleButtons] (instead of the inverse functions
      * in [mInverseButtons]. Finally we call our [restoreDisplay] method to update [mEvaluator],
      * [mCurrentState], [mFormulaText] and [mResultText] to reflect the initializations we have just
@@ -603,7 +603,16 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     *
+     * Called after [onRestoreInstanceState], [onRestart], or [onPause], for our activity to start
+     * interacting with the user. First we call through to our super's implementation, then if the
+     * tool bar is visible according to [mDisplayView], we call our [showAndMaybeHideToolbar] method
+     * which shows the tool bar briefly, then automatically hides it again if it's not relevant to
+     * the current formula. Then we set the *importantForAccessibility* property of [mMainCalculator]
+     * depending on whether the [mDragLayout] (our [HistoryFragment]) is open/showing, if it is we
+     * want to hide the main Calculator elements from accessibility and set it to the value
+     * IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS (view is not important for accessibility, nor
+     * for any of its descendant views), if it is not we set it to IMPORTANT_FOR_ACCESSIBILITY_AUTO
+     * (automatically determine whether a view is important for accessibility).
      */
     override fun onResume() {
         super.onResume()
@@ -621,14 +630,41 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
+    /**
+     * Called to retrieve per-instance state from an activity before being killed so that the state
+     * can be restored in [onCreate] or [onRestoreInstanceState] (the [Bundle] populated by this
+     * method will be passed to both). First we call the *cancelAll* method of [mEvaluator] with the
+     * quiet flag *true* which causes it to cancel all of its [CalculatorExpr] in progress without a
+     * cancellation message, and if [mCurrentAnimator] is not null we cancel the animation that was
+     * in progress to ensure our state is up-to-date. Then we call our super's [onSaveInstanceState].
+     * We store the ordinal int of the current [CalculatorState] of [mCurrentState] in [outState]
+     * under the key KEY_DISPLAY_STATE ("_display_state"), and store [mUnprocessedChars] as a
+     * [CharSequence] under the key KEY_UNPROCESSED_CHARS ("_unprocessed_chars"). We then initialize
+     * our variable *byteArrayStream* with a new instance of [ByteArrayOutputStream], then wrapped
+     * in a *try* block intended to catch and rethrow [IOException] as an [AssertionError] we create
+     * an [ObjectOutputStream] that will write to *byteArrayStream* and pass it to a block lambda
+     * using the [use] library function, and that lambda calls the *saveInstanceState* method of
+     * [mEvaluator] to have it save the evaluator state, including the expression and any saved value
+     * to the [DataOutput] interface of that [ObjectOutputStream], and then we save the byte array
+     * version of *byteArrayStream* in [outState] under the key KEY_EVAL_STATE ("_eval_state"). Next
+     * we store the *isSelected* state of [mInverseToggle] under the key KEY_INVERSE_MODE
+     * ("_inverse_mode"), and the *isToolbarVisible* state of [mDisplayView] under the key
+     * KEY_SHOW_TOOLBAR ("_show_toolbar"). Finally we call the *waitForWrites* method of [mEvaluator]
+     * to have it wait for any asynchronous writes to the database to complete.
+     * TODO: Figure out if this waiting is bad for orientation changes, might be why they are so slow.
+     *
+     * @param outState Bundle in which to place your saved state.
+     */
     override fun onSaveInstanceState(outState: Bundle) {
         mEvaluator.cancelAll(true)
         // If there's an animation in progress, cancel it first to ensure our state is up-to-date.
         mCurrentAnimator?.cancel()
 
         super.onSaveInstanceState(outState)
+
         outState.putInt(KEY_DISPLAY_STATE, mCurrentState.ordinal)
         outState.putCharSequence(KEY_UNPROCESSED_CHARS, mUnprocessedChars)
+
         val byteArrayStream = ByteArrayOutputStream()
         try {
             ObjectOutputStream(byteArrayStream).use { out -> mEvaluator.saveInstanceState(out) }
@@ -636,8 +672,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             // Impossible; No IO involved.
             throw AssertionError("Impossible IO exception", e)
         }
-
         outState.putByteArray(KEY_EVAL_STATE, byteArrayStream.toByteArray())
+
         outState.putBoolean(KEY_INVERSE_MODE, mInverseToggle.isSelected)
         outState.putBoolean(KEY_SHOW_TOOLBAR, mDisplayView.isToolbarVisible)
         // We must wait for asynchronous writes to complete, since outState may contain
@@ -645,9 +681,33 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mEvaluator.waitForWrites()
     }
 
-    // Set the state, updating delete label and display colors.
-    // This restores display positions on moving to INPUT.
-    // But movement/animation for moving to RESULT has already been done.
+    /**
+     * Set the state, updating delete label and display colors. This restores display positions on
+     * moving to INPUT but movement/animation for moving to RESULT has already been done. If our
+     * parameter [state] is the same as [mCurrentState] we do nothing. If [state] is INPUT we call
+     * the *setShouldEvaluateResult* method of [mResultText] to instruct it to not evaluate the formula
+     * in its *onLayout* override, setting its *EvaluationListener* to *null*, and then we call our
+     * [restoreDisplayPositions] method to restore the positions of the formula and result displays
+     * to their original pre-animation state. Next we set [mCurrentState] to [state]. If [mCurrentState]
+     * is RESULT we set the visibility of [mDeleteButton] to GONE and the visibility of [mClearButton]
+     * to VISIBLE, otherwise we we set the visibility of [mDeleteButton] to VISIBLE and the visibility
+     * of [mClearButton] to GONE. If our [isOneLine] method reports *true* we need to determine the
+     * appropriate visibility of [mFormulaText] and [mResultText]: when [mCurrentState] is RESULT,
+     * EVALUATE, or ANIMATE we set the visibility of both [mFormulaText] and [mResultText] to VISIBLE,
+     * when [mCurrentState] is ERROR we set the visibility of [mFormulaText] to INVISIBLE and the
+     * visibility of [mResultText] to VISIBLE, and for all other states we set the visibility of
+     * [mFormulaText] to VISIBLE and the visibility of [mResultText] to INVISIBLE. Now we need to set
+     * the colors used for ERROR and RESULT states: when [mCurrentState] is ERROR we initialize our
+     * variable *errorColor* with the color R.color.calculator_error_color (a bright red) and set the
+     * text color of both [mFormulaText] and [mResultText] to it as well as setting the [Window] status
+     * bar color to it; when [mCurrentState] is RESULT we set the text color of [mFormulaText] to the
+     * color R.color.display_formula_text_color (BLACK), the color of [mResultText] to the color
+     * R.color.display_result_text_color (a light gray) and the color of the [Window] status bar to
+     * the color R.color.calculator_statusbar_color (a turquoise shade of blue). Finally we call the
+     * method [invalidateOptionsMenu] to have the options menu recreated.
+     *
+     * @param state new [CalculatorState] to set
+     */
     private fun setState(state: CalculatorState) {
         if (mCurrentState != state) {
             if (state == CalculatorState.INPUT) {
@@ -667,50 +727,69 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             }
 
             if (isOneLine) {
-                if (mCurrentState == CalculatorState.RESULT
-                        || mCurrentState == CalculatorState.EVALUATE
-                        || mCurrentState == CalculatorState.ANIMATE) {
-                    mFormulaText.visibility = View.VISIBLE
-                    mResultText.visibility = View.VISIBLE
-                } else if (mCurrentState == CalculatorState.ERROR) {
-                    mFormulaText.visibility = View.INVISIBLE
-                    mResultText.visibility = View.VISIBLE
-                } else {
-                    mFormulaText.visibility = View.VISIBLE
-                    mResultText.visibility = View.INVISIBLE
+                when (mCurrentState) {
+                    CalculatorState.RESULT, CalculatorState.EVALUATE, CalculatorState.ANIMATE -> {
+                        mFormulaText.visibility = View.VISIBLE
+                        mResultText.visibility = View.VISIBLE
+                    }
+                    CalculatorState.ERROR -> {
+                        mFormulaText.visibility = View.INVISIBLE
+                        mResultText.visibility = View.VISIBLE
+                    }
+                    else -> {
+                        mFormulaText.visibility = View.VISIBLE
+                        mResultText.visibility = View.INVISIBLE
+                    }
                 }
             }
 
-            if (mCurrentState == CalculatorState.ERROR) {
-                val errorColor = ContextCompat.getColor(this, R.color.calculator_error_color)
-                mFormulaText.setTextColor(errorColor)
-                mResultText.setTextColor(errorColor)
-                window.statusBarColor = errorColor
-            } else if (mCurrentState != CalculatorState.RESULT) {
-                mFormulaText.setTextColor(
-                        ContextCompat.getColor(this, R.color.display_formula_text_color))
-                mResultText.setTextColor(
-                        ContextCompat.getColor(this, R.color.display_result_text_color))
-                window.statusBarColor = ContextCompat.getColor(this, R.color.calculator_statusbar_color)
+            when {
+                mCurrentState == CalculatorState.ERROR -> {
+                    val errorColor = ContextCompat.getColor(this, R.color.calculator_error_color)
+                    mFormulaText.setTextColor(errorColor)
+                    mResultText.setTextColor(errorColor)
+                    window.statusBarColor = errorColor
+                }
+                mCurrentState != CalculatorState.RESULT -> {
+                    mFormulaText.setTextColor(
+                            ContextCompat.getColor(this, R.color.display_formula_text_color))
+                    mResultText.setTextColor(
+                            ContextCompat.getColor(this, R.color.display_result_text_color))
+                    window.statusBarColor = ContextCompat.getColor(this, R.color.calculator_statusbar_color)
+                }
             }
 
             invalidateOptionsMenu()
         }
     }
 
+    /**
+     * Perform any final cleanup before our activity is destroyed. We call the *removeDragCallback*
+     * method of [mDragLayout] to remove *this* as a *DragCallback* then call our super's implementation
+     * of [onDestroy].
+     */
     override fun onDestroy() {
         mDragLayout.removeDragCallback(this)
         super.onDestroy()
     }
 
     /**
-     * Destroy the evaluator and close the underlying database.
+     * Destroy the evaluator and close the underlying database. Just calls the *destroyEvaluator*
+     * method of [mEvaluator]. Never used though.
      */
     @Suppress("unused")
     fun destroyEvaluator() {
         mEvaluator.destroyEvaluator()
     }
 
+    /**
+     * Notifies the Activity that an action mode has been started. [ActionMode] is used for paste
+     * support on M (23) and higher. First we call our super's implementation of [onActionModeStarted]
+     * then if the tag of [mode] is CalculatorFormula.TAG_ACTION_MODE we call the *scrollTo* method
+     * of [mFormulaContainer] to have it scroll all the way to the right side of [mFormulaText].
+     *
+     * @param mode the [ActionMode] that has started.
+     */
     override fun onActionModeStarted(mode: ActionMode) {
         super.onActionModeStarted(mode)
         if (mode.tag === CalculatorFormula.TAG_ACTION_MODE) {
