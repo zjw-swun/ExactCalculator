@@ -798,21 +798,41 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Stop any active ActionMode or ContextMenu for copy/paste actions.
-     * Return true if there was one.
+     * Stop any active [ActionMode] or [ContextMenu] being used for copy/paste actions. We return the
+     * boolean *or* of the results returned by the *stopActionModeOrContextMenu* methods of either
+     * [mResultText] or [mFormulaText]. Note that this is a short circuit *or* which is quite correct
+     * because only one or the other can be active at one time.
+     *
+     * @return true if there was an active [ActionMode] or [ContextMenu]
      */
     private fun stopActionModeOrContextMenu(): Boolean {
         return mResultText.stopActionModeOrContextMenu() || mFormulaText.stopActionModeOrContextMenu()
     }
 
+    /**
+     * Called whenever a key, touch, or trackball event is dispatched to the activity. First we call
+     * our super's implementation of [onUserInteraction], then if [mCurrentAnimator] is not null we
+     * call its *end* method to end it immediately.
+     */
     override fun onUserInteraction() {
         super.onUserInteraction()
 
-        // If there's an animation in progress, end it immediately, so the user interaction can
+        // If there's an animation in progress, end it c, so the user interaction can
         // be handled.
         mCurrentAnimator?.end()
     }
 
+    /**
+     * Called to process touch screen events. If the masked off action of [e] is ACTION_DOWN, we
+     * call our [stopActionModeOrContextMenu] method to stop any active [ActionMode] or [ContextMenu]
+     * in progress, then we set our variable *historyFragment* to [historyFragment] and if
+     * [mDragLayout] is open and *historyFragment* is not null we call the *stopActionModeOrContextMenu*
+     * method of *historyFragment*. Finally we return the value returned by our super's implementation
+     * of [stopActionModeOrContextMenu] to the caller.
+     *
+     * @param e The touch screen event.
+     * @return true if this event was consumed.
+     */
     override fun dispatchTouchEvent(e: MotionEvent): Boolean {
         if (e.actionMasked == MotionEvent.ACTION_DOWN) {
             stopActionModeOrContextMenu()
@@ -825,30 +845,75 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         return super.dispatchTouchEvent(e)
     }
 
+    /**
+     * Called when the activity has detected the user's press of the back key. If our method
+     * [stopActionModeOrContextMenu] returns *false* (no [ActionMode] or [ContextMenu] we in
+     * progress) we set our variable *historyFragment* to [historyFragment], then when [mDragLayout]
+     * is open and *historyFragment* is not null if the *stopActionModeOrContextMenu* method of
+     * *historyFragment* returns *false* we call our method [removeHistoryFragment] to have the
+     * [FragmentManager] pop the [HistoryFragment] off the stack, we then return. If [mPadViewPager]
+     * is not *null* and its *currentItem* is not 0 we decrement its *currentItem*. Otherwise
+     * we just call our super's implementation of [onBackPressed].
+     */
     override fun onBackPressed() {
         if (!stopActionModeOrContextMenu()) {
             val historyFragment = historyFragment
-            if (mDragLayout.isOpen && historyFragment != null) {
-                if (!historyFragment.stopActionModeOrContextMenu()) {
-                    removeHistoryFragment()
+            when {
+                mDragLayout.isOpen && historyFragment != null -> {
+                    if (!historyFragment.stopActionModeOrContextMenu()) {
+                        removeHistoryFragment()
+                    }
+                    return
                 }
-                return
-            }
-            if (mPadViewPager != null && mPadViewPager!!.currentItem != 0) {
-                // Select the previous pad.
-                mPadViewPager!!.currentItem = mPadViewPager!!.currentItem - 1
-            } else {
-                // If the user is currently looking at the first pad (or the pad is not paged),
-                // allow the system to handle the Back button.
-                super.onBackPressed()
+                mPadViewPager != null && mPadViewPager!!.currentItem != 0 -> {
+                    mPadViewPager!!.currentItem = mPadViewPager!!.currentItem - 1
+                }
+                else -> super.onBackPressed()
             }
         }
     }
 
+    /**
+     * Called when a key was released and not handled by any of the views inside of the activity. When
+     * [keyCode] is one of KEYCODE_BACK, KEYCODE_ESCAPE, KEYCODE_DPAD_UP, KEYCODE_DPAD_DOWN,
+     * KEYCODE_DPAD_LEFT, or KEYCODE_DPAD_RIGHT we just return the value returned by our super's
+     * implementation of [onKeyUp]. Otherwise we first call our method [stopActionModeOrContextMenu]
+     * to stop the action mode or context menu if it's showing, then call our [cancelUnrequested]
+     * method to cancel unrequested in-progress evaluation of the main expression. We then branch
+     * on the value of [keyCode]:
+     *
+     * KEYCODE_NUMPAD_ENTER, KEYCODE_ENTER, KEYCODE_DPAD_CENTER: we set [mCurrentButton] to
+     * [mEqualButton], call our method [onEquals] and return true to the caller.
+     *
+     * KEYCODE_DEL: we set [mCurrentButton] to [mDeleteButton], call our method [onDelete] and
+     * return true to the caller.
+     *
+     * KEYCODE_CLEAR: we set [mCurrentButton] to [mClearButton], call our method [onClear] and
+     * return true to the caller.
+     *
+     * For all other characters we call our method [cancelIfEvaluating] with *false* for the *quiet*
+     * flag to have it cancel any in-progress explicitly requested evaluations without suppressing
+     * its pop-up message. We then initialize our variable *raw* with the unicode character which is
+     * associated with [keyCode] and the state of the meta keys pressed in [event]. If *raw* has
+     * the COMBINING_ACCENT bit set it means it is a dead key so we return *true* to just discard it.
+     * If *raw* is not a character that is usable as part of a java identifier or is a white space
+     * character we return *true* to just discard it. Otherwise we initialize our variable *c* to the
+     * [Char] value of *raw*. If *c* is the character '=' we set [mCurrentButton] to [mEqualButton]
+     * and call our [onEquals] method, otherwise we call our [addChars] method to add the the string
+     * value of *c* to the expression with the *explicit* flag set to true to indicate it was typed
+     * by the user not pasted, then call our [redisplayAfterFormulaChange] to have it redisplay the
+     * formula. Finally we return *true* to the caller.
+     *
+     * @param keyCode The value in event.getKeyCode().
+     * @param event Description of the key event.
+     * @return true to consume the event here
+     */
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         // Allow the system to handle special key codes (e.g. "BACK" or "DPAD").
         when (keyCode) {
-            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> return super.onKeyUp(keyCode, event)
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT
+            -> return super.onKeyUp(keyCode, event)
         }
 
         // Stop the action mode or context menu if it's showing.
@@ -900,7 +965,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Invoked whenever the inverse button is toggled to update the UI.
+     * Invoked whenever the inverse button is toggled to update the UI. First we set the selected
+     * state of [mInverseToggle] to [showInverse]. Then we branch on the value of [showInverse]:
+     *
+     * *true*: We set the content description of [mInverseToggle] to the string "hide inverse
+     * functions", then loop through all the *invertibleButton* buttons in [mInvertibleButtons]
+     * setting their visibility to GONE, and loop through all the *inverseButton* in [mInverseButtons]
+     * setting their visibility to VISIBLE.
+     *
+     * *false*: We set the content description of [mInverseToggle] to the string "show inverse
+     * functions", then loop through all the *invertibleButton* buttons in [mInvertibleButtons]
+     * setting their visibility to VISIBLE, and loop through all the *inverseButton* in
+     * [mInverseButtons] setting their visibility to GONE.
      *
      * @param showInverse `true` if inverse functions should be shown
      */
@@ -927,7 +1003,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     /**
      * Invoked whenever the deg/rad mode may have changed to update the UI. Note that the mode has
-     * not necessarily actually changed where this is invoked.
+     * not necessarily actually changed where this is invoked. We branch on the value of [degreeMode]:
+     *
+     * *true*: We set the text of [mModeView] to the string "deg", and set its content description to
+     * "degree mode". The we set the text of [mModeToggle] to the string "rad" and its content
+     * description to "switch to radians".
+     *
+     * *false*: We set the text of [mModeView] to the string "rad", and set its content description to
+     * "radian mode". The we set the text of [mModeToggle] to the string "deg" and its content
+     * description to "switch to degrees".
      *
      * @param degreeMode `true` if in degree mode
      */
@@ -947,6 +1031,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * Called to have the [FragmentManager] remove the [HistoryFragment]. We initialize our variable
+     * *manager* with the [FragmentManager] for interacting with fragments associated with this
+     * activity. If *manager* has not been destroyed, we have it pop down to and including the
+     * fragment with the tag "HistoryFragment". We then set the *importantForAccessibility* flag of
+     * [mMainCalculator] to IMPORTANT_FOR_ACCESSIBILITY_AUTO (since when the [HistoryFragment] is
+     * hidden, the main Calculator is important for accessibility again).
+     */
     private fun removeHistoryFragment() {
         val manager = supportFragmentManager
         if (!manager.isDestroyed) {
@@ -959,7 +1051,16 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     /**
      * Switch to INPUT from RESULT state in response to input of the specified button_id.
-     * View.NO_ID is treated as an incomplete function id.
+     * View.NO_ID is treated as an incomplete function id. If the button pressed is for a
+     * binary operator (R.id.op_pow, R.id.op_mul, R.id.op_div, R.id.op_add, or R.id.op_sub)
+     * or is for a "suffix" operator (R.id.op_fact, R.id.op_pct, or R.id.op_sqr) we call the
+     * *collapse* method of [mEvaluator] to have it abbreviate the most recent history entry
+     * to a pre-evaluated expression node, and use that as the new main expression, otherwise
+     * we call our [announceClearedForAccessibility] method to have it announce "cleared", and
+     * call the *clearMain* method of [mEvaluator] to have it clear its *mMainExpr*. Finally we
+     * set our [CalculatorState] to INPUT.
+     *
+     * @param button_id the resource id of the button that was pressed.
      */
     private fun switchToInput(button_id: Int) {
         if (KeyMaps.isBinary(button_id) || KeyMaps.isSuffix(button_id)) {
@@ -971,13 +1072,27 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         setState(CalculatorState.INPUT)
     }
 
-    // Add the given button id to input expression.
-    // If appropriate, clear the expression before doing so.
+    /**
+     * Add the given button id to input expression. If appropriate, clear the expression before
+     * doing so. When [mCurrentState] is:
+     *
+     * ERROR: We call our [setState] method to set the [CalculatorState] to INPUT.
+     *
+     * RESULT: We call our [switchToInput] method to have it react to the button, either continuing
+     * the previous expression for a binary or suffix operator, or by clearing the current result and
+     * formula to start a new one.
+     *
+     * Finally we call the *append* method of [mEvaluator] to have it append [id] to the expression
+     * it is evaluating.
+     *
+     * @param id the resource id of the button we want to add to the expression.
+     */
     private fun addKeyToExpr(id: Int) {
-        if (mCurrentState == CalculatorState.ERROR) {
-            setState(CalculatorState.INPUT)
-        } else if (mCurrentState == CalculatorState.RESULT) {
-            switchToInput(id)
+
+        when (mCurrentState) {
+            CalculatorState.ERROR -> setState(CalculatorState.INPUT)
+            CalculatorState.RESULT -> switchToInput(id)
+            else -> {}
         }
 
         if (!mEvaluator.append(id)) {
