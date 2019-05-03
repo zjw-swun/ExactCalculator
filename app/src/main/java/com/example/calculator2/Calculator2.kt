@@ -1101,9 +1101,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Add the given button id to input expression, assuming it was explicitly
-     * typed/touched.
-     * We perform slightly more aggressive correction than in pasted expressions.
+     * Add the given button id to the input expression, assuming it was explicitly typed/touched.
+     * We perform slightly more aggressive correction than in pasted expressions. If our current
+     * state [mCurrentState] is INPUT and [id] is R.id.op_sub we retrieve the MAIN_INDEX expression
+     * of [mEvaluator] and call its *removeTrailingAdditiveOperators* method to remove any additive
+     * operators from the end of the expression. Then we call our [addKeyToExpr] to add [id] to the
+     * end of the current expression that [mEvaluator] is evaluating.
+     *
+     * @param id resource id of the the key that was typed/touched.
      */
     private fun addExplicitKeyToExpr(id: Int) {
         if (mCurrentState == CalculatorState.INPUT && id == R.id.op_sub) {
@@ -1112,12 +1117,28 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         addKeyToExpr(id)
     }
 
+    /**
+     * Starts evaluation of the current expression if [mCurrentState] is INPUT and the current
+     * expression has "interesting" operations in it (is worth evaluating).
+     */
     fun evaluateInstantIfNecessary() {
-        if (mCurrentState == CalculatorState.INPUT && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
+        if (mCurrentState == CalculatorState.INPUT
+                && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
             mEvaluator.evaluateAndNotify(Evaluator.MAIN_INDEX, this, mResultText)
         }
     }
 
+    /**
+     * Redisplays the formula after it is changed, clears our [mResultText] and causes [mEvaluator]
+     * to refill [mResultText] with whatever is appropriate given the changed formula it is currently
+     * evaluating. First we call our method [redisplayFormula] to have it update the text of our
+     * formula TextView [mFormulaText], then we set our [CalculatorState] to INPUT and clear
+     * [mResultText]. If our [haveUnprocessed] method reports that we have characters which have not
+     * be processed yet in [mUnprocessedChars] we call the *touch* method of [mEvaluator] which marks
+     * the expression as having changed which prevents the next evaluation request from being ignored,
+     * otherwise we call our [evaluateInstantIfNecessary] which causes evaluation and result display
+     * to occur if it is appropriate to do so.
+     */
     private fun redisplayAfterFormulaChange() {
         // TODO: Could do this more incrementally.
         redisplayFormula()
@@ -1132,8 +1153,12 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Show the toolbar.
-     * Automatically hide it again if it's not relevant to current formula.
+     * Show the toolbar, automatically hide it again if it's not relevant to the current formula. We
+     * initialize our variable *shouldBeVisible* to true if [mCurrentState] is INPUT and the
+     * *hasTrigFuncs* method of [mEvaluator] reports that the current main expression contains trig
+     * functions. Then we call the *showToolbar* method of [mDisplayView] with the inverse of
+     * *shouldBeVisible* (if *shouldBeVisible* is true *showToolbar* will not auto hide the toolbar
+     * after showing it).
      */
     private fun showAndMaybeHideToolbar() {
         val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs()
@@ -1141,7 +1166,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Display or hide the toolbar depending on calculator state.
+     * Display or hide the toolbar depending on calculator state. We initialize our variable
+     * *shouldBeVisible* to true if [mCurrentState] is INPUT and the *hasTrigFuncs* method of
+     * [mEvaluator] reports that the current main expression contains trig functions. If
+     * *shouldBeVisible* is *true* we call the *showToolbar* method of [mDisplayView] with *false*
+     * as the *autoHide* parameters to have it show the tool bar without auto-hiding it after a 3
+     * second delay, otherwise we call the *hideToolbar* method of [mDisplayView] to have it hide
+     * the tool bar immediately.
      */
     private fun showOrHideToolbar() {
         val shouldBeVisible = mCurrentState == CalculatorState.INPUT && mEvaluator.hasTrigFuncs()
@@ -1152,7 +1183,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
-    @Suppress("unused")
+    /**
+     * This is specified as the "android:onClick" [OnLongClickListener] for the style "PadButtonStyle"
+     * and "PadButtonStyle" is extended by a "dot notation" to create a bunch of different styles for
+     * the different kinds of keys and then used by all of the keys of the calculator. The file
+     * values/styles.xml contains the definition of "PadButtonStyle", and default definitions for the
+     * different kinds of children of "PadButtonStyle" with these children overridden depending on the
+     * screen size and orientation. First we set [mCurrentButton] to [view], then we call our method
+     * [stopActionModeOrContextMenu] to cancel the copy/paste context menu if it is being displayed.
+     *
+     *
+     * @param view [View] that was clicked
+     */
+    @Suppress("unused") // This is actually used by values/styles.xml as "android:onClick"
     fun onButtonClick(view: View) {
         // Any animation is ended before we get here.
         mCurrentButton = view
@@ -1161,9 +1204,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // See onKey above for the rationale behind some of the behavior below:
         cancelUnrequested()
 
-        @Suppress("MoveVariableDeclarationIntoWhen")
-        val id = view.id
-        when (id) {
+        when (val id = view.id) {
             R.id.eq -> onEquals()
             R.id.del -> onDelete()
             R.id.clr -> {
