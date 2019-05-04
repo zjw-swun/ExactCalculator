@@ -371,6 +371,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * INIT_FOR_RESULT for both RESULT and INIT_FOR_RESULT saved state, returning INIT for both
      * ERROR and INIT saved state, and returning the state unchanged for both EVALUATE and INPUT
      * state.
+     *
+     * @return the [CalculatorState] we should now use.
      */
     private fun mapFromSaved(savedState: CalculatorState): CalculatorState {
         return when (savedState) {
@@ -1184,14 +1186,60 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * This is specified as the "android:onClick" [OnLongClickListener] for the style "PadButtonStyle"
-     * and "PadButtonStyle" is extended by a "dot notation" to create a bunch of different styles for
+     * This is specified as the "android:onClick" *OnClickListener* for the style "PadButtonStyle"
+     * and "PadButtonStyle" is extended by "dot notation" to create a bunch of different styles for
      * the different kinds of keys and then used by all of the keys of the calculator. The file
      * values/styles.xml contains the definition of "PadButtonStyle", and default definitions for the
      * different kinds of children of "PadButtonStyle" with these children overridden depending on the
      * screen size and orientation. First we set [mCurrentButton] to [view], then we call our method
-     * [stopActionModeOrContextMenu] to cancel the copy/paste context menu if it is being displayed.
+     * [stopActionModeOrContextMenu] to cancel the copy/paste context menu if it is being displayed,
+     * and call our method [cancelUnrequested] to cancel any current background task that might be in
+     * progress for the main expression. We next branch on the resource id *id* of the view that was
+     * clicked:
      *
+     * R.id.eq: we call our method [onEquals] which causes the current expression to be evaluated if
+     * it is in an state where that is possible, or signals an error if it is incomplete.
+     *
+     * R.id.del: we call our method [onDelete] to remove the last character or operator from the
+     * expression.
+     *
+     * R.id.clr: we call our method [onClear] which clears the expression if there is one in
+     * progress, then we return leaving the animation which [onClear] starts to show or hide the
+     * tool bar.
+     *
+     * R.id.toggle_inv: we initialize our variable *selected* to the inverse of the selection state
+     * of [mInverseToggle], set the selected state of [mInverseToggle] to *selected*, and call our
+     * method [onInverseToggled] with that value to invert the state of the invertible keys. Then if
+     * [mCurrentState] is RESULT, we call the *redisplay* method of [mResultText] just in case the
+     * reevaluation was canceled by our above call to [cancelUnrequested].
+     *
+     * R.id.toggle_mode: we call our method [cancelIfEvaluating] with the *quiet* flag *false* to
+     * cancel any evaluation in progress without suppressing a possible error pop-up message. We
+     * then initialize our variable *mode* to the inverse of the current degree mode of the main
+     * expression (true is degrees, false is radians). Then if [mCurrentState] is RESULT and there
+     * are trig functions in the main expression we call the *collapse* method of [mEvaluator] to
+     * "collapse" the main expression so that it will forever be bound to the old degree mode (unless
+     * we are in INPUT mode), and then call our method [redisplayFormula] to redisplay the formula.
+     * We now call the *setDegreeMode* method of [mEvaluator] to have it change to the new *mode*,
+     * and call our method [onModeChanged] to have it change the UI to reflect the new *mode*. We
+     * call our method [showAndMaybeHideToolbar] to have it show the tool bar (and not auto-hide it
+     * again if there are trig functions being evaluated), we call our method [setState] to set our
+     * [CalculatorState] to INPUT, and call the *clear* method of [mResultText] to clear it. Then if
+     * our [haveUnprocessed] method reports there are no unprocessed characters we call our method
+     * [evaluateInstantIfNecessary] to start the evaluation of the current expression if [mCurrentState]
+     * is INPUT and the current expression has "interesting" operations in it (is worth evaluating).
+     * Finally we return to the caller.
+     *
+     * For all other keys we call our [cancelIfEvaluating] method with the *quiet* flag *false* (not
+     * suppressing any error pop-up), and if our [haveUnprocessed] method reports we have unprocessed
+     * characters we call our [addChars] method to add the character represented by the key with id
+     * *id* to the end of our current expression as an uninterpreted character, otherwise we call our
+     * method [addExplicitKeyToExpr] to add the key's character, deleting trailing additive operators
+     * from the expression if the key id is R.id.op_sub, and call our method [redisplayAfterFormulaChange]
+     * to redisplay our changed formula.
+     *
+     * For all keys which fall through the *when* block without returning we call our method
+     * [showOrHideToolbar] to show our tool bar, and auto-hide it if that is appropriate to do so.
      *
      * @param view [View] that was clicked
      */
@@ -1222,7 +1270,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             R.id.toggle_mode -> {
                 cancelIfEvaluating(false)
                 val mode = !mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX)
-                if (mCurrentState == CalculatorState.RESULT && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
+                if (mCurrentState == CalculatorState.RESULT
+                        && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
                     // Capture current result evaluated in old mode.
                     mEvaluator.collapse(mEvaluator.maxIndex)
                     redisplayFormula()
@@ -1254,6 +1303,16 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         showOrHideToolbar()
     }
 
+    /**
+     * Called to redisplay the current main expression in [mFormulaText]. We initialize our variable
+     * *formula* with a *SpannableStringBuilder* created from the main expression of [mEvaluator].
+     * If [mUnprocessedChars] is not *null* we append them to *formula* using [mUnprocessedColorSpan]
+     * as their color and using the SPAN_EXCLUSIVE_EXCLUSIVE so that only these characters will be
+     * colored with that color. We then call the *changeTextTo* method of [mFormulaText] to have it
+     * change the text it is displaying to *formula* announcing the new text for accessibility. Then
+     * we set the content description of [mFormulaText] to the string "No formula" if *formula* is
+     * empty or to null if it is not empty.
+     */
     fun redisplayFormula() {
         val formula = mEvaluator.getExpr(Evaluator.MAIN_INDEX).toSpannableStringBuilder(this)
         if (mUnprocessedChars != null) {
@@ -1268,6 +1327,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             null
     }
 
+    /**
+     * This is specified as the [OnLongClickListener] for the button with id R.id.del (delete button).
+     * We set [mCurrentButton] to [view], then if the resource id of [view] is R.id.del we call our
+     * [onClear] method to clear the display and return *true* to the caller, otherwise we return
+     * *false*.
+     *
+     * @param view [View] that was long clicked.
+     * @return true if the callback consumed the long click, false otherwise.
+     */
     override fun onLongClick(view: View): Boolean {
         mCurrentButton = view
 
@@ -1278,7 +1346,24 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         return false
     }
 
-    // Initial evaluation completed successfully.  Initiate display.
+    /**
+     * Initial evaluation completed successfully. Initiate display. If [index] is not MAIN_INDEX we
+     * throw an AssertionError. Otherwise we call [invalidateOptionsMenu] to signal that the options
+     * menu has changed and should be recreated. We then call the *onEvaluate* method of [mResultText]
+     * with our parameters which initiates the display of the new result. If [mCurrentState] is not
+     * INPUT we call our method [onResult] with the *animate* flag *true* if [mCurrentState] is
+     * EVALUATE (in which case the result will be animated into place), and the *resultWasPreserved*
+     * flag true if [mCurrentState] is INIT_FOR_RESULT or RESULT (if true [onResult] will call the
+     * *represerve* method of [mEvaluator] which will preserve the main expression as the most recent
+     * cached history entry without rewriting it to the database, if *false* it calls the *preserve*
+     * method of [mEvaluator] to add the current result to both the cache and database).
+     *
+     * @param index Index of the expression which has been evaluated (always MAIN_INDEX)
+     * @param initDisplayPrec Initial display precision computed by evaluator. (1 = tenths digit)
+     * @param msd Position of most significant digit. Offset from left of string.
+     * @param leastDigPos Position of least significant digit (1 = tenths digit) or Integer.MAX_VALUE.
+     * @param truncatedWholeNumber the integer part of the result
+     */
     override fun onEvaluate(index: Long, initDisplayPrec: Int, msd: Int, leastDigPos: Int,
                             truncatedWholeNumber: String) {
         if (index != Evaluator.MAIN_INDEX) {
@@ -1292,23 +1377,58 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (mCurrentState != CalculatorState.INPUT) {
             // In EVALUATE, INIT, RESULT, or INIT_FOR_RESULT state.
             onResult(mCurrentState == CalculatorState.EVALUATE /* animate */,
-                    mCurrentState == CalculatorState.INIT_FOR_RESULT || mCurrentState == CalculatorState.RESULT /* previously preserved */)
+                    mCurrentState == CalculatorState.INIT_FOR_RESULT
+                            || mCurrentState == CalculatorState.RESULT /* previously preserved */)
         }
     }
 
-    // Reset state to reflect evaluator cancellation.  Invoked by evaluator.
+    /**
+     * Reset state to reflect evaluator cancellation. Invoked by evaluator. We set our [CalculatorState]
+     * to INPUT, then call the *onCancelled* method of [mResultText] to have it clear its text, and
+     * set its state to one reflecting its "emptiness".
+     *
+     * @param index index of the expression being canceled (always MAIN_INDEX)
+     */
     override fun onCancelled(index: Long) {
         // Index is Evaluator.MAIN_INDEX. We should be in EVALUATE state.
         setState(CalculatorState.INPUT)
         mResultText.onCancelled(index)
     }
 
-    // Reevaluation completed; ask result to redisplay current value.
+    /**
+     * Reevaluation completed; ask result to redisplay current value. We just call the *onReevaluate*
+     * method of [mResultText] to have it do its stuff.
+     *
+     * @param index Index of the expression that was reevaluated (always MAIN_INDEX).
+     */
     override fun onReevaluate(index: Long) {
         // Index is Evaluator.MAIN_INDEX.
         mResultText.onReevaluate(index)
     }
 
+    /**
+     * Called because we are a [OnTextSizeChangeListener] for [mFormulaText] and the text size of
+     * that [TextView] has changed. If [mCurrentState] is not INPUT the change did not occur because
+     * of user input so we do not want to animate the change in text size so we just return. Otherwise
+     * we calculate the values needed to perform the scale and translation animations between the
+     * [oldSize] text size and the next *textSize* text size property of [textView]:
+     *
+     * *textScale*: the ratio of [oldSize] to the new *textSize* property of [textView]
+     *
+     * *translationX*: the X translation caused by the change in size.
+     *
+     * *translationY*: the Y translation caused by the change in size.
+     *
+     * We initialize our variable *animatorSet* with a new instance of [AnimatorSet], set it to
+     * play together [ObjectAnimator]'s which scale [textView] from *textScale* to 1.0 in both X
+     * and Y directions, and translate it from *translationX* to 0.0 and *translationY* to 0.0 in X
+     * and Y coordinates. We set the duration of *animatorSet* to the android system constant
+     * config_mediumAnimTime (400ms currently), and set its [TimeInterpolator] to an instance of
+     * [AccelerateDecelerateInterpolator]. Finally we start *animatorSet* running.
+     *
+     * @param textView [TextView] whose text size has changed.
+     * @param oldSize old text size.
+     */
     override fun onTextSizeChanged(textView: TextView, oldSize: Float) {
         if (mCurrentState != CalculatorState.INPUT) {
             // Only animate text changes that occur from user input.
@@ -1333,8 +1453,12 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Cancel any in-progress explicitly requested evaluations.
-     * @param quiet suppress pop-up message.  Explicit evaluation can change the expression
+     * Cancel any in-progress explicitly requested evaluations. If [mCurrentState] is EVALUATE we
+     * call the *cancel* method of [mEvaluator] to have it cancel the expression of the MAIN_INDEX
+     * formula passing it our parameter [quiet] to have it suppress (or not) the error pop-up, and
+     * we return *true* to the caller. Otherwise we return *false*.
+     *
+     * @param quiet suppress pop-up message. Explicit evaluation can change the expression
      * value, and certainly changes the display, so it seems reasonable to warn.
      * @return      true if there was such an evaluation
      */
@@ -1347,17 +1471,38 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
-
+    /**
+     * Cancels unrequested evaluation of the MAIN_INDEX formula of [mEvaluator] suppressing the error
+     * pop-up.
+     */
     private fun cancelUnrequested() {
         if (mCurrentState == CalculatorState.INPUT) {
             mEvaluator.cancel(Evaluator.MAIN_INDEX, true)
         }
     }
 
+    /**
+     * If [mUnprocessedChars] is not *null* and contains characters, we return *true*, otherwise we
+     * return *false*.
+     *
+     * @return true if there are unprocessed characters in [mUnprocessedChars]
+     */
     private fun haveUnprocessed(): Boolean {
         return mUnprocessedChars != null && mUnprocessedChars!!.isNotEmpty()
     }
 
+    /**
+     * Called when the "equals" button (or key) is pressed. We iqnore it if [mCurrentState] is not
+     * INPUT. If it is INPUT we check to see if our [haveUnprocessed] method reports there are
+     * unprocessed characters first and if so we set our state to EVALUATE and call our method
+     * [onError] to have it report a "Bad expression" to the user. If there are no unprocessed
+     * characters we set the state to EVALUATE and call the *requireResult* method of [mEvaluator]
+     * to have it start the required evaluation of the MAIN_INDEX expression, passing it *this* as
+     * the *EvaluationListener* (our overrides of the various methods of the interface will be
+     * called when appropriate to do so) and [mResultText] as the *CharMetricsInfo* to use (its
+     * override of the various methods of the interface will be called when information about the
+     * text it can display is needed).
+     */
     private fun onEquals() {
         // Ignore if in non-INPUT state, or if there are no operators.
         if (mCurrentState == CalculatorState.INPUT) {
@@ -1371,6 +1516,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     *
+     */
     private fun onDelete() {
         // Delete works like backspace; remove the last character or operator from the expression.
         // Note that we handle keyboard delete exactly like the delete button.  For
