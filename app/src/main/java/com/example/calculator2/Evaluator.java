@@ -1392,7 +1392,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
     }
 
     /**
-     * Delete last taken from main expression.
+     * Delete last token from main expression.
      */
     public void delete() {
         mChangedValue = true;

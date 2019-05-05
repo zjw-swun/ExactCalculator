@@ -1517,14 +1517,23 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     *
+     * Called when the users has touched the delete button or key. First we call our method
+     * [cancelIfEvaluating] to cancel any in-progress explicit evaluation with the *quiet* flag
+     * *false* to so as to not suppress any error pop-up, and if it reports that there was an
+     * evaluation in progress we just return. Otherwise we set our [CalculatorState] to INPUT,
+     * then if [haveUnprocessed] reports that there are unprocessed characters in [mUnprocessedChars]
+     * we remove the last character from [mUnprocessedChars], otherwise we call the *delete* method
+     * of [mEvaluator] which deletes the last token from the main expression. If the MAIN_INDEX
+     * expression of [mEvaluator] is now empty and there are no unprocessed characters we call our
+     * [announceClearedForAccessibility] method to have accessibility announce that the formula has
+     * been cleared. Finally we call our [redisplayAfterFormulaChange] method to have it redisplay
+     * the formula.
      */
     private fun onDelete() {
         // Delete works like backspace; remove the last character or operator from the expression.
-        // Note that we handle keyboard delete exactly like the delete button.  For
-        // example the delete button can be used to delete a character from an incomplete
-        // function name typed on a physical keyboard.
-        // This should be impossible in RESULT state.
+        // Note that we handle keyboard delete exactly like the delete button. For example the
+        // delete button can be used to delete a character from an incomplete function name typed
+        // on a physical keyboard. This should be impossible in RESULT state.
         // If there is an in-progress explicit evaluation, just cancel it and return.
         if (cancelIfEvaluating(false)) return
         setState(CalculatorState.INPUT)
@@ -1540,6 +1549,49 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         redisplayAfterFormulaChange()
     }
 
+    /**
+     * Produces an animation when the display is cleared or an error is detected which looks like it
+     * starts from the center of the [sourceView] button which caused the event and sweeps across the
+     * result/formula display.
+     *
+     * We initialize our variable *groupOverlay* by retrieving the top-level window decor view from
+     * the current Window of the activity and fetching the overlay for this view, creating it if it
+     * does not yet exist (a [ViewGroupOverlay] is an extra layer that sits on top of a [ViewGroup]
+     * (the "host view") which is drawn after all other content in that view (including the view
+     * group's children). Interaction with the overlay layer is done by adding and removing views
+     * and drawables). We initialize our variable *displayRect* with a new instance of [Rect] and
+     * use the *getGlobalVisibleRect* method of [mDisplayView] to set *displayRect* to encompass the
+     * region that it occupies on the screen. We initialize our variable *revealView* with a new
+     * instance of [View], set its *bottom* to the *bottom* of *displayRect*, its *left* to the
+     * *left* of *displayRect*, and its *right* to the *right* of *displayRect* (its *top* defaults
+     * to 0). We then set the background color of *revealView* to the color with resource id
+     * [colorRes] and add it to *groupOverlay*. We initialize our variable *clearLocation* with a
+     * new instance of [IntArray](2), use the *getLocationInWindow* method of [sourceView] to fill
+     * it with its (x,y) coordinates then add half the width of [sourceView] to its x coordinate
+     * and half the height to its y coordinate (*clearLocation* now contains the coordinates of the
+     * center of [sourceView]). We initialize our variable *revealCenterX* with the difference between
+     * the X coordinate in *clearLocation* and the *left* side of *revealView*, and our variable
+     * *revealCenterY* with the difference between the Y coordinate in *clearLocation* and the *top*
+     * side of *revealView*. We then calculate our variable *revealRadius* to be the maximum of the
+     * distance from the center of the button that was clicked and the top corners of *revealView*.
+     * We initialize our variable *revealAnimator* with an [Animator] which can animate a clipping
+     * circle for *revealView* centered at *revealCenterX* and *revealCenterY* with a starting radius
+     * of 0.0 and an end radius of *revealRadius*, we set the duration to the system constant
+     * config_mediumAnimTime (500ms), and add [listener] as an [AnimatorListener] to it. We initialize
+     * our variable *alphaAnimator* with an [ObjectAnimator] which will animate the ALPHA property of
+     * *revealView* to 0.0 and set its duration to config_mediumAnimTime also. We initialize our
+     * variable *animatorSet* with a new instance of [AnimatorSet], configure it to play *revealAnimator*
+     * before *alphaAnimator*, set its [TimeInterpolator] to an [AccelerateDecelerateInterpolator],
+     * and add an anonymous [AnimatorListenerAdapter] whose *onAnimationEnd* override will remove
+     * *revealView* from *groupOverlay* and set [mCurrentAnimator] to null. Having fully configured
+     * *animatorSet* we set [mCurrentAnimator] to it and start it running.
+     *
+     * @param sourceView button which triggered the animation we are producing, its center will be
+     * used as the center of the animation.
+     * @param colorRes resource id of the color we are to use.
+     * @param listener [AnimatorListener] whose *onAnimationEnd* override will be called at the end
+     * of the animation in order to perform whatever cleanup is appropriate.
+     */
     private fun reveal(sourceView: View, colorRes: Int, listener: AnimatorListener) {
         val groupOverlay = window.decorView.overlay as ViewGroupOverlay
 
@@ -1589,10 +1641,24 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         animatorSet.start()
     }
 
+    /**
+     * Called to have [mResultText] announce "cleared" to the accessibility system service.
+     */
     private fun announceClearedForAccessibility() {
         mResultText.announceForAccessibility(resources.getString(R.string.cleared))
     }
 
+    /**
+     * Called from the *onAnimationEnd* override of the [AnimatorListenerAdapter] which is added
+     * to the animation which our [onClear] method has our [reveal] method run, it finishes the
+     * steps needed to clear our display, and called from our [onClick] method which the
+     * [HistoryFragment] calls when its clear history button is clicked it does likewise.
+     *
+     * We set [mUnprocessedChars] to null, call the *clear* method of [mResultText] have it clear its
+     * text and update its state variables, call the *clearMain* method of [mEvaluator] to have it
+     * clear its main expression, and set our [CalculatorState] to INPUT. Finally we call our
+     * [redisplayFormula] to have it redisplay the (now empty) formula.
+     */
     fun onClearAnimationEnd() {
         mUnprocessedChars = null
         mResultText.clear()
@@ -1601,6 +1667,27 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         redisplayFormula()
     }
 
+    /**
+     * Called when the button with id R.id.clr (clear) is clicked, when the KEYCODE_CLEAR (clear)
+     * key is clicked, or when the button with id R.id.del (delete) is long clicked it clears the
+     * formula and result with a turquoise circular "reveal" animation which sweeps across the
+     * formula/result display with the center of the button responsible for the clearing as its
+     * starting point. The *onClearAnimationEnd* override of the [AnimatorListenerAdapter] it passes
+     * to the [reveal] method calls our method [onClearAnimationEnd] then finishes up the steps
+     * needed to actually clear the display and program state variables to a "clear" state.
+     *
+     * If the MAIN_INDEX expression of [mEvaluator] is empty and we have no unprocessed characters
+     * in [mUnprocessedChars] we just return having done nothing. We call our [cancelIfEvaluating]
+     * method to have it "quietly" cancel any explicit expression evaluation which might be in
+     * progress, and call our [announceClearedForAccessibility] to have it announce "cleared" to the
+     * accessibility system service. Finally we call our [reveal] method to have it perform a
+     * circular reveal animation across our formula/result display with its center at the center of
+     * [mCurrentButton], its color the color with resource id R.color.calculator_primary_color
+     * (a turquoise shade of blue) with an anonymous [AnimatorListenerAdapter] whose *onAnimationEnd*
+     * override calls our methods [onClearAnimationEnd] (finishes clearing the calculator state) and
+     * [showOrHideToolbar] (shows the tool bar, then auto-hides it after a delay) after the animation
+     * is completed.
+     */
     private fun onClear() {
         if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
             return
@@ -1615,7 +1702,12 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         })
     }
 
-    // Evaluation encountered en error.  Display the error.
+    /**
+     * Evaluation encountered en error. Display the error.
+     *
+     * @param index index of the expression causing the error, should always be MAIN_INDEX
+     * @param errorResourceId resource id of the string describing the type of error that occurred
+     */
     override fun onError(index: Long, errorResourceId: Int) {
         if (index != Evaluator.MAIN_INDEX) {
             throw AssertionError("Unexpected error source")
@@ -1734,6 +1826,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mFormulaText.requestFocus()
     }
 
+    /**
+     * Called when the [HistoryFragment] clear history button is clicked
+     */
     override fun onClick(fragment: AlertDialogFragment, which: Int) {
         if (which == DialogInterface.BUTTON_POSITIVE) {
             when {
