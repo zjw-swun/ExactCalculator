@@ -1703,7 +1703,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Evaluation encountered en error. Display the error.
+     * Evaluation encountered en error. Display the error. If our parameter [index] is not MAIN_INDEX
+     * we throw an AssertionError. Otherwise, when our [CalculatorState] is EVALUATE, we set our
+     * [CalculatorState] to ANIMATE, call the *announceForAccessibility* method of [mResultText] to
+     * have it use ask accessibility service to announce the string with resource id [errorResourceId],
+     * then call our [reveal] method to have it perform its circular reveal animation of the display
+     * centered about [mCurrentButton] using the calculator_error_color (a red) with an anonymous
+     * [AnimatorListenerAdapter] whose *onAnimationEnd* override sets our [CalculatorState] to
+     * ERROR, and calls the *onError* method of [mResultText] to have it display the string with
+     * resource id [errorResourceId] as its message. When our [CalculatorState] is INIT or
+     * INIT_FOR_RESULT (very unlikely) we set our [CalculatorState] to ERROR, and call the *onError*
+     * method of [mResultText] to have it display the string with resource id [errorResourceId] as
+     * its message. For all other [CalculatorState] we just call the *clear* method of [mResultText]
+     * to have it clear its text.
      *
      * @param index index of the expression causing the error, should always be MAIN_INDEX
      * @param errorResourceId resource id of the string describing the type of error that occurred
@@ -1712,32 +1724,78 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (index != Evaluator.MAIN_INDEX) {
             throw AssertionError("Unexpected error source")
         }
-        if (mCurrentState == CalculatorState.EVALUATE) {
-            setState(CalculatorState.ANIMATE)
-            mResultText.announceForAccessibility(resources.getString(errorResourceId))
-            reveal(mCurrentButton, R.color.calculator_error_color,
-                    object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            setState(CalculatorState.ERROR)
-                            mResultText.onError(index, errorResourceId)
-                        }
-                    })
-        } else if (mCurrentState == CalculatorState.INIT ||
-                mCurrentState == CalculatorState.INIT_FOR_RESULT /* very unlikely */) {
-            setState(CalculatorState.ERROR)
-            mResultText.onError(index, errorResourceId)
-        } else {
-            mResultText.clear()
+        when (mCurrentState) {
+            CalculatorState.EVALUATE -> {
+                setState(CalculatorState.ANIMATE)
+                mResultText.announceForAccessibility(resources.getString(errorResourceId))
+                reveal(mCurrentButton, R.color.calculator_error_color,
+                        object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator) {
+                                setState(CalculatorState.ERROR)
+                                mResultText.onError(index, errorResourceId)
+                            }
+                        })
+            }
+            CalculatorState.INIT, CalculatorState.INIT_FOR_RESULT -> {  /* very unlikely */
+                setState(CalculatorState.ERROR)
+                mResultText.onError(index, errorResourceId)
+            }
+            else -> mResultText.clear()
         }
     }
 
-    // Animate movement of result into the top formula slot.
-    // Result window now remains translated in the top slot while the result is displayed.
-    // (We convert it back to formula use only when the user provides new input.)
-    // Historical note: In the Lollipop version, this invisibly and instantaneously moved
-    // formula and result displays back at the end of the animation.  We no longer do that,
-    // so that we can continue to properly support scrolling of the result.
-    // We assume the result already contains the text to be expanded.
+    /**
+     * Animate movement of result into the top formula slot. Result window now remains translated in
+     * the top slot while the result is displayed. (We convert it back to formula use only when the
+     * user provides new input.) Historical note: In the Lollipop version, this invisibly and
+     * instantaneously moved formula and result displays back at the end of the animation. We no
+     * longer do that so that we can continue to properly support scrolling of the result. We assume
+     * the result already contains the text to be expanded.
+     *
+     * We initialize our variable *textSize* to the minimum text size of [mFormulaText], and if the
+     * *isScrollable* method of [mResultText] reports that is is scrollable we set *textSize* to
+     * the text size computed by the *getVariableTextSize* method of [mFormulaText] for the string
+     * value of the *text* of [mResultText]. We calculate our variable *resultScale* to be the ratio
+     * of *textSize* to the *textSize* of [mResultText] (this is the value that will be used to scale
+     * [mResultText] when it moves into the position formerly occupied by [mFormulaText]). We set
+     * the *pivotX* of [mResultText] to its width minus its right padding, and its *pivotY* to its
+     * height minus its bottom padding (these are the x and y locations of the point around which
+     * the view is rotated and scaled). We then calculate the necessary translations so that the
+     * result takes the place of the formula and the formula moves off the top of the screen: our
+     * variables *resultTranslationY*, and *formulaTranslationY* (both simple calculations using the
+     * current *bottom* Y coordinates of [mFormulaContainer] and [mResultText]). If our display if
+     * one line ([isOneLine] is *true*) we need to position the top corner of [mResultText] to its
+     * current bottom (it starts out invisible in one line mode, and in the same position as the
+     * [mFormulaContainer] so we move it down so that it has some distance to move) and recalculate
+     * *formulaTranslationY* to also subtract off the bottom of the tool bar view (id R.id.toolbar).
+     * We initialize our variable *formulaTextColor* to the current text color of [mFormulaText].
+     * If our parameter [resultWasPreserved] is *true* the result was previously added to the history
+     * database so we just call the *represerve* method of [mEvaluator] to have it make sure that the
+     * in memory cache is up to date, if it has not yet been added ([resultWasPreserved] is *false*)
+     * we call the *preserve* method of [mEvaluator] to have it add the current result to the history
+     * database. Next we branch on the value of our parameter [animate]:
+     *
+     * *true*: We need to animate the movements. First we call the *announceForAccessibility* method
+     * of [mResultText] to have it use the accessibility to announce the string "equals", then call
+     * it to have it announce the text of [mResultText]. We set our [CalculatorState] to ANIMATE. We
+     * initialize our variable *animatorSet* with a new instance of [AnimatorSet] and configure it to
+     * play together [ObjectAnimator]s which scale [mResultText] by *resultScale* in both X and Y
+     * directions, translate it in the Y direction by *resultTranslationY*, animate its *textColor*
+     * to *formulaTextColor*, and translate [mFormulaContainer] by *formulaTranslationY* in the Y
+     * direction. We set its duration to the system resource constant config_longAnimTime (500ms) and
+     * add an anonymous [AnimatorListenerAdapter] whose *onAnimationEnd* override sets our state to
+     * RESULT and sets [mCurrentAnimator] to null. We then set [mCurrentAnimator] to *animatorSet*
+     * and start it running.
+     *
+     * *false*: No animation desired. We just set the *scaleX* and *scaleY* of [mResultText] to
+     * *resultScale*, set its translation in the Y direction to *resultTranslationY* set its text
+     * color to *formulaTextColor*, and set the translation in the Y direction of [mFormulaContainer]
+     * to *formulaTranslationY*. Finally we set our [CalculatorState] to RESULT.
+     *
+     * @param animate if true we are to animate the movement of the result, if false move it fast
+     * @param resultWasPreserved if true the result was previously preserved to the database, if
+     * false we need to have [mEvaluator] preserve it to the database.
+     */
     private fun onResult(animate: Boolean, resultWasPreserved: Boolean) {
         // Calculate the textSize that would be used to display the result in the formula.
         // For scrollable results just use the minimum textSize to maximize the number of digits
@@ -1757,12 +1815,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         // Calculate the necessary translations so the result takes the place of the formula and
         // the formula moves off the top of the screen.
-        val resultTranslationY = (mFormulaContainer.bottom - mResultText.bottom - (mFormulaText.paddingBottom - mResultText.paddingBottom)).toFloat()
+        val resultTranslationY = (mFormulaContainer.bottom - mResultText.bottom
+                - (mFormulaText.paddingBottom - mResultText.paddingBottom)).toFloat()
         var formulaTranslationY = (-mFormulaContainer.bottom).toFloat()
         if (isOneLine) {
             // Position the result text.
             mResultText.y = mResultText.bottom.toFloat()
-            formulaTranslationY = (-(findViewById<View>(R.id.toolbar).bottom + mFormulaContainer.bottom)).toFloat()
+            val tBarBot = findViewById<View>(R.id.toolbar).bottom
+            formulaTranslationY = (-(tBarBot + mFormulaContainer.bottom)).toFloat()
         }
 
         // Change the result's textColor to match the formula.
@@ -1787,10 +1847,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                             PropertyValuesHolder.ofFloat(View.SCALE_Y, resultScale),
                             PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, resultTranslationY)),
                     ObjectAnimator.ofArgb(mResultText, textColor, formulaTextColor),
-                    ObjectAnimator.ofFloat(mFormulaContainer, View.TRANSLATION_Y,
-                            formulaTranslationY))
-            animatorSet.duration = resources.getInteger(
-                    android.R.integer.config_longAnimTime).toLong()
+                    ObjectAnimator.ofFloat(mFormulaContainer, View.TRANSLATION_Y, formulaTranslationY))
+            animatorSet.duration = resources
+                    .getInteger(android.R.integer.config_longAnimTime)
+                    .toLong()
             animatorSet.addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     setState(CalculatorState.RESULT)
@@ -1811,8 +1871,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
-    // Restore positions of the formula and result displays back to their original,
-    // pre-animation state.
+    /**
+     * Restore positions of the formula and result displays back to their original, pre-animation
+     * state. First we set the text of [mResultText] to the empty string. Then we set its scaling
+     * in X and Y direction to 1.0, and its translation in the X and Y direction to 0.0. We set the
+     * translation in the Y direction of [mFormulaContainer] to 0.0, and then call the *requestFocus*
+     * method of [mFormulaText] to have it acquire keyboard focus.
+     */
     private fun restoreDisplayPositions() {
         // Clear result.
         mResultText.text = ""
@@ -1827,7 +1892,24 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Called when the [HistoryFragment] clear history button is clicked
+     * Called when an [AlertDialogFragment] button is clicked. If the button id [which] is not the
+     * BUTTON_POSITIVE button we ignore it, otherwise we branch on the *tag* of the [fragment]:
+     *
+     * CLEAR_DIALOG_TAG: The user wants to clear the history. We call the *clearEverything* method
+     * of [mEvaluator] to erase the database and reinitialize its memory state to an empty one. We
+     * call our [onClearAnimationEnd] method to clean up our own state to a starting state. Then we
+     * call the *onMemoryStateChanged* method of [mEvaluatorCallback] to notify [mFormulaText] that
+     * the memory state has changed. Finally we call our [onBackPressed] method to have it remove the
+     * the [HistoryFragment].
+     *
+     * TIMEOUT_DIALOG_TAG: The [Evaluator] has timed out and asked the user if he wanted to use a
+     * longer timeout, and the user clicked the "Use longer timeouts" button of the dialog. We call
+     * the *setLongTimeout* method of [mEvaluator] to have use the long timeout.
+     *
+     * For all other *tag* values we just log the string "Unknown AlertDialogFragment click:".
+     *
+     * @param fragment the [AlertDialogFragment] which has had a button clicked.
+     * @param which the identifier of the button that was clicked.
      */
     override fun onClick(fragment: AlertDialogFragment, which: Int) {
         if (which == DialogInterface.BUTTON_POSITIVE) {
@@ -1849,6 +1931,15 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
+    /**
+     * Initialize the contents of the Activity's standard options [menu]. First we call our super's
+     * implementation of [onCreateOptionsMenu] then we use a [MenuInflater] instance with our
+     * activities context to inflate our menu layout file R.menu.activity_calculator into [menu].
+     * Finally we return *true* so that the menu will be displayed.
+     *
+     * @param menu The options menu in which you place your items.
+     * @return You must return true for the menu to be displayed
+     */
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         super.onCreateOptionsMenu(menu)
 
@@ -1856,14 +1947,28 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         return true
     }
 
+    /**
+     * Prepare the Screen's standard options menu to be displayed. First we call our super's
+     * implementation of [onPrepareOptionsMenu]. We initialize our variable *visible* to *true* if
+     * [mCurrentState] is RESULT, then find the item in [menu] with id R.id.menu_leading and set it
+     * to *visible*. We initialize our variable *mainResult* with the [UnifiedReal] of the result of
+     * the main expression of [mEvaluator], then set *visible* to *true* if it is already *true* and
+     * *mainResult* is not null and *mainResult* is exactly displayable as a rational number (ie. it
+     * is true if [mCurrentState] is RESULT, *mainResult* is not null and *mainResult* is exactly
+     * displayable as a rational number). We then find the menu item with id R.id.menu_fraction and
+     * set its visibility to *visible*. Finally we return true so that the menu will be displayed.
+     *
+     * @param menu The options menu as last shown or first initialized by [onCreateOptionsMenu]
+     * @return You must return true for the menu to be displayed
+     */
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         super.onPrepareOptionsMenu(menu)
 
         // Show the leading option when displaying a result.
-        menu.findItem(R.id.menu_leading).isVisible = mCurrentState == CalculatorState.RESULT
+        var visible = mCurrentState == CalculatorState.RESULT
+        menu.findItem(R.id.menu_leading).isVisible = visible
 
         // Show the fraction option when displaying a rational result.
-        var visible = mCurrentState == CalculatorState.RESULT
         val mainResult = mEvaluator.getResult(Evaluator.MAIN_INDEX)
         // mainResult should never be null, but it happens. Check as a workaround to protect
         // against crashes until we find the root cause (b/34763650).
@@ -1873,6 +1978,30 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         return true
     }
 
+    /**
+     * This hook is called whenever an item in your options menu is selected. When the item id
+     * of [item] is:
+     *
+     * R.id.menu_history: we call our [showHistoryFragment] method to show the [HistoryFragment],
+     * and return true to consume the event here.
+     *
+     * R.id.menu_leading: we call our [displayFull] method to have it show an [AlertDialogFragment]
+     * displaying the entire result up to current displayed precision of [mResultText] using digit
+     * separators, and return true to consume the event here.
+     *
+     * R.id.menu_fraction: we call our [displayFraction] method to have it show an
+     * [AlertDialogFragment] displaying the result as a fraction (this item is only visible if it
+     * is possible to do so), and return true to consume the event here.
+     *
+     * R.id.menu_licenses: we start the activity with the class [Licenses], and return true to
+     * consume the event here.
+     *
+     * All other item id's we just return the value returned by our super's implementation of
+     * [onOptionsItemSelected].
+     *
+     * @param item The menu item that was selected.
+     * @return Return false to allow normal menu processing to proceed, true to consume it here.
+     */
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_history -> {
