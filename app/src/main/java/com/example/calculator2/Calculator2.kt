@@ -2024,29 +2024,73 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
     }
 
-    /* Begin override CloseCallback method. */
+    /*
+     * Begin override CloseCallback method. We set *this* to be the *CloseCallback*
+     * of *mDragLayout* in *onCreate*.
+     */
 
+    /**
+     * Callback when the layout is closed, used to pop the [HistoryFragment] off the backstack. We
+     * just call our method [removeHistoryFragment] to have the [FragmentManager] remove the
+     * [HistoryFragment].
+     */
     override fun onClose() {
         removeHistoryFragment()
     }
 
     /* End override CloseCallback method. */
 
-    /* Begin override DragCallback methods */
+    /*
+     * Begin override DragCallback methods. We add *this* to be a *DragCallback*
+     * of *mDragLayout* in *onCreate*. *HistoryFragment* does the same thing.
+     */
 
+    /**
+     * Callback when a drag to open begins. We call the *hideToolbar* method of [mDisplayView] to
+     * have it hide the tool bar, then call our method [showHistoryFragment] to add a new instance
+     * of [HistoryFragment] to the R.id.history_frame container if it does not already exist.
+     */
     override fun onStartDraggingOpen() {
         mDisplayView.hideToolbar()
         showHistoryFragment()
     }
 
+    /**
+     * Callback called from the [onRestoreInstanceState] override of [mDragLayout]. We ignore.
+     *
+     * @param isOpen true if the [DragLayout] was open
+     */
     override fun onInstanceStateRestored(isOpen: Boolean) {}
 
+    /**
+     * Called to animate the *RecyclerView* text of [HistoryFragment]. We ignore.
+     *
+     * @param yFraction Fraction of the dragged [View] that is visible (0.0 - 1.0) 0.0 is closed.
+     */
     override fun whileDragging(yFraction: Float) {}
 
-    override fun shouldCaptureView(view: View, x: Int, y: Int): Boolean {
-        return view.id == R.id.history_frame && (mDragLayout.isMoving || mDragLayout.isViewUnder(view, x, y))
-    }
+    /**
+     * Determines whether we should allow the [view] to be dragged. The [HistoryFragment] overrides
+     * this too and returns *true* if its *RecylerView* is scrollable (both need to return *true* in
+     * order for the [view] to be captured). We return *true* is the id of [view] is R.id.history_frame
+     * (the *FrameLayout* that contains the [HistoryFragment]) and either the [mDragLayout] reports
+     * that it is moving (being dragged) or [mDragLayout] is the [View] under ([x],[y]).
+     *
+     * @param view Child view of the [DragLayout] that the user is attempting to capture.
+     * @param x X coordinate of the touch that is doing the dragging
+     * @param y Y coordinate of the touch that is doing the dragging
+     * @return *true* to have [DragLayout] capture the [view].
+     */
+    override fun shouldCaptureView(view: View, x: Int, y: Int): Boolean =
+            (view.id == R.id.history_frame
+                    && (mDragLayout.isMoving || mDragLayout.isViewUnder(view, x, y)))
 
+    /**
+     * Called from the *onLayout* override of [DragLayout] to get the height of our [mDisplayView],
+     * we just return the raw measured height of [mDisplayView].
+     *
+     * @return the raw measured height of [mDisplayView].
+     */
     override fun getDisplayHeight(): Int {
         return mDisplayView.measuredHeight
     }
@@ -2054,8 +2098,14 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     /* End override DragCallback methods */
 
     /**
-     * Change evaluation state to one that's friendly to the history fragment.
-     * Return false if that was not easily possible.
+     * Change evaluation state to one that's friendly to the history fragment. When [mCurrentState]
+     * is ANIMATE we end [mCurrentAnimator] if it is not null and return false to signal that
+     * preparation has failed. When [mCurrentState] is EVALUATE we call our method [cancelIfEvaluating]
+     * to cancel the current evaluation suppressing any error pop-up, set our [CalculatorState] state
+     * to INPUT and return *true*. When [mCurrentState] is INIT we return *false*, and for all other
+     * states we just return *true*.
+     *
+     * @return false if it was not easily possible to change the evaluation state
      */
     private fun prepareForHistory(): Boolean {
         when (mCurrentState) {
@@ -2066,10 +2116,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 // called.
                 mCurrentAnimator?.end()
                 return false
-            } // Easiest to just refuse.  Otherwise we can see a state change
-            // while in history mode, which causes all sorts of problems.
-            // TODO: Consider other alternatives. If we're just doing the decimal conversion
-            // at the end of an evaluation, we could treat this as RESULT state.
+            }
             CalculatorState.EVALUATE -> {
                 // Cancel current evaluation
                 cancelIfEvaluating(true /* quiet */)
@@ -2077,10 +2124,31 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 return true
             }
             else -> return mCurrentState != CalculatorState.INIT
+            // We just return *true* in INPUT, INIT_FOR_RESULT, RESULT, or ERROR state.
+            // For INIT we return *false* because it is easiest to just refuse. Otherwise we can
+            // see a state change while in history mode, which causes all sorts of problems.
+            // TODO: Consider other alternatives. If we're just doing the decimal conversion
+            // TODO: at the end of an evaluation, we could treat this as RESULT state.
         }
-        // We should be in INPUT, INIT_FOR_RESULT, RESULT, or ERROR state.
     }
 
+    /**
+     * Adds a new instance of [HistoryFragment] to the R.id.history_frame container if it does not
+     * already exist. If [historyFragment] is not null the fragment already exists, so we just return
+     * having done nothing. Otherwise we initialize our variable *manager* with a handle to the
+     * [FragmentManager] for interacting with fragments associated with this activity. If *manager*
+     * has been destroyed or our method [prepareForHistory] signals that it can't easily change to a
+     * state that is "friendly to the history fragment" we call the *setClosed* method of [mDragLayout]
+     * to close the [DragLayout] and return. Otherwise we call our [stopActionModeOrContextMenu] method
+     * to cancel any copy/paste context menu that might be open, then use *manager* to begin a
+     * [FragmentTransaction] which we then use to add a new instance of [HistoryFragment] to the
+     * container with resource id R.id.history_frame, with the tag HistoryFragment.TAG ("HistoryFragment"),
+     * set its transition animation to TRANSIT_NONE, add it to the back stack with the state name
+     * HistoryFragment.TAG, and then we commit the [FragmentTransaction]. We set [mMainCalculator]'s
+     * flag *importantForAccessibility* to IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS (when the
+     * [HistoryFragment] is visible, we want to hide all descendants of the main Calculator view),
+     * and return to the caller.
+     */
     private fun showHistoryFragment() {
         if (historyFragment != null) {
             // If the fragment already exists, do nothing.
@@ -2106,10 +2174,19 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // TODO: pass current scroll position of result
     }
 
+    /**
+     * Called to pop up an [AlertDialogFragment] which just displays the given [title] and [message].
+     *
+     * @param title the title of the [AlertDialogFragment] we are to show
+     * @param message the message of the [AlertDialogFragment] we are to show
+     */
     private fun displayMessage(title: String, message: String) {
-        AlertDialogFragment.showMessageDialog(this, title, message, null, null/* tag */)
+        AlertDialogFragment.showMessageDialog(this, title, message, null, null)
     }
 
+    /**
+     *
+     */
     private fun displayFraction() {
         val result = mEvaluator.getResult(Evaluator.MAIN_INDEX)
         displayMessage(getString(R.string.menu_fraction),

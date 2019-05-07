@@ -273,7 +273,11 @@ public class DragLayout extends ViewGroup {
         // Callback in onRestoreInstanceState.
         void onInstanceStateRestored(boolean isOpen);
 
-        // Animate the RecyclerView text.
+        /**
+         * Animate the RecyclerView text.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         */
         void whileDragging(float yFraction);
 
         // Whether we should allow the view to be dragged.
