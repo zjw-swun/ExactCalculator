@@ -2185,7 +2185,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     *
+     * This is called when the user clicks the option menu item with id R.id.menu_fraction ("Answer
+     * as fraction"). It displays an [AlertDialogFragment] which shows the result as a fraction (the
+     * menu item is only visibile in the menu if the current result is a rational number). We initialize
+     * our variable *result* with the [UnifiedReal] value of the main expression of [mEvaluator] then
+     * call our method [displayMessage] to display *result* as a fraction in an [AlertDialogFragment].
      */
     private fun displayFraction() {
         val result = mEvaluator.getResult(Evaluator.MAIN_INDEX)
@@ -2193,7 +2197,18 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 KeyMaps.translateResult(result.toNiceString()))
     }
 
-    // Display full result to currently evaluated precision
+    /**
+     * Display full result to currently evaluated precision. This is called when the user clicks the
+     * option menu item with id R.id.menu_leading ("Answer with leading digits"). We initialize our
+     * variable *res* to a *Resources* instance for the application's package, and initialize our
+     * variable *msg* to the string containing the entire result (within reason) up to current
+     * displayed precision that is returned by the *getFullText* method of [mResultText] (with comma
+     * separators every 3 digits in the integral part if appropriate). The if the *fullTextIsExact*
+     * method of [mResultText] is true (the result is exact) we append the string "(exact)" to *msg*,
+     * otherwise we append the string "(±1 in last digit)". Then we call our [displayMessage] method
+     * to display an [AlertDialogFragment] with the title "Answer with leading digits" and the text
+     * *msg*.
+     */
     private fun displayFull() {
         val res = resources
         var msg = mResultText.getFullText(true /* withSeparators */) + " "
@@ -2206,17 +2221,41 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Add input characters to the end of the expression.
-     * Map them to the appropriate button pushes when possible.  Leftover characters
-     * are added to mUnprocessedChars, which is presumed to immediately precede the newly
-     * added characters.
+     * Add input characters to the end of the expression. Map them to the appropriate button pushes
+     * when possible. Leftover characters are added to [mUnprocessedChars], which is presumed to
+     * immediately precede the newly added characters. This function is called when a keyboard has
+     * been used to enter text or when pasting a clip that another app has copied to the clipboard,
+     * it is not used when a history entry is pasted.
+     *
+     * First we initialize our variable *myMoreChars* to [moreChars]. If [mUnprocessedChars] is not
+     * null we prepend it so *myMoreChars*. We initialize our variable *current* to 0, initialize our
+     * variable *len* to the length of *myMoreChars*, and initialize our variable *lastWasDigit* to
+     * *false*. If [mCurrentState] is RESULT and *len* is not equal to 0 we call our method
+     * *switchToInput* with the *current* (currently 0, aka the first) character of *myMoreChars*
+     * translated by the *keyForChar* method of [KeyMaps] to a keypad resource id (*switchToInput*
+     * will switch to INPUT state after having [mEvaluator] modify the main expression appropriately
+     * given the button id passed it and the present contents of the main expression).
+     *
+     * We initialize our variable *groupingSeparator* with the 0'th (first) character returned by
+     * the *translateResult* method of [KeyMaps] for the string "," (which is ',' aka the grouping
+     * separator). Then while *current* is less than *len* we loop:
+     *
+     * We initialize our variable *c* with the character at index *current* in *myMoreChars*. If *c*
+     * is a space character or is equal to *groupingSeparator* we just increment *current* and skip
+     * the character by continuing the loop. Otherwise we initialize our variable *k* with the button
+     * id of the keypad button that the *keyForChar* method of [KeyMaps] finds for *c* (it returns
+     * View.NO_ID if there is no such button). If our parameter [explicit] is false (the text was
+     * pasted, not typed) we initialize our variable *expEnd* with the index of the character after
+     * the exponent in *myMoreChars* starting at *current*. If *lastWasDigit* is true and *current*
+     * is not equal to *expEnd*
+     *
      * @param moreChars characters to be added
      * @param explicit these characters were explicitly typed by the user, not pasted
      */
     private fun addChars(moreChars: String, explicit: Boolean) {
         var myMoreChars = moreChars
         if (mUnprocessedChars != null) {
-            myMoreChars = mUnprocessedChars!! + myMoreChars
+            myMoreChars = mUnprocessedChars + myMoreChars
         }
         var current = 0
         val len = myMoreChars.length
@@ -2234,10 +2273,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             }
             val k = KeyMaps.keyForChar(c)
             if (!explicit) {
-                val expEnd: Int = Evaluator.exponentEnd(myMoreChars, current)
-                if (lastWasDigit && current != (expEnd)) {
+                val expEnd: Int = Evaluator.exponentEnd(myMoreChars, current) // TODO: look for 'e' too?
+                if (lastWasDigit && (current != expEnd)) {
                     // Process scientific notation with 'E' when pasting, in spite of ambiguity
-                    // with base of natural log.
+                    // with base of natural log. 'e' is not recognized as equivalent!
                     // Otherwise the 10^x key is the user's friend.
                     mEvaluator.addExponent(myMoreChars, current, expEnd)
                     current = expEnd

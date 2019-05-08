@@ -820,7 +820,8 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      * @param insertCommas Insert commas as digit separators.
      */
     private String getFormattedResult(int precOffset, int maxSize, int[] lastDisplayedOffset,
-                                      boolean forcePrecision, boolean forceSciNotation, boolean insertCommas) {
+                                      boolean forcePrecision, boolean forceSciNotation,
+                                      boolean insertCommas) {
         final boolean[] truncated = new boolean[1];
         final boolean[] negative = new boolean[1];
         final int[] requestedPrecOffset = {precOffset};
@@ -838,7 +839,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
         if (!mValid) return "";
         if (!mScrollable) return getText().toString();
         return KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, MAX_COPY_SIZE,
-                null, true /* forcePrecision */, false /* forceSciNotation */, withSeparators));
+                null, true, false, withSeparators));
     }
 
     /**
