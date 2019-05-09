@@ -2247,7 +2247,43 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * View.NO_ID if there is no such button). If our parameter [explicit] is false (the text was
      * pasted, not typed) we initialize our variable *expEnd* with the index of the character after
      * the exponent in *myMoreChars* starting at *current*. If *lastWasDigit* is true and *current*
-     * is not equal to *expEnd*
+     * is not equal to *expEnd* we need to process scientific notation with 'E' when pasting so we
+     * call the *addExponent* method of [mEvaluator] to have it add the characters *current* to
+     * *expEnd* of *myMoreChars* as an exponend of the current expression, we then set *current* to
+     * *expEnd*, set *lastWasDigit to *false* and continue the while loop. Otherwise we initialize
+     * our variable *isDigit* to *true* if the *digVal* of [KeyMaps] says *k* is one of the decimal
+     * keys on the keypad (it returns NOT_DIGIT if it is not). Then if *current* is 0, and *isDigit*
+     * is *true* or *k* is R.id.dec_point and the main expression of [mEvaluator] has a trailing
+     * *Constant* we refuse to add *k* to it, adding the key R.id.op_mul (multiply) before dealing
+     * with *k* later on in the loop. In either case we set *lastWasDigit* to *isDigit* or the
+     * previous value of *lastWasDigit* when *k* is R.id.dec_point.
+     *
+     * Then if *k* is not View.NO_ID, we set [mCurrentButton] to the view with id *k*. If our parameter
+     * [explicit] is *true* we call our [addExplicitKeyToExpr] to add *k* to the expression, otherwise
+     * we call our method [addKeyToExpr] to add *k* to the expression. If *c* is a Unicode surrogate
+     * code unit we add 2 to *current*, otherwise we add 1 to it, and then we continue the while loop.
+     *
+     * If we have got this far in the loop we know that *k* is NO_ID, so we need to see if *myMoreChars*
+     * contains a function name so we initialize our variable *f* with the value that the *funForString*
+     * method returns after examining *myMoreChars* to see if a function name starts at *current* (it
+     * returns View.NO_ID if a key is not found for the string, or the resource id of the key if it
+     * finds one). Then if *f* is not View.NO_ID, we set [mCurrentButton] to the view with id *f*.
+     * If our parameter [explicit] is *true* we call our method [addExplicitKeyToExpr] to add *f* to
+     * the expression, otherwise we call our method [addKeyToExpr] to add *f* to the expression. If
+     * *f* is R.id.op_sqrt we call our method [addKeyToExpr] to add a R.id.lparen to the expression.
+     * We then set *current* to one plus the index in *myMoreChars* of the '(' character of the
+     * function invocation, and continue the loop.
+     *
+     * At this point in the loop there are characters left, but we can't convert them to button presses
+     * so we set [mUnprocessedChars] to the characters from *current* to the end of *myMoreChars*, call
+     * our method [redisplayAfterFormulaChange] to redisplay the formula, call our method
+     * [showOrHideToolbar] to show the tool bar and auto-hide it when appropriate, then return to the
+     * caller.
+     *
+     * If we manage to finish all the characters and finish the while loop we set [mUnprocessedChars]
+     * to null, call our method [redisplayAfterFormulaChange] to redisplay the formula, call our method
+     * [showOrHideToolbar] to show the tool bar and auto-hide it when appropriate, then return to the
+     * caller.
      *
      * @param moreChars characters to be added
      * @param explicit these characters were explicitly typed by the user, not pasted
@@ -2334,6 +2370,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         showOrHideToolbar()
     }
 
+    /**
+     * If [mCurrentState] is ERROR or RESULT we set our state to INPUT and clear the main expression
+     * of [mEvaluator].
+     */
     private fun clearIfNotInputState() {
         if (mCurrentState == CalculatorState.ERROR || mCurrentState == CalculatorState.RESULT) {
             setState(CalculatorState.INPUT)
@@ -2342,31 +2382,65 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * Clean up animation for context menu.
+     * This hook is called whenever the context menu is being closed (either by the user canceling
+     * the menu with the back/menu button, or when an item is selected). We just call our method
+     * [stopActionModeOrContextMenu] to stop any active [ActionMode] or [ContextMenu] being used for
+     * copy/paste actions.
+     *
+     * @param menu The context menu that is being closed.
      */
     override fun onContextMenuClosed(menu: Menu) {
         stopActionModeOrContextMenu()
     }
 
+    /**
+     * This interface is used to determine if it is appropriate given the current execution state for
+     * the memory option to be displayed in the [ActionMode] or [ContextMenu] that is launched by
+     * a long click.
+     */
     interface OnDisplayMemoryOperationsListener {
+        /**
+         * Returns true if the memory options should be displayed in the [ActionMode] or [ContextMenu]
+         * that is launched by long clicking.
+         */
         fun shouldDisplayMemory(): Boolean
     }
 
+    /**
+     * Contains all our constants.
+     */
     companion object {
 
+        /**
+         * TAG used for logging.
+         */
         private const val TAG = "Calculator"
+
         /**
          * Constant for an invalid resource id.
          */
         const val INVALID_RES_ID = -1
 
+        /**
+         * Namespace we use for the keys of values saved by [onSaveInstanceState] in the [Bundle] it
+         * is passed, and which are restored by [restoreInstanceState].
+         */
         private const val NAME = "Calculator"
+        /**
+         * Key under which the Int *ordinal* of [mCurrentState] is saved.
+         */
         private const val KEY_DISPLAY_STATE = NAME + "_display_state"
+        /**
+         * Key under which the [CharSequence] of [mUnprocessedChars] is stored.
+         */
         private const val KEY_UNPROCESSED_CHARS = NAME + "_unprocessed_chars"
         /**
-         * Associated value is a byte array holding the evaluator state.
+         * Associated value is a byte array holding the evaluator state of [mEvaluator].
          */
         private const val KEY_EVAL_STATE = NAME + "_eval_state"
+        /**
+         *  Key under which the boolean *isSelected* state of [mInverseToggle] is stored.
+         */
         private const val KEY_INVERSE_MODE = NAME + "_inverse_mode"
         /**
          * Associated value is an boolean holding the visibility state of the toolbar.
