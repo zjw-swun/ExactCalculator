@@ -32,30 +32,47 @@ import androidx.fragment.app.FragmentActivity
  */
 class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
 
+    /**
+     * Interface which should be implemented by any code which wants to know is a button was clicked.
+     */
     interface OnClickListener {
         /**
          * This method will be invoked when a button in the dialog is clicked.
          *
          * @param fragment the AlertDialogFragment that received the click
-         * @param which the button that was clicked (e.g.
-         * [DialogInterface.BUTTON_POSITIVE]) or the position
-         * of the item clicked
+         * @param which the button that was clicked (e.g. [DialogInterface.BUTTON_POSITIVE]) or the
+         * position of the item clicked
          */
         fun onClick(fragment: AlertDialogFragment, which: Int)
     }
 
+    /**
+     * Here we set the style of our *AlertDialogFragment*. The theme used by the java code used to be
+     * android.R.attr.alertDialogTheme, but lint did not like that as the annotation of the function
+     * specified "@StyleRes" (odd that).
+     */
     init {
         setStyle(STYLE_NO_TITLE, android.R.style.Theme_Material_Dialog_Alert)
     }
 
+    /**
+     * We override this to build our own custom [Dialog] container. If there were no arguments supplied
+     * when we were created (*getArguments* returns *null*) we inintialize our variable *args* to
+     * Bundle.EMPTY, otherwise we initialize it to the arguments supplied when the fragment was
+     * instantiated.
+     *
+     * @param savedInstanceState The last saved instance state of the *Fragment* or null if this is
+     * a freshly created *Fragment*.
+     * @return a new [Dialog] instance to be displayed by the *Fragment*.
+     */
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val args = if (arguments == null) Bundle.EMPTY else arguments
+        val args = arguments ?: Bundle.EMPTY
         val builder = AlertDialog.Builder(activity)
 
         val inflater = LayoutInflater.from(builder.context)
         @SuppressLint("InflateParams")
         val messageView = inflater.inflate(R.layout.dialog_message, null/* root */) as TextView
-        messageView.text = args!!.getCharSequence(KEY_MESSAGE)
+        messageView.text = args.getCharSequence(KEY_MESSAGE)
         builder.setView(messageView)
 
         builder.setNegativeButton(args.getCharSequence(KEY_BUTTON_NEGATIVE), null/* listener */)
