@@ -17,16 +17,15 @@
 package com.example.calculator2
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
-import android.app.DialogFragment
-import android.app.FragmentManager
 import android.content.DialogInterface
 import android.os.Bundle
-import androidx.annotation.StringRes
 import android.view.LayoutInflater
 import android.widget.TextView
+import androidx.annotation.StringRes
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentActivity
 
 /**
  * Display a message with a dismiss button, and optionally a second button.
@@ -46,17 +45,17 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
     }
 
     init {
-        setStyle(DialogFragment.STYLE_NO_TITLE, android.R.attr.alertDialogTheme)
+        setStyle(STYLE_NO_TITLE, 0)
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle): Dialog {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val args = if (arguments == null) Bundle.EMPTY else arguments
         val builder = AlertDialog.Builder(activity)
 
         val inflater = LayoutInflater.from(builder.context)
         @SuppressLint("InflateParams") val messageView = inflater.inflate(
                 R.layout.dialog_message, null/* root */) as TextView
-        messageView.text = args.getCharSequence(KEY_MESSAGE)
+        messageView.text = args!!.getCharSequence(KEY_MESSAGE)
         builder.setView(messageView)
 
         builder.setNegativeButton(args.getCharSequence(KEY_BUTTON_NEGATIVE), null/* listener */)
@@ -73,8 +72,8 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
 
     override fun onClick(dialog: DialogInterface, which: Int) {
         val activity = activity
-        if (activity is AlertDialogFragment.OnClickListener /* always true */) {
-            (activity as AlertDialogFragment.OnClickListener).onClick(this, which)
+        if (activity is OnClickListener /* always true */) {
+            (activity as OnClickListener).onClick(this, which)
         }
     }
 
@@ -96,7 +95,7 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
          * @param positiveButtonLabel label for second button, if any.  If non-null, activity must
          * implement AlertDialogFragment.OnClickListener to respond.
          */
-        fun showMessageDialog(activity: Activity, @StringRes title: Int,
+        fun showMessageDialog(activity: FragmentActivity, @StringRes title: Int,
                               @StringRes message: Int, @StringRes positiveButtonLabel: Int, tag: String?) {
             showMessageDialog(activity, if (title != 0) activity.getString(title) else null,
                     activity.getString(message),
@@ -113,10 +112,10 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
          * @param positiveButtonLabel label for second button, if any.  If non-null, activity must
          * implement AlertDialogFragment.OnClickListener to respond.
          */
-        fun showMessageDialog(activity: Activity, title: CharSequence?,
+        fun showMessageDialog(activity: FragmentActivity, title: CharSequence?,
                               message: CharSequence, positiveButtonLabel: CharSequence?, tag: String?) {
-            val manager = activity.fragmentManager
-            if (manager == null || manager.isDestroyed) {
+            val manager = activity.supportFragmentManager
+            if (manager.isDestroyed) {
                 return
             }
             val dialogFragment = AlertDialogFragment()
