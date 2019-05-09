@@ -45,7 +45,7 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
     }
 
     init {
-        setStyle(STYLE_NO_TITLE, 0)
+        setStyle(STYLE_NO_TITLE, android.R.style.Theme_Material_Dialog_Alert)
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -53,8 +53,8 @@ class AlertDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
         val builder = AlertDialog.Builder(activity)
 
         val inflater = LayoutInflater.from(builder.context)
-        @SuppressLint("InflateParams") val messageView = inflater.inflate(
-                R.layout.dialog_message, null/* root */) as TextView
+        @SuppressLint("InflateParams")
+        val messageView = inflater.inflate(R.layout.dialog_message, null/* root */) as TextView
         messageView.text = args!!.getCharSequence(KEY_MESSAGE)
         builder.setView(messageView)
 
