@@ -88,7 +88,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
             public boolean onMenuItemClick(MenuItem item) {
                 if (item.getItemId() == R.id.menu_clear_history) {
                     final Calculator2 calculator = (Calculator2) getActivity();
-                    AlertDialogFragment.showMessageDialog(calculator, "" /* title */,
+                    AlertDialogFragment.Companion.showMessageDialog(calculator, "" /* title */,
                             getString(R.string.dialog_clear),
                             getString(R.string.menu_clear_history),
                             CLEAR_DIALOG_TAG);
