@@ -27,8 +27,8 @@ import androidx.appcompat.widget.AppCompatTextView
  */
 open class AlignedTextView
 /**
- * Our constructor, the JvmOverloads annotation causes the Kotlin compiler to generate overloads for
- * this function that substitute default parameter values.
+ * Our constructor, the JvmOverloads annotation causes the Kotlin compiler to generate overloads
+ * that substitute default parameter values.
  *
  * @param context The Context the view is running in, through which it can access the current theme,
  * resources, etc.
@@ -41,18 +41,44 @@ open class AlignedTextView
                           defStyleAttr: Int = android.R.attr.textViewStyle)
     : AppCompatTextView(context, attrs, defStyleAttr) {
 
-    // temporary rect for use during layout
+    /**
+     * temporary rect for use during layout
+     */
     private val mTempRect = Rect()
 
+    /**
+     * Padding offset that we subract from the normal top padding of our view for
+     * ascent alignment.
+     */
     private var mTopPaddingOffset: Int = 0
+    /**
+     * Padding offset that we subract from the normal bottom padding of our view for
+     * descent (baseline) alignment.
+     */
     private var mBottomPaddingOffset: Int = 0
 
+    /**
+     * Our init block, we just set whether the *TextView* includes extra top and bottom padding to
+     * make room for accents that go above the normal ascent and descent to *false*.
+     */
     init {
-
         // Disable any included font padding by default.
         includeFontPadding = false
     }
 
+    /**
+     * Measure the view and its content to determine the measured width and the measured height. We
+     * initialize our variable *paint* to the *TextPaint* base paint used for the text of our
+     * *TextView*, then set [mTempRect] to the smallest rectangle that encloses the letter "H". We
+     * set [mTopPaddingOffset] to the minimum of the top padding of our view, and the integer result
+     * of subtractin the ascent of *paint* (a negative value) from the *top* of [mTempRect]. We set
+     * [mBottomPaddingOffset] to the minimum of the bottom padding of our view and the integer value
+     * of the descent of *paint* (a positive value). We then call our super's implementation of
+     * [onMeasure] without changing [widthMeasureSpec] or [heightMeasureSpec] at all.
+     *
+     * @param widthMeasureSpec horizontal space requirements as imposed by the parent.
+     * @param heightMeasureSpec vertical space requirements as imposed by the parent.
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val paint = paint
 
@@ -61,21 +87,38 @@ open class AlignedTextView
 
         mTopPaddingOffset = Math.min(paddingTop,
                 Math.ceil((mTempRect.top - paint.ascent()).toDouble()).toInt())
-        mBottomPaddingOffset = Math.min(paddingBottom, Math.ceil(paint.descent().toDouble()).toInt())
+        mBottomPaddingOffset = Math.min(paddingBottom,
+                Math.ceil(paint.descent().toDouble()).toInt())
 
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
+    /**
+     * Subtracts off [mTopPaddingOffset] from the value our super's implementation of
+     * [getCompoundPaddingTop] returns.
+     *
+     * @return the top padding of the view after subracting [mTopPaddingOffset] from the value that
+     * our super's implementation of [getCompoundPaddingTop] returns.
+     */
     override fun getCompoundPaddingTop(): Int {
         return super.getCompoundPaddingTop() - mTopPaddingOffset
     }
 
+    /**
+     * Subtracts off [mBottomPaddingOffset] from the value our super's implementation of
+     * [getCompoundPaddingBottom] returns.
+     *
+     * @return the bottom padding of the view after subracting [mBottomPaddingOffset] from the value
+     * that our super's implementation of [getCompoundPaddingBottom] returns.
+     */
     override fun getCompoundPaddingBottom(): Int {
         return super.getCompoundPaddingBottom() - mBottomPaddingOffset
     }
 
+    /**
+     * Contains our only constant
+     */
     companion object {
-
         private const val LATIN_CAPITAL_LETTER = "H"
     }
 }
