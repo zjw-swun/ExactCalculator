@@ -69,7 +69,7 @@ public class UnifiedReal {
     }
 
     public UnifiedReal(CR cr) {
-        this(BoundedRational.ONE, cr);
+        this(BoundedRational.Companion.getONE(), cr);
     }
 
     public UnifiedReal(BoundedRational rat) {
@@ -89,7 +89,7 @@ public class UnifiedReal {
         if (x == 0.0 || x == 1.0) {
             return valueOf((long) x);
         }
-        return new UnifiedReal(BoundedRational.valueOf(x));
+        return new UnifiedReal(BoundedRational.Companion.valueOf(x));
     }
 
     public static UnifiedReal valueOf(long x) {
@@ -98,7 +98,7 @@ public class UnifiedReal {
         } else if (x == 1) {
             return UnifiedReal.ONE;
         } else {
-            return new UnifiedReal(BoundedRational.valueOf(x));
+            return new UnifiedReal(BoundedRational.Companion.valueOf(x));
         }
     }
 
@@ -154,28 +154,28 @@ public class UnifiedReal {
     // Some convenient UnifiedReal constants.
     public static final UnifiedReal PI = new UnifiedReal(CR_PI);
     public static final UnifiedReal E = new UnifiedReal(CR_E);
-    public static final UnifiedReal ZERO = new UnifiedReal(BoundedRational.ZERO);
-    public static final UnifiedReal ONE = new UnifiedReal(BoundedRational.ONE);
-    public static final UnifiedReal MINUS_ONE = new UnifiedReal(BoundedRational.MINUS_ONE);
-    public static final UnifiedReal TWO = new UnifiedReal(BoundedRational.TWO);
+    public static final UnifiedReal ZERO = new UnifiedReal(BoundedRational.Companion.getZERO());
+    public static final UnifiedReal ONE = new UnifiedReal(BoundedRational.Companion.getONE());
+    public static final UnifiedReal MINUS_ONE = new UnifiedReal(BoundedRational.Companion.getMINUS_ONE());
+    public static final UnifiedReal TWO = new UnifiedReal(BoundedRational.Companion.getTWO());
     @SuppressWarnings("unused")
-    public static final UnifiedReal MINUS_TWO = new UnifiedReal(BoundedRational.MINUS_TWO);
-    public static final UnifiedReal HALF = new UnifiedReal(BoundedRational.HALF);
+    public static final UnifiedReal MINUS_TWO = new UnifiedReal(BoundedRational.Companion.getMINUS_TWO());
+    public static final UnifiedReal HALF = new UnifiedReal(BoundedRational.Companion.getHALF());
     @SuppressWarnings("unused")
-    public static final UnifiedReal MINUS_HALF = new UnifiedReal(BoundedRational.MINUS_HALF);
-    public static final UnifiedReal TEN = new UnifiedReal(BoundedRational.TEN);
+    public static final UnifiedReal MINUS_HALF = new UnifiedReal(BoundedRational.Companion.getMINUS_HALF());
+    public static final UnifiedReal TEN = new UnifiedReal(BoundedRational.Companion.getTEN());
     public static final UnifiedReal RADIANS_PER_DEGREE
             = new UnifiedReal(new BoundedRational(1, 180), CR_PI);
     @SuppressWarnings("unused")
     private static final UnifiedReal SIX = new UnifiedReal(6);
-    private static final UnifiedReal HALF_SQRT2 = new UnifiedReal(BoundedRational.HALF, CR_SQRT2);
+    private static final UnifiedReal HALF_SQRT2 = new UnifiedReal(BoundedRational.Companion.getHALF(), CR_SQRT2);
     private static final UnifiedReal SQRT3 = new UnifiedReal(CR_SQRT3);
-    private static final UnifiedReal HALF_SQRT3 = new UnifiedReal(BoundedRational.HALF, CR_SQRT3);
-    private static final UnifiedReal THIRD_SQRT3 = new UnifiedReal(BoundedRational.THIRD, CR_SQRT3);
-    private static final UnifiedReal PI_OVER_2 = new UnifiedReal(BoundedRational.HALF, CR_PI);
-    private static final UnifiedReal PI_OVER_3 = new UnifiedReal(BoundedRational.THIRD, CR_PI);
-    private static final UnifiedReal PI_OVER_4 = new UnifiedReal(BoundedRational.QUARTER, CR_PI);
-    private static final UnifiedReal PI_OVER_6 = new UnifiedReal(BoundedRational.SIXTH, CR_PI);
+    private static final UnifiedReal HALF_SQRT3 = new UnifiedReal(BoundedRational.Companion.getHALF(), CR_SQRT3);
+    private static final UnifiedReal THIRD_SQRT3 = new UnifiedReal(BoundedRational.Companion.getTHIRD(), CR_SQRT3);
+    private static final UnifiedReal PI_OVER_2 = new UnifiedReal(BoundedRational.Companion.getHALF(), CR_PI);
+    private static final UnifiedReal PI_OVER_3 = new UnifiedReal(BoundedRational.Companion.getTHIRD(), CR_PI);
+    private static final UnifiedReal PI_OVER_4 = new UnifiedReal(BoundedRational.Companion.getQUARTER(), CR_PI);
+    private static final UnifiedReal PI_OVER_6 = new UnifiedReal(BoundedRational.Companion.getSIXTH(), CR_PI);
 
 
     /**
@@ -361,7 +361,7 @@ public class UnifiedReal {
         }
         String name = crName(mCrFactor);
         if (name != null) {
-            BigInteger bi = BoundedRational.asBigInteger(mRatFactor);
+            BigInteger bi = BoundedRational.Companion.asBigInteger(mRatFactor);
             if (bi != null) {
                 if (bi.equals(BigInteger.ONE)) {
                     return name;
@@ -370,7 +370,7 @@ public class UnifiedReal {
             }
             return "(" + mRatFactor.toNiceString() + ")" + name;
         }
-        if (mRatFactor.equals(BoundedRational.ONE)) {
+        if (mRatFactor.equals(BoundedRational.Companion.getONE())) {
             return mCrFactor.toString();
         }
         return crValue().toString();
@@ -396,7 +396,7 @@ public class UnifiedReal {
      * @param n result precision, >= 0
      */
     public String toStringTruncated(int n) {
-        if (mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.ZERO) {
+        if (mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.Companion.getZERO()) {
             return mRatFactor.toStringTruncated(n);
         }
         final CR scaled = CR.valueOf(BigInteger.TEN.pow(n)).multiply(crValue());
@@ -439,7 +439,7 @@ public class UnifiedReal {
         // If the value is known irrational, then we can safely compare to rational approximations;
         // equality is impossible; hence the comparison must converge.
         // The only problem cases are the ones in which we don't know.
-        return mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.ZERO || definitelyIrrational();
+        return mCrFactor.equals(CR_ONE) || mRatFactor == BoundedRational.Companion.getZERO() || definitelyIrrational();
     }
 
     /**
@@ -597,7 +597,7 @@ public class UnifiedReal {
 
     @SuppressWarnings("unused")
     public boolean definitelyOne() {
-        return mCrFactor.equals(CR_ONE) && mRatFactor.equals(BoundedRational.ONE);
+        return mCrFactor.equals(CR_ONE) && mRatFactor.equals(BoundedRational.Companion.getONE());
     }
 
     /**
@@ -615,12 +615,12 @@ public class UnifiedReal {
      */
     public BigInteger bigIntegerValue() {
         final BoundedRational r = boundedRationalValue();
-        return BoundedRational.asBigInteger(r);
+        return BoundedRational.Companion.asBigInteger(r);
     }
 
     public UnifiedReal add(UnifiedReal u) {
         if (mCrFactor.equals(u.mCrFactor)) {
-            BoundedRational nRatFactor = BoundedRational.add(mRatFactor, u.mRatFactor);
+            BoundedRational nRatFactor = BoundedRational.Companion.add(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, mCrFactor);
             }
@@ -636,7 +636,7 @@ public class UnifiedReal {
     }
 
     public UnifiedReal negate() {
-        return new UnifiedReal(BoundedRational.negate(mRatFactor), mCrFactor);
+        return new UnifiedReal(BoundedRational.Companion.negate(mRatFactor), mCrFactor);
     }
 
     public UnifiedReal subtract(UnifiedReal u) {
@@ -646,13 +646,13 @@ public class UnifiedReal {
     public UnifiedReal multiply(UnifiedReal u) {
         // Preserve a preexisting mCrFactor when we can.
         if (mCrFactor.equals(CR_ONE)) {
-            BoundedRational nRatFactor = BoundedRational.multiply(mRatFactor, u.mRatFactor);
+            BoundedRational nRatFactor = BoundedRational.Companion.multiply(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, u.mCrFactor);
             }
         }
         if (u.mCrFactor.equals(CR_ONE)) {
-            BoundedRational nRatFactor = BoundedRational.multiply(mRatFactor, u.mRatFactor);
+            BoundedRational nRatFactor = BoundedRational.Companion.multiply(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, mCrFactor);
             }
@@ -663,15 +663,16 @@ public class UnifiedReal {
         if (mCrFactor.equals(u.mCrFactor)) {
             BoundedRational square = getSquare(mCrFactor);
             if (square != null) {
-                BoundedRational nRatFactor = BoundedRational.multiply(
-                        BoundedRational.multiply(square, mRatFactor), u.mRatFactor);
+                //noinspection ConstantConditions
+                BoundedRational nRatFactor = BoundedRational.Companion.multiply(
+                        BoundedRational.Companion.multiply(square, mRatFactor), u.mRatFactor);
                 if (nRatFactor != null) {
                     return new UnifiedReal(nRatFactor);
                 }
             }
         }
         // Probably a bit cheaper to multiply component-wise.
-        BoundedRational nRatFactor = BoundedRational.multiply(mRatFactor, u.mRatFactor);
+        BoundedRational nRatFactor = BoundedRational.Companion.multiply(mRatFactor, u.mRatFactor);
         if (nRatFactor != null) {
             return new UnifiedReal(nRatFactor, mCrFactor.multiply(u.mCrFactor));
         }
@@ -694,13 +695,13 @@ public class UnifiedReal {
         BoundedRational square = getSquare(mCrFactor);
         if (square != null) {
             // 1/sqrt(n) = sqrt(n)/n
-            BoundedRational nRatFactor = BoundedRational.inverse(
-                    BoundedRational.multiply(mRatFactor, square));
+            BoundedRational nRatFactor = BoundedRational.Companion.inverse(
+                    BoundedRational.Companion.multiply(mRatFactor, square));
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, mCrFactor);
             }
         }
-        return new UnifiedReal(BoundedRational.inverse(mRatFactor), mCrFactor.inverse());
+        return new UnifiedReal(BoundedRational.Companion.inverse(mRatFactor), mCrFactor.inverse());
     }
 
     public UnifiedReal divide(UnifiedReal u) {
@@ -708,7 +709,7 @@ public class UnifiedReal {
             if (u.definitelyZero()) {
                 throw new ZeroDivisionException();
             }
-            BoundedRational nRatFactor = BoundedRational.divide(mRatFactor, u.mRatFactor);
+            BoundedRational nRatFactor = BoundedRational.Companion.divide(mRatFactor, u.mRatFactor);
             if (nRatFactor != null) {
                 return new UnifiedReal(nRatFactor, CR_ONE);
             }
@@ -730,8 +731,8 @@ public class UnifiedReal {
             // where small_int has a known sqrt.  This includes the small_int = 1 case.
             for (int divisor = 1; divisor < sSqrts.length; ++divisor) {
                 if (sSqrts[divisor] != null) {
-                    ratSqrt = BoundedRational.sqrt(
-                            BoundedRational.divide(mRatFactor, new BoundedRational(divisor)));
+                    ratSqrt = BoundedRational.Companion.sqrt(
+                            BoundedRational.Companion.divide(mRatFactor, new BoundedRational(divisor)));
                     if (ratSqrt != null) {
                         return new UnifiedReal(ratSqrt, sSqrts[divisor]);
                     }
@@ -747,8 +748,8 @@ public class UnifiedReal {
     private BigInteger getPiTwelfths() {
         if (definitelyZero()) return BigInteger.ZERO;
         if (mCrFactor.equals(CR_PI)) {
-            BigInteger quotient = BoundedRational.asBigInteger(
-                    BoundedRational.multiply(mRatFactor, BoundedRational.TWELVE));
+            BigInteger quotient = BoundedRational.Companion.asBigInteger(
+                    BoundedRational.Companion.multiply(mRatFactor, BoundedRational.Companion.getTWELVE()));
             if (quotient == null) {
                 return null;
             }
@@ -853,9 +854,9 @@ public class UnifiedReal {
         case 0:
             return ZERO;
         case 1:
-            return new UnifiedReal(BoundedRational.SIXTH, CR.PI);
+            return new UnifiedReal(BoundedRational.Companion.getSIXTH(), CR.PI);
         case 2:
-            return new UnifiedReal(BoundedRational.HALF, CR.PI);
+            return new UnifiedReal(BoundedRational.Companion.getHALF(), CR.PI);
         }
         throw new AssertionError("asinHalves: Bad argument");
     }
@@ -869,10 +870,10 @@ public class UnifiedReal {
             return negate().asinNonHalves().negate();
         }
         if (definitelyEquals(HALF_SQRT2)) {
-            return new UnifiedReal(BoundedRational.QUARTER, CR_PI);
+            return new UnifiedReal(BoundedRational.Companion.getQUARTER(), CR_PI);
         }
         if (definitelyEquals(HALF_SQRT3)) {
-            return new UnifiedReal(BoundedRational.THIRD, CR_PI);
+            return new UnifiedReal(BoundedRational.Companion.getTHIRD(), CR_PI);
         }
         return new UnifiedReal(crValue().asin());
     }
@@ -1007,8 +1008,9 @@ public class UnifiedReal {
         }
         BoundedRational square = getSquare(mCrFactor);
         if (square != null) {
+            //noinspection ConstantConditions
             final BoundedRational nRatFactor =
-                    BoundedRational.multiply(mRatFactor.pow(exp), square.pow(exp.shiftRight(1)));
+                    BoundedRational.Companion.multiply(mRatFactor.pow(exp), square.pow(exp.shiftRight(1)));
             if (nRatFactor != null) {
                 if (exp.and(BigInteger.ONE).intValue() == 1) {
                     // Odd power: Multiply by remaining square root.
@@ -1029,7 +1031,7 @@ public class UnifiedReal {
      */
     public UnifiedReal pow(UnifiedReal expon) {
         if (mCrFactor.equals(CR_E)) {
-            if (mRatFactor.equals(BoundedRational.ONE)) {
+            if (mRatFactor.equals(BoundedRational.Companion.getONE())) {
                 return expon.exp();
             } else {
                 UnifiedReal ratPart = new UnifiedReal(mRatFactor).pow(expon);
@@ -1038,13 +1040,13 @@ public class UnifiedReal {
         }
         final BoundedRational expAsBR = expon.boundedRationalValue();
         if (expAsBR != null) {
-            BigInteger expAsBI = BoundedRational.asBigInteger(expAsBR);
+            BigInteger expAsBI = BoundedRational.Companion.asBigInteger(expAsBR);
             if (expAsBI != null) {
                 return pow(expAsBI);
             } else {
                 // Check for exponent that is a multiple of a half.
-                expAsBI = BoundedRational.asBigInteger(
-                        BoundedRational.multiply(BoundedRational.TWO, expAsBR));
+                expAsBI = BoundedRational.Companion.asBigInteger(
+                        BoundedRational.Companion.multiply(BoundedRational.Companion.getTWO(), expAsBR));
                 if (expAsBI != null) {
                     return pow(expAsBI).sqrt();
                 }
@@ -1129,7 +1131,7 @@ public class UnifiedReal {
             } else if (compare1 < 0) {
                 return inverse().ln().negate();
             }
-            final BigInteger bi = BoundedRational.asBigInteger(mRatFactor);
+            final BigInteger bi = BoundedRational.Companion.asBigInteger(mRatFactor);
             if (bi != null) {
                 if (mCrFactor.equals(CR_ONE)) {
                     // Check for a power of a small integer.  We can use sLogs[] to return
@@ -1151,8 +1153,8 @@ public class UnifiedReal {
                             long intLog = getIntLog(bi, intSquare);
                             if (intLog != 0) {
                                 BoundedRational nRatFactor =
-                                        BoundedRational.add(new BoundedRational(intLog),
-                                        BoundedRational.HALF);
+                                        BoundedRational.Companion.add(new BoundedRational(intLog),
+                                                BoundedRational.Companion.getHALF());
                                 if (nRatFactor != null) {
                                     return new UnifiedReal(nRatFactor, sLogs[intSquare]);
                                 }
@@ -1177,13 +1179,13 @@ public class UnifiedReal {
         if (crExp != null) {
             boolean needSqrt = false;
             BoundedRational ratExponent = mRatFactor;
-            BigInteger asBI = BoundedRational.asBigInteger(ratExponent);
+            BigInteger asBI = BoundedRational.Companion.asBigInteger(ratExponent);
             if (asBI == null) {
                 // check for multiple of one half.
                 needSqrt = true;
-                ratExponent = BoundedRational.multiply(ratExponent, BoundedRational.TWO);
+                ratExponent = BoundedRational.Companion.multiply(ratExponent, BoundedRational.Companion.getTWO());
             }
-            BoundedRational nRatFactor = BoundedRational.pow(crExp, ratExponent);
+            BoundedRational nRatFactor = BoundedRational.Companion.pow(crExp, ratExponent);
             if (nRatFactor != null) {
                 UnifiedReal result = new UnifiedReal(nRatFactor);
                 if (needSqrt) {
@@ -1258,7 +1260,7 @@ public class UnifiedReal {
      */
     public int digitsRequired() {
         if (mCrFactor.equals(CR_ONE) || mRatFactor.signum() == 0) {
-            return BoundedRational.digitsRequired(mRatFactor);
+            return BoundedRational.Companion.digitsRequired(mRatFactor);
         } else {
             return Integer.MAX_VALUE;
         }
