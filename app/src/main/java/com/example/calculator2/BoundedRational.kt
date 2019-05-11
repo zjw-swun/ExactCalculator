@@ -32,55 +32,102 @@ import java.util.Random
  */
 class BoundedRational {
 
+    /**
+     * Numerator of our rational number
+     */
     private val mNum: BigInteger
+    /**
+     * Denominator of our rational number
+     */
     private val mDen: BigInteger
 
+    /**
+     * Constructs a [BoundedRational] from 2 [BigInteger] values.
+     *
+     * @param n the numerator of our [BoundedRational]
+     * @param d the denominator of our [BoundedRational]
+     */
     constructor(n: BigInteger, d: BigInteger) {
         mNum = n
         mDen = d
     }
 
+    /**
+     * Constructs a [BoundedRational] from a single [BigInteger] value.
+     *
+     * @param n the [BigInteger] we are the [BoundedRational] for.
+     */
     constructor(n: BigInteger) {
         mNum = n
         mDen = BigInteger.ONE
     }
 
+    /**
+     * Constructs a [BoundedRational] from 2 [Long] values.
+     *
+     * @param n the numerator of our [BoundedRational]
+     * @param d the denominator of our [BoundedRational]
+     */
     constructor(n: Long, d: Long) {
         mNum = BigInteger.valueOf(n)
         mDen = BigInteger.valueOf(d)
     }
 
+    /**
+     * Constructs a [BoundedRational] from a single [Long] value
+     *
+     * @param n the [Long] we are the [BoundedRational] for.
+     */
     constructor(n: Long) {
         mNum = BigInteger.valueOf(n)
         mDen = BigInteger.valueOf(1)
     }
 
     /**
-     * Convert to String reflecting raw representation.
-     * Debug or log messages only, not pretty.
+     * Convert to [String] reflecting raw representation. Debug or log messages only, not pretty.
+     *
+     * @return a [String] version of us.
      */
     override fun toString(): String {
         return "$mNum/$mDen"
     }
 
     /**
-     * Convert to readable String.
-     * Intended for output to user.  More expensive, less useful for debugging than
-     * toString().  Not internationalized.
+     * Convert to a readable String. Intended for output to user. More expensive, less useful for
+     * debugging than [toString]. Not internationalized. We initialize our variable *nicer* to the
+     * [BoundedRational] created from *this* by first using our method [reduce] to simplify our
+     * contents by factoring out the GCF, then feeding that value to our method [positiveDen] to
+     * convert that [BoundedRational] to one with a positive denominator. We intialize our variable
+     * *result* to the [String] version of the [mNum] numerator of *nicer*. When the [mDen] field of
+     * *nicer* is not the contant [BigInteger.ONE] we append the character "/" followed by the string
+     * version of the [mDen] field of *nicer* to *result*. Finally we return *result* to the caller.
+     *
+     * @return a [String] version of us.
      */
     fun toNiceString(): String {
         val nicer = reduce().positiveDen()
         var result = nicer.mNum.toString()
-        if (nicer.mDen != BigInteger.ONE) {
-            result += "/" + nicer.mDen
+        when {
+            nicer.mDen != BigInteger.ONE -> result += "/" + nicer.mDen
         }
         return result
     }
 
     /**
-     * Returns a truncated (rounded towards 0) representation of the result.
-     * Includes n digits to the right of the decimal point.
+     * Returns a truncated (rounded towards 0) representation of the result. Includes n digits to
+     * the right of the decimal point. We initialize our variable *digits* to the [String] created
+     * by taking the absolute value of our [mNum], multiplying it by the [BigInteger] created by
+     * raising the constant [BigInteger.TEN] to the power [n], then dividing that result by the
+     * absolute value of our field [mDen] and converting the [BigInteger] result of all this to a
+     * string. We initialize our variable *len* to the the length of *digits*. Then if *len* is less
+     * than [n] plus one, we prepend ([n]+1-*len*) zeros to *digits* and set *len* to [n] plus 1.
+     * Finally we return the [String] formed by concatenating a "-" if our [signum] function determines
+     * we are a negative number, followed by the substring of *digits* from index 0 to index (*len*-[n])
+     * followed by a "." decimal point, followed by the substring of *digits* from index (*len*-[n]) to
+     * the end of *digits*.
+     *
      * @param n result precision, >= 0
+     * @return a truncated (rounded towards 0) representation of the result.
      */
     fun toStringTruncated(n: Int): String {
         var digits = mNum.abs().multiply(BigInteger.TEN.pow(n)).divide(mDen.abs()).toString()
@@ -94,14 +141,50 @@ class BoundedRational {
     }
 
     /**
-     * Return a double approximation.
-     * The result is correctly rounded to nearest, with ties rounded away from zero.
-     * TODO: Should round ties to even.
+     * Return a double approximation. The result is correctly rounded to nearest, with ties rounded
+     * away from zero. TODO: Should round ties to even.
+     *
+     * We initialize our variable *sign* to the sign that our [signum] returns (-1 if we are less
+     * than 0, 0 if either [mNum] or [mDen] is 0, and 1 if we are greater than 0). If *sign* is less
+     * than 0 we return minus the [Double] that this function [doubleValue] creates from the
+     * [BoundedRational] that our [negate] creates by negating *this*.
+     *
+     * We initialize our variable *apprExp* to the length of our field [mNum]'s two's complement
+     * representation minus the length of our field [mDen]'s two's complement representation. If
+     * *apprExp* is less than -1100 or *sign* is 0 our result will clearly turn out to be zero so we
+     * just return 0.0 to the caller. We initialize our variable *neededPrec* by subtracting 80 from
+     * *apprExp*. If *neededPrec* is less than 0 we initalize our variable *dividend* to [mNum] shifted
+     * left by minus *neededPrec*, otherwise we set it to [mNum]. If *neededPrec* is greater than 0
+     * we initalize our variable *divisor* to [mDen] shifted left by *neededPrec*, otherwise we set
+     * it to [mDen]. We initialize our variable *quotient* to the [BigInteger] that the *divide*
+     * method of *dividend* creates by dividing *dividend* by *divisor*. We initialize our variable
+     * *qLength* to the length of the value's two's complement representation of *quotient*, and
+     * initialize our variable *extraBits* to *qLength* minus 53. We initialize our variable *exponent*
+     * to *neededPrec* plus *qLength* (this is the exponent assuming leading binary point). If
+     * *exponent* is greater than or equal to -1021 the binary point is actually to right of leading
+     * bit so we subtract 1 from *exponent*. Otherwise we are in the gradual underflow range so we add
+     * -1022 minus *exponent* plus 1 to *extraBits* and set *exponent* to -1023.
+     *
+     * We initialize our variable *bigMantissa* by adding the constant [BigInteger.ONE] shifted left
+     * by *extraBits* minus 1 to *quotient* then shifting the result right by *extraBits*. If our
+     * variable *exponent* is greater than 1024 we return the system constant POSITIVE_INFINITY. As
+     * a sanity check we throw an AssertionError is *exponent* is greater than -1023 and the length
+     * of the value's two's complement representation of *bigMantissa* is not 53, or *exponent* is
+     * less than or equal to -1023 and the length of the value's two's complement representation of
+     * *bigMantissa* is greater than or equal to 53. Otherwise we initialize our variable *mantissa*
+     * to the [Long] value of *bigMantissa*. We then initialize our variable *bits* to the [Long]
+     * formed by or'ing together: the result of left shifting 1L by 52 bits then subtracting 1 and
+     * and'ing that value with *mantissa* (zeros the exponent area), with the result of converting
+     * *exponent* to [Long] adding 1023 and shifting that by 52 (this biases the exponent and then
+     * shifts it into position). Finally we return the [Double] floating point value with the same
+     * bit pattern as *bits* that the library function *longBitsToDouble* creates to the caller.
+     *
+     * @return a [Double] approximation of the value we hold.
      */
     fun doubleValue(): Double {
         val sign = signum()
         if (sign < 0) {
-            return -negate(this)!!.doubleValue()
+            return -negate(this)!!.doubleValue() // TODO: Remove !! somehow (this is not null)
         }
         // We get the mantissa by dividing the numerator by denominator, after
         // suitably pre-scaling them so that the integral part of the result contains
@@ -139,6 +222,9 @@ class BoundedRational {
         return java.lang.Double.longBitsToDouble(bits)
     }
 
+    /**
+     *
+     */
     fun crValue(): CR {
         return CR.valueOf(mNum).divide(CR.valueOf(mDen))
     }
