@@ -223,7 +223,7 @@ class BoundedRational {
     }
 
     /**
-     *
+     * Returns a Constructive real version of the value we hold.
      */
     fun crValue(): CR {
         return CR.valueOf(mNum).divide(CR.valueOf(mDen))
