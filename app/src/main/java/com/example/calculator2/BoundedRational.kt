@@ -29,6 +29,8 @@ import java.util.Random
  *
  * We also implement a number of irrational functions.  These return a non-null result only when
  * the result is known to be rational.
+ * TODO: Consider returning null for integers. With some care, large factorials might become much faster.
+ * TODO: Maybe eventually make this extend Number?
  */
 class BoundedRational {
 
@@ -223,12 +225,21 @@ class BoundedRational {
     }
 
     /**
-     * Returns a Constructive real version of the value we hold.
+     * Returns a Constructive real version of the value we hold. We create a [CR] out of our field
+     * [mNum] and call its *divide* method to have it create a [CR] representing itself divided by a
+     * [CR] created from our field [mDen].
      */
     fun crValue(): CR {
         return CR.valueOf(mNum).divide(CR.valueOf(mDen))
     }
 
+    /**
+     * Returns an [Int] version of the value we hold. We initialize our variable *reduced* with the
+     * [BoundedRational] that is the equivalent fraction of 'this' in lowest terms. If the [mDen] of
+     * *reduced* is not equal to [BigInteger.ONE] we throw an ArithmeticException indicating that
+     * the conversion of a non-int to an [Int] was attempted. Otherwise we return the [Int] returned
+     * by the *toInt* method of the [mNum] field of *reduced* to the caller.
+     */
     fun intValue(): Int {
         val reduced = reduce()
         if (reduced.mDen != BigInteger.ONE) {
@@ -237,8 +248,15 @@ class BoundedRational {
         return reduced.mNum.toInt()
     }
 
-    // Approximate number of bits to left of binary point.
-    // Negative indicates leading zeroes to the right of binary point.
+    /**
+     * Returns the approximate number of bits to left of binary point. Negative indicates leading
+     * zeroes to the right of binary point. If the *signum* method of our [mNum] field returns 0,
+     * it is 0 so we return the value [Integer.MIN_VALUE], otherwise we return the result of
+     * subtracting the length of the two's complement representation of [mDen] from the length of
+     * the two's complement representation of [mNum].
+     *
+     * @return Approximate number of bits to the left of the binary point
+     */
     fun wholeNumberBits(): Int {
         return if (mNum.signum() == 0) {
             Integer.MIN_VALUE
@@ -248,8 +266,13 @@ class BoundedRational {
     }
 
     /**
-     * Is this number too big for us to continue with rational arithmetic?
-     * We return false for integers on the assumption that we have no better fallback.
+     * Is this number too big for us to continue with rational arithmetic? We return false for
+     * integers ([mDen] is [BigInteger.ONE]) on the assumption that we have no better fallback.
+     * Otherwise we return true if the length of [mNum]'s two's complement representation plus the
+     * length of [mDen]'s two's complement representation is greater than our constant MAX_SIZE
+     * (10,000).
+     *
+     * @return true the number we hold is too big to continue using rational arithmetic.
      */
     private fun tooBig(): Boolean {
         return if (mDen == BigInteger.ONE) {
@@ -258,7 +281,11 @@ class BoundedRational {
     }
 
     /**
-     * Return an equivalent fraction with a positive denominator.
+     * Return an equivalent fraction with a positive denominator. If the sign of [mDen] is greater
+     * than 0 we return *this*, otherwise we return a new instance of [BoundedRational] constructed
+     * from the negative of [mNum] and the negative of [mDen].
+     *
+     * @return the value held by *this* only with a positive denominator.
      */
     private fun positiveDen(): BoundedRational {
         return if (mDen.signum() > 0) {
@@ -267,8 +294,13 @@ class BoundedRational {
     }
 
     /**
-     * Return an equivalent fraction in lowest terms.
-     * Denominator sign may remain negative.
+     * Return an equivalent fraction in lowest terms. Denominator sign may remain negative. If [mDen]
+     * is [BigInteger.ONE] we return *this*. Otherwise we initialize our variable *divisor* to the
+     * [BigInteger] that the *gcd* method of [mNum] finds to be the greatest common denominator of
+     * [mNum] and [mDen]. Then we return a new instance of [BoundedRational] constructed from [mNum]
+     * divided by *divisor* and [mDen] divided by *divisor*.
+     *
+     * @return the value held by *this* after dividing [mNum] and [mDen] by their GCD
      */
     private fun reduce(): BoundedRational {
         if (mDen == BigInteger.ONE) {
@@ -278,32 +310,79 @@ class BoundedRational {
         return BoundedRational(mNum.divide(divisor), mDen.divide(divisor))
     }
 
-    operator fun compareTo(r: BoundedRational): Int {
+    /**
+     * Compares *this* to its parameter [other] returning -1 if *this* is less than [other], 0 if
+     * *this* is equal to [other] and 1 if *this* is greater than [other]. We multiply our [mNum] by
+     * the [mDen] field of [other], compare that to the [mNum] field of [other] multiplied by our
+     * [mDen] then multiply the result of that comparison by the sign of our [mDen] times the sign
+     * of the [mDen] field of [other] (this inverts the result of the previous comparison if the
+     * signs of the two denominators are different).
+     *
+     * @param other the [BoundedRational] we are to compare ourselves to
+     * @return -1 if *this* is less than [other], 0 if *this* is equal to [other] and 1 if *this* is
+     * greater than [other]
+     */
+    operator fun compareTo(other: BoundedRational): Int {
         // Compare by multiplying both sides by denominators, invert result if denominator product
         // was negative.
-        return (mNum.multiply(r.mDen).compareTo(r.mNum.multiply(mDen)) * mDen.signum()
-                * r.mDen.signum())
+        return (mNum.multiply(other.mDen).compareTo(other.mNum.multiply(mDen))
+                * mDen.signum() * other.mDen.signum())
     }
 
+    /**
+     * Returns the sign of the value we hold.
+     *
+     * @return -1 if *this* is less than 0, 0 if either [mNum] of [mDen] is 0 and 1 if *this* is
+     * greater than 0.
+     */
     fun signum(): Int {
         return mNum.signum() * mDen.signum()
     }
 
+    /**
+     * Computes a unique hash code for the value we hold. We initialize our variable *reduced* to
+     * a [BoundedRational] holding the equivalent fraction of *this* in lowest terms with a positive
+     * denominator. Then we return the hash value generated by the *hash* method of [Objects] from
+     * the [mNum] field of *reduced* and the [mDen] field of *reduced* to the caller.
+     *
+     * @return a hash value formed from the "reduced" value of *this*
+     */
     override fun hashCode(): Int {
         // Note that this may be too expensive to be useful.
         val reduced = reduce().positiveDen()
         return Objects.hash(reduced.mNum, reduced.mDen)
     }
 
+    /**
+     * Compares for equality the value held by its parameter [other] to the value held by *this*
+     *
+     * @param other the [BoundedRational] we are to compare ourselves to.
+     * @return *true* if [other] is equal to *this*
+     */
     override fun equals(other: Any?): Boolean {
-
         return other != null && other is BoundedRational && compareTo(other) == 0
     }
 
+    /**
+     * The exception we throw is someone calls our [inverse] method with a zero [BoundedRational].
+     */
     class ZeroDivisionException : ArithmeticException("Division by zero")
 
     /**
-     * Compute integral power of this, assuming this has been reduced and exp is >= 0.
+     * Compute integral power of *this*, assuming *this* has been reduced and [exp] is >= 0. Uses
+     * recursion. If our parameter [exp] is [BigInteger.ONE] we just return *this*. If [exp] is
+     * odd, we return the result of multiplying *this* by the [BoundedRational] returned by a
+     * recursive of this function with a parameter that is ONE less than [exp]. If the *signum*
+     * method of [exp] indicates that its value is 0 we return the constant [ONE]. Otherwise we
+     * initialize our variable to the result of a recursive call to this function with a parameter
+     * that is half of [exp]. We then check to see if our thread has been interupted, and if so we
+     * throw AbortedException. Otherwise we initialize our variable *result* to the [BoundedRational]
+     * that is created when we multiply *tmp* by itself. If *result* is *null* or its [tooBig] method
+     * reports that it is too big to continue to uses rational arithmetic with it we return *null*
+     * to the caller, otherwise we return *result*. TODO: refactor to use loop instead of recursion
+     *
+     * @param exp power to raise *this* to.
+     * @return *this* raised to the [exp] power.
      */
     private fun rawPow(exp: BigInteger): BoundedRational? {
         if (exp == BigInteger.ONE) {
@@ -326,7 +405,28 @@ class BoundedRational {
     }
 
     /**
-     * Compute an integral power of this.
+     * Compute an integral power of this. We initialize our variable *expSign* to the sign value that
+     * the *signum* method of [exp] computes from it. If *expSign* is 0 we return our constant [ONE]
+     * to the caller. If [exp] is [BigInteger.ONE] we return *this* to the caller. Otherwise we
+     * initialize our variable *reduced* to a [BoundedRational] holding the equivalent fraction of
+     * *this* in lowest terms with a positive denominator. If the [mDen] field of *reduced* is
+     * [BigInteger.ONE] there is a chance that huge exponents could give compact results when the
+     * [mNum] field of *reduced is:
+     *
+     * [BigInteger.ZERO] we return [ZERO] to the caller.
+     *
+     * [BigInteger.ONE] we return [ONE] to the caller.
+     *
+     * [BIG_MINUS_ONE] we return [MINUS_ONE] if [exp] is odd, or [ONE] if it is even.
+     *
+     * Looks like we don't have a simple case, but if there are more than 1,000 bits in [exp] stack
+     * overflow is likely so we just return *null*. Otherwise if *expSign* (the sign of [exp]) is
+     * less than 0 we return the value computed by the *rawPow* method of the inverse of *reduced*
+     * with a negated [exp] as its parameter, if it is greater than 0 we return the value computed
+     * by the *rawPow* method of *reduced* with [exp] as its parameter.
+     *
+     * @param exp power to raise *this* to.
+     * @return *this* raised to the [exp] power.
      */
     fun pow(exp: BigInteger): BoundedRational? {
         val expSign = exp.signum()
@@ -342,14 +442,10 @@ class BoundedRational {
         val reduced = reduce().positiveDen()
         // First handle cases in which huge exponents could give compact results.
         if (reduced.mDen == BigInteger.ONE) {
-            if (reduced.mNum == BigInteger.ZERO) {
-                return ZERO
-            }
-            if (reduced.mNum == BigInteger.ONE) {
-                return ONE
-            }
-            if (reduced.mNum == BIG_MINUS_ONE) {
-                return if (exp.testBit(0)) {
+            when {
+                reduced.mNum == BigInteger.ZERO -> return ZERO
+                reduced.mNum == BigInteger.ONE -> return ONE
+                reduced.mNum == BIG_MINUS_ONE -> return if (exp.testBit(0)) {
                     MINUS_ONE
                 } else {
                     ONE
@@ -367,20 +463,26 @@ class BoundedRational {
         }
     }
 
+    /**
+     * Our constants and static functions.
+     */
     companion object {
-        // TODO: Consider returning null for integers.  With some care, large factorials might become
-        // much faster.
-        // TODO: Maybe eventually make this extend Number?
 
+        /**
+         * Maximum number of bits that a [BoundedRational] should contain ([mNum] plus [mDen])
+         */
         private const val MAX_SIZE = 10000 // total, in bits
 
         /**
-         * Produce BoundedRational equal to the given double.
+         * Produce [BoundedRational] equal to the given double.
+         *
+         * @param *Double* we want to convert to a [BoundedRational]
+         * @return a [BoundedRational] version of our parameter [x]
          */
         fun valueOf(x: Double): BoundedRational {
-            val l = Math.round(x)
-            if (l.toDouble() == x && Math.abs(l) <= 1000) {
-                return valueOf(l)
+            val longVal = Math.round(x)
+            if (longVal.toDouble() == x && Math.abs(longVal) <= 1000) {
+                return valueOf(longVal)
             }
             val allBits = java.lang.Double.doubleToRawLongBits(Math.abs(x))
             var mantissa = allBits and (1L shl 52) - 1
