@@ -474,9 +474,27 @@ class BoundedRational {
         private const val MAX_SIZE = 10000 // total, in bits
 
         /**
-         * Produce [BoundedRational] equal to the given double.
+         * Produce [BoundedRational] equal to the given double. First we initialize our variable
+         * *longVal* with the rounded [Long] of our parameter [x]. If the [Double] value of *longVal*
+         * is equal to [x] and the absolute value of *longVal* is less than or equal to 1000 we just
+         * return the [BoundedRational] constructed from *longVal*. Otherwise we initialize our
+         * variable *allBits* to the [Long] created by the library method *doubleToRawLongBits* from
+         * the absolute value of [x] (the raw bits of it allowing us to manipulate them). We initialize
+         * our variable *mantissa* by masking off bits 0 to 51, and we initialize our variable
+         * *biasedExp* by using the *ushr* method of *allBits* to shift it right by 52 bits filling
+         * the leftmost bits with zeros and converting that to an [Int]. If *biasedExp* and 0x7ff
+         * is equal to 0x7ff we throw an ArithmeticException since that means that [x] is infinity
+         * or NaN and not convertible to a [BoundedRational]. We initialize our variable *sign* to
+         * the [Long] -1 if [x] is less than 0.0 or to 1 if it is not less than 0. We initialize our
+         * variable *exp* by subtracting 1075 from *biasedExp*, and if *biasedExp* is 0 we add 1 to
+         * *exp* (since the de-normal exponent is 1 greater) otherwise we add 1 left shifted by 52
+         * bits to *mantissa* (this is the implied leading one of a normalized number). We initialize
+         * our variable *num* to the [BigInteger] formed by multiplying *sign* times *mantissa*, and
+         * our variable *den* to the constant [BigInteger.ONE]. If *exp* is greater than or equal to
+         * 0 we shift *num* left by *exp* bits, otherwise we shift *den* left by minus *exp* bits.
+         * Finally we return a [BoundedRational] constructed from *num* and *den* to the caller.
          *
-         * @param *Double* we want to convert to a [BoundedRational]
+         * @param x *Double* we want to convert to a [BoundedRational]
          * @return a [BoundedRational] version of our parameter [x]
          */
         fun valueOf(x: Double): BoundedRational {
@@ -508,7 +526,13 @@ class BoundedRational {
         }
 
         /**
-         * Produce BoundedRational equal to the given long.
+         * Produce BoundedRational equal to the given long. When [x] is greater than or equal to -2
+         * and less than or equal to 10 we try to optimize by returning our constant MINUS_TWO for
+         * -2, MINUS_ONE for -1, ZERO for 0, ONE for 1, TWO for 2, and TEN for 10. If [x] is not one
+         * of these values we return a [BoundedRational] constructed from [x].
+         *
+         * @param x *Long* we want to convert to a [BoundedRational]
+         * @return a [BoundedRational] version of our parameter [x]
          */
         fun valueOf(x: Long): BoundedRational {
             if (x >= -2 && x <= 10) {
@@ -524,15 +548,35 @@ class BoundedRational {
             return BoundedRational(x)
         }
 
+        /**
+         * Converts its [BoundedRational] parameter [r] to a [String]. If the *toString* method of
+         * [r] returns a non-null [String] we return it, otherwise we return the string "not a small
+         * rational".
+         *
+         * @param r the [BoundedRational] we are to convert to a string
+         * @return a [String] representation of our parameter [r] or the string "not a small rational"
+         */
         fun toString(r: BoundedRational?): String {
             return r?.toString() ?: "not a small rational"
         }
 
+        /**
+         * The [Random] number generator used by our [maybeReduce] method.
+         */
         private var sReduceRng = Random()
 
         /**
-         * Return a possibly reduced version of r that's not tooBig().
-         * Return null if none exists.
+         * Return a possibly reduced version of [r] that's not *tooBig()*. Return null if none exists.
+         * If [r] is *null* we return *null* to the caller. If [r] is not too big for [BoundedRational]
+         * arithmetic, and the lower 4 bits of the next integer random number of [sReduceRng] are not
+         * all 0 (15 in 16 chance) we return [r] to the caller without reducing it. Otherwise we
+         * initialize our variable *result* to the [BoundedRational] version of [r] with a positive
+         * denominator. We then set *result* to the [BoundedRational] that its *reduce* method creates
+         * from it by reducing it to lowest terms. If *result* is not too big for [BoundedRational]
+         * arithmetic we return it to the caller, otherwise we return *null*.
+         *
+         * @param r the [BoundedRational] we might try to reduce if possible.
+         * @return a [BoundedRational] possibly reduced to lowest terms, our parameter [r] or *null*
          */
         private fun maybeReduce(r: BoundedRational?): BoundedRational? {
             if (r == null) return null
@@ -547,12 +591,20 @@ class BoundedRational {
             } else null
         }
 
-        // We use static methods for arithmetic, so that we can easily handle the null case.  We try
+        // We use static methods for arithmetic, so that we can easily handle the null case. We try
         // to catch domain errors whenever possible, sometimes even when one of the arguments is null,
         // but not relevant.
 
         /**
-         * Returns equivalent BigInteger result if it exists, null if not.
+         * Returns equivalent [BigInteger] result if it exists, *null* if not. If [r] is *null* we
+         * return *null* to the caller. Otherwise we initialize our variable *quotAndRem* to the
+         * array of [BigInteger] returned by the *divideAndRemainder* method of the numerator of [r]
+         * when it divides itself by the denominator of [r] (index 0 will contain the quotient, and
+         * index 1 will contain the remainder). If the remainder is 0 we return th quotient to the
+         * caller, otherwise we return *null*.
+         *
+         * @param r the [BoundedRational] we want to convert to a [BigInteger].
+         * @return a [BigInteger] equivalent of [r] if possible or *null* if not possible.
          */
         fun asBigInteger(r: BoundedRational?): BigInteger? {
             if (r == null) {
@@ -566,6 +618,22 @@ class BoundedRational {
             }
         }
 
+        /**
+         * Adds two [BoundedRational] values and returns the (possible reduced) [BoundedRational]
+         * result if the addition is possible, otherwise it returns *null*. If [r1] or [r2] is *null*
+         * we return *null* to the caller. Otherwise we initialize our variable *den* to the
+         * [BigInteger] that results when we multiply the denominator of [r1] by the denominator of
+         * [r2], and initialize our variable *num* to the [BigInteger] that results when we add
+         * the numerator of [r1] times the denominator of [r2] to the numerator of [r2] times the
+         * denominator of [r1]. Then we return the (possibly reduced) [BoundedRational] that our
+         * [maybeReduce] method creates from a [BoundedRational] constructed from *num* and *den*
+         * to the caller.
+         *
+         * @param r1 the first [BoundedRational] value
+         * @param r2 the second [BoundedRational] value
+         * @return a possibly reduced [BoundedRational] (1 in 16 chance) which is the sum of [r1] and
+         * [r2] or *null* if the addition is not possible.
+         */
         fun add(r1: BoundedRational?, r2: BoundedRational?): BoundedRational? {
             if (r1 == null || r2 == null) {
                 return null
@@ -576,8 +644,12 @@ class BoundedRational {
         }
 
         /**
-         * Return the argument, but with the opposite sign.
-         * Returns null only for a null argument.
+         * Return the argument, but with the opposite sign. Returns null only for a null argument.
+         * If [r] is *null* we return *null* to the caller, otherwise we return a [BoundedRational]
+         * constructed from the negated numerator of [r] and the denominator of [r].
+         *
+         * @param r the [BoundedRational] we are to negate.
+         * @return a [BoundedRational] which has the opposite sign of its parameter [r].
          */
         fun negate(r: BoundedRational?): BoundedRational? {
             return if (r == null) {
@@ -585,6 +657,14 @@ class BoundedRational {
             } else BoundedRational(r.mNum.negate(), r.mDen)
         }
 
+        /**
+         * Subtracts a [BoundedRational] value from another [BoundedRational] value and returns the
+         * result. We just return the result returned by our [add] method for [r1] and negative [r2].
+         *
+         * @param r1 the minuend of our subtraction
+         * @param r2 the subtrahend of our subtraction
+         * @return the difference between [r1] and [r2].
+         */
         @Suppress("unused")
         fun subtract(r1: BoundedRational, r2: BoundedRational): BoundedRational? {
             return add(r1, negate(r2))
@@ -592,6 +672,10 @@ class BoundedRational {
 
         /**
          * Return product of r1 and r2 without reducing the result.
+         *
+         * @param r1 the multiplicand of our multiplication
+         * @param r2 the multiplier of our multiplication
+         * @return the product of our multiplication
          */
         private fun rawMultiply(r1: BoundedRational?, r2: BoundedRational?): BoundedRational? {
             // It's tempting but marginally unsound to reduce 0 * null to 0.  The null could represent
