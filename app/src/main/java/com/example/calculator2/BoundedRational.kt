@@ -671,7 +671,12 @@ class BoundedRational {
         }
 
         /**
-         * Return product of r1 and r2 without reducing the result.
+         * Return product of [r1] and [r2] without reducing the result. If either [r1] or [r2] is
+         * *null* we return *null*. If [r1] is our constant ONE we return [r2], and if [r2] is our
+         * constant ONE we return [r1]. Otherwise we initialize our variable *num* to the [BigInteger]
+         * result of mutiplying the [mNum] field of [r1] by the [mNum] field of [r2] and our variable
+         * *den* to the [BigInteger] result of multiplying the [mDen] field of [r1] by the [mDen]
+         * field of [r2]. We then return a [BoundedRational] constructed from *num* and *den*.
          *
          * @param r1 the multiplicand of our multiplication
          * @param r2 the multiplier of our multiplication
@@ -695,12 +700,27 @@ class BoundedRational {
             return BoundedRational(num, den)
         }
 
+        /**
+         *  Return product of [r1] and [r2] possibly reducing (1 in 16 chance) the result. We return
+         *  the [BoundedRational] created by our [maybeReduce] method from the [BoundedRational]
+         *  unreduced product produced by a call to our [rawMultiply] method.
+         *
+         * @param r1 the multiplicand of our multiplication
+         * @param r2 the multiplier of our multiplication
+         * @return the possibly reduced (1 in 16 chance) product of our multiplication
+         */
         fun multiply(r1: BoundedRational, r2: BoundedRational?): BoundedRational? {
             return maybeReduce(rawMultiply(r1, r2))
         }
 
         /**
-         * Return the reciprocal of r (or null if the argument was null).
+         * Return the reciprocal of [r] (or null if the argument was *null*). If [r] is *null* we
+         * return *null*. If the [mNum] field of [r] is 0 we throw ZeroDivisionException. Otherwise
+         * we return a [BoundedRational] constructed from the [mDen] field of [r] and its [mNum]
+         * field.
+         *
+         * @param r the [BoundedRational] we are to produce the inverse of
+         * @return the reciprocal of [r] (or null if the argument was *null*).
          */
         fun inverse(r: BoundedRational?): BoundedRational? {
             if (r == null) {
@@ -712,10 +732,37 @@ class BoundedRational {
             return BoundedRational(r.mDen, r.mNum)
         }
 
+        /**
+         * Divides the [BoundedRational] dividend [r1] by the [BoundedRational] divisor [r2] and
+         * returns the result. We just return the [BoundedRational] created by our [multiply] method
+         * from [r1] and the [BoundedRational] created by our [inverse] method from [r2].
+         *
+         * @param r1 the dividend
+         * @param r2 the divisor
+         * @return [r1] divided by [r2]
+         */
         fun divide(r1: BoundedRational, r2: BoundedRational): BoundedRational? {
             return multiply(r1, inverse(r2))
         }
 
+        /**
+         * Returns the square root of its parameter [r] or *null*. We initialize our variable *rTemp*
+         * to [r] if it is not *null* otherwise we return *null* to the caller. We set *rTemp* to its
+         * reduced, positive denominator [BoundedRational] equivalent. If the the sign of the [mNum]
+         * field of *rTemp* is negative we throw an ArithmeticException. Otherwise we initialize our
+         * variable *numSqrt* to the [BigInteger] created when we convert the [mNum] field of *rTemp*
+         * to a [Double], take its square root, round the result and convert that to a [BigInteger].
+         * If *numSqrt* multiplied by itself is not equal to the [mNum] field of *rTemp* we return
+         * *null* (the square root of [r] is not a [BoundedRational]). We initialize our variable
+         * *denSqrt* to the [BigInteger] created when we convert the [mDen] field of *rTemp* to a
+         * [Double], take its square root, round the result and convert that to a [BigInteger]. If
+         * *denSqrt* multiplied by itself is not equal to the [mDen] field of *rTemp* we return
+         * *null* (again the square root of [r] is not a [BoundedRational]). Otherwise we return a
+         * [BoundedRational] constructed from *numSqrt* and *denSqrt* to the caller.
+         *
+         * @param r the [BoundedRational] we want to take the square root of.
+         * @return the square root of [r] or *null* if this is impossible to do.
+         */
         fun sqrt(r: BoundedRational?): BoundedRational? {
             var rTemp: BoundedRational? = r ?: return null
             // Return non-null if numerator and denominator are small perfect squares.
@@ -733,35 +780,113 @@ class BoundedRational {
             } else BoundedRational(numSqrt, denSqrt)
         }
 
+        /**
+         * A constant 0 [BoundedRational]
+         */
         val ZERO = BoundedRational(0)
+        /**
+         * A constant 1/2 [BoundedRational]
+         */
         val HALF = BoundedRational(1, 2)
+        /**
+         * A constant -1/2 [BoundedRational]
+         */
         val MINUS_HALF = BoundedRational(-1, 2)
+        /**
+         * A constant 1/3 [BoundedRational]
+         */
         val THIRD = BoundedRational(1, 3)
+        /**
+         * A constant 1/4 [BoundedRational]
+         */
         val QUARTER = BoundedRational(1, 4)
+        /**
+         * A constant 1/6 [BoundedRational]
+         */
         val SIXTH = BoundedRational(1, 6)
+        /**
+         * A constant 1 [BoundedRational]
+         */
         val ONE = BoundedRational(1)
+        /**
+         * A constant -1 [BoundedRational]
+         */
         val MINUS_ONE = BoundedRational(-1)
+        /**
+         * A constant 2 [BoundedRational]
+         */
         val TWO = BoundedRational(2)
+        /**
+         * A constant -2 [BoundedRational]
+         */
         val MINUS_TWO = BoundedRational(-2)
+        /**
+         * A constant 10 [BoundedRational]
+         */
         val TEN = BoundedRational(10)
+        /**
+         * A constant 12 [BoundedRational]
+         */
         val TWELVE = BoundedRational(12)
+        /**
+         * A constant 30 [BoundedRational]
+         */
         @Suppress("unused")
         val THIRTY = BoundedRational(30)
+        /**
+         * A constant -30 [BoundedRational]
+         */
         @Suppress("unused")
         val MINUS_THIRTY = BoundedRational(-30)
+        /**
+         * A constant 45 [BoundedRational]
+         */
         @Suppress("unused")
         val FORTY_FIVE = BoundedRational(45)
+        /**
+         * A constant -45 [BoundedRational]
+         */
         @Suppress("unused")
         val MINUS_FORTY_FIVE = BoundedRational(-45)
+        /**
+         * A constant 90 [BoundedRational]
+         */
         @Suppress("unused")
         val NINETY = BoundedRational(90)
+        /**
+         * A constant -90 [BoundedRational]
+         */
         @Suppress("unused")
         val MINUS_NINETY = BoundedRational(-90)
 
+        /**
+         * A constant 2 [BigInteger]
+         */
         @Suppress("unused")
         private val BIG_TWO = BigInteger.valueOf(2)
+        /**
+         * A constant 1 [BigInteger]
+         */
         private val BIG_MINUS_ONE = BigInteger.valueOf(-1)
+        /**
+         * A constant 5 [BigInteger]
+         */
+        private val BIG_FIVE = BigInteger.valueOf(5)
 
+        /**
+         * Computes the integral power of the [base] parameter raised to the [exp] power. We
+         * initialize our variable *expTemp* to [exp] if it is not *null* otherwise we return
+         * *null* to the caller. If [base] is *null* we return *null* to the caller. We set
+         * *expTemp* to its reduced equivalent with a positive denominator. If the [mDen] field
+         * of *expTemp* is not the constant [BigInteger.ONE] we return *null* to the caller (we
+         * do not handle non-integral powers), otherwise we return [base] raised to the [mNum]
+         * field of *expTemp* to the caller as calculated by the *pow* method of [base].
+         *
+         * @param base the [BoundedRational] we are to raise to the [exp] power
+         * @param exp the power we are to raise [base] to (must be integral)
+         * @return [base] raised to the [exp] power or *null* if [base] is *null* or the [mDen] field
+         * of [exp] once reduced is not the constant [BigInteger.ONE].
+         */
         fun pow(base: BoundedRational?, exp: BoundedRational?): BoundedRational? {
             var expTemp: BoundedRational? = exp ?: return null
             if (base == null) {
@@ -773,14 +898,28 @@ class BoundedRational {
             } else base.pow(expTemp.mNum)
         }
 
-
-        private val BIG_FIVE = BigInteger.valueOf(5)
-
         /**
          * Return the number of decimal digits to the right of the decimal point required to represent
-         * the argument exactly.
-         * Return Integer.MAX_VALUE if that's not possible.  Never returns a value less than zero, even
-         * if r is a power of ten.
+         * the argument exactly. Return [Integer.MAX_VALUE] if that's not possible. Never returns a
+         * value less than zero, even if [r] is a power of ten. We initialize our variable *rTemp*
+         * to [r] if it is not *null* otherwise we return [Integer.MAX_VALUE] to the caller. We
+         * initialize our variable *powersOfTwo* to 0 (this will be the Max power of 2 that divides
+         * the denominator) and our variable *powersOfFive* to 0 (this will be the Max power of 5
+         * that divides the denominator). If the [mDen] field of *rTemp* is the constant [BigInteger.ONE]
+         * we return 0 to the caller ([r] is an is an integral value, and there are no digits to the
+         * right of the decimal place required). We initialize our variable *den* to the [BigInteger]
+         * in the [mDen] field of *rTemp*. If the bit length of *den* is greater than MAX_SIZE we
+         * return [Integer.MAX_VALUE] to the caller (way too many digits to the right of the decimal
+         * point will be required). In order to compute the number of powers of 2 in *den* we loop
+         * so long as the least significant bit of *den* is 0 incrementing *powersOfTwo* then shifting
+         * *den* right by one bit (so long as the least significant bit is 0 there is another power
+         * of 2 remaining in *den*). In order to compute the number of powers of 5 in *den* we loop
+         * so long as *den* modulo BIG_FIVE is 0 incrementing *powersOfFive* and dividing *den* by
+         * BIG_FIVE. If *den* is not now reduced to the constant [BigInteger.ONE], or BIG_MINUS_ONE
+         * it has a factor of other than 2 or 5 (the divisors of 10) and the decimal expansion does
+         * not terminate so we return [Integer.MAX_VALUE] to the caller, otherwise we return the
+         * maximum of *powersOfTwo* and *powersOfFive* to the caller (this is the powers of 10 we
+         * need to cancel the denominator).
          */
         fun digitsRequired(r: BoundedRational?): Int {
             var rTemp: BoundedRational? = r ?: return Integer.MAX_VALUE
@@ -805,7 +944,7 @@ class BoundedRational {
             }
             // If the denominator has a factor of other than 2 or 5 (the divisors of 10), the decimal
             // expansion does not terminate.  Multiplying the fraction by any number of powers of 10
-            // will not cancel the denominator.  (Recall the fraction was in lowest terms to start
+            // will not cancel the denominator. (Recall the fraction was in lowest terms to start
             // with.) Otherwise the powers of 10 we need to cancel the denominator is the larger of
             // powersOfTwo and powersOfFive.
             return if (den != BigInteger.ONE && den != BIG_MINUS_ONE) {
