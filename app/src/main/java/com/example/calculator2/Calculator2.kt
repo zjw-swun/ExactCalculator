@@ -202,8 +202,8 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     private lateinit var mEvaluator: Evaluator
 
     /**
-     * The [CalculatorDisplay] in our ui with id R.id.main_calculator, it is a LinearLayout which
-     * contains the logic to control the widgets that make up the ui
+     * The [CalculatorDisplay] in our ui with id R.id.display, it is a *LinearLayout* which contains
+     * the toolbar, formula, and result.
      */
     private lateinit var mDisplayView: CalculatorDisplay
     /**
