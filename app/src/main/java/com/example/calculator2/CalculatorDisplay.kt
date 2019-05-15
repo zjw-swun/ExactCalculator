@@ -83,12 +83,14 @@ class CalculatorDisplay
     private lateinit var mTransition: Transition
 
     /**
-     *
+     * Strange sort of backing toggle field for our property [forceToolbarVisible]
      */
     private var mForceToolbarVisible: Boolean = false
 
     /**
-     * If set to `true` the toolbar should remain visible.
+     * If set to `true` the toolbar should remain visible, its last value is stored in our backing
+     * toggle field [mForceToolbarVisible]. The [set] method will change the visibility of the tool
+     * bar if the [mForceToolbarVisible] changes state as a result of the call.
      */
     var forceToolbarVisible: Boolean
         get() = mForceToolbarVisible || mAccessibilityManager.isEnabled
@@ -99,11 +101,27 @@ class CalculatorDisplay
             }
         }
 
+    /**
+     * If *true* the tool bar [mToolbar] is currently visible.
+     */
     val isToolbarVisible: Boolean
         get() = mToolbar.visibility == View.VISIBLE
 
     init {
+        /**
+         * The *GestureDetector* which interprets the *MotionEvent* touches which are passed it by
+         * our *onInterceptTouchEvent* and *onTouchEvent* overrides.
+         */
         mTapDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            /**
+             * Notified when a tap occurs with the down [MotionEvent] that triggered it. This will
+             * be triggered immediately for every down event. All other events should be preceded by
+             * this. We remove all [mHideToolbarRunnable] runnables from the queue, and return *true*
+             * to consume the event.
+             *
+             * @param e The down motion event.
+             * @return true if the event is consumed, else false
+             */
             override fun onDown(e: MotionEvent): Boolean {
                 // Remove callbacks to hide the toolbar.
                 removeCallbacks(mHideToolbarRunnable)
@@ -111,6 +129,16 @@ class CalculatorDisplay
                 return true
             }
 
+            /**
+             * Notified when a single-tap occurs. If the [mToolbar] tool bar is not visible we call
+             * our [showToolbar] method to make it visible with *true* for  the *autoHide* parameter
+             * so that it will be made invisible again after a 3 second delay, otherwise we call
+             * our [hideToolbar] method to make the tool bar invisible. Finally we return *true* to
+             * consume the event.
+             *
+             * @param e The down motion event of the single-tap.
+             * @return true if the event is consumed, else false
+             */
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 if (mToolbar.visibility != View.VISIBLE) {
                     showToolbar(true)
@@ -122,10 +150,20 @@ class CalculatorDisplay
             }
         })
 
-        // Draw the children in reverse order so that the toolbar is on top.
+        // Draw the children in reverse order so that the toolbar is on top. Setting this to `true`
+        // causes our `getChildDrawingOrder` method to be called in order to define the order that
+        // our children will be drawn (it reverses the normal drawing order).
         isChildrenDrawingOrderEnabled = true
     }
 
+    /**
+     * Finalize inflating a view from XML. This is called as the last phase of inflation, after all
+     * child views have been added. First we call our super's implementation of [onFinishInflate],
+     * then we initialize our field [mToolbar] by finding the [Toolbar] with id R.id.toolbar. We
+     * initialize our field [mTransition] with a [Fade] transition that will fade targets in and out,
+     * set its duration to FADE_DURATION (200ms) and add [mToolbar] as a target view that this
+     * [Transition] will be interested in animating.
+     */
     override fun onFinishInflate() {
         super.onFinishInflate()
 
@@ -135,40 +173,98 @@ class CalculatorDisplay
                 .addTarget(mToolbar)
     }
 
+    /**
+     * Returns the index of the child to draw for this iteration. Override this if you want to
+     * change the drawing order of children. By default, it returns [i]. We return [childCount]
+     * minus 1, minus [i] (the reverse order of [i]).
+     *
+     * @param childCount the number of children we have.
+     * @param i The current iteration.
+     * @return The index of the child to draw this iteration.
+     */
     override fun getChildDrawingOrder(childCount: Int, i: Int): Int {
         // Reverse the normal drawing order.
         return childCount - 1 - i
     }
 
+    /**
+     * This is called when the view is attached to a window. First we call our super's implementation
+     * of [onAttachedToWindow], then we call the *addAccessibilityStateChangeListener* method of
+     * [mAccessibilityManager] to add *this* as an *AccessibilityStateChangeListener* (this causes
+     * our [onAccessibilityStateChanged] override to be called when there is a change in the
+     * accessibility state).
+     */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         mAccessibilityManager.addAccessibilityStateChangeListener(this)
     }
 
+    /**
+     * This is called when the view is detached from a window. At this point it no longer has a
+     * surface for drawing. First we call our super's implementation of [onDetachedFromWindow] then
+     * we call the *removeAccessibilityStateChangeListener* method of [mAccessibilityManager] to
+     * remove this as a *AccessibilityStateChangeListener*.
+     */
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         mAccessibilityManager.removeAccessibilityStateChangeListener(this)
     }
 
+    /**
+     * Called when there is a change in the accessibility state. We just call our method [showToolbar]
+     * with the *autoHide* parameter *true* to show the tool bar, and auto hide after a 3 second
+     * delay.
+     *
+     * @param enabled Whether accessibility is enabled.
+     */
     override fun onAccessibilityStateChanged(enabled: Boolean) {
         // Always show the toolbar whenever accessibility is enabled.
         showToolbar(true)
     }
 
+    /**
+     * Implement this method to intercept all touch screen motion events. This allows you to watch
+     * events as they are dispatched to your children, and take ownership of the current gesture at
+     * any point. First we call the *onTouchEvent* method of our [GestureDetector] ([mTapDetector])
+     * to have it interpret what is going on with appropriate calls to its overrides *onDown* and
+     * *onSingleTapConfirmed*. Then we return the value returned by our super's implementation of
+     * [onInterceptTouchEvent].
+     *
+     * @param event The motion event being dispatched down the hierarchy.
+     * @return Return true to steal motion events from the children and have
+     * them dispatched to this ViewGroup through onTouchEvent().
+     * The current target will receive an ACTION_CANCEL event, and no further
+     * messages will be delivered here.
+     */
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         mTapDetector.onTouchEvent(event)
         return super.onInterceptTouchEvent(event)
     }
 
+    /**
+     * Implement this method to handle touch screen motion events. We return the value returned by
+     * the [onTouchEvent] method of our [GestureDetector] ([mTapDetector]) if it is *true* or else
+     * the value value returned by our super's implementation of [onTouchEvent].
+     *
+     * @param event The motion event.
+     * @return True if the event was handled, false otherwise.
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return mTapDetector.onTouchEvent(event) || super.onTouchEvent(event)
     }
 
     /**
-     * Shows the toolbar.
+     * Shows the toolbar. If our view has been laid out at least once ([isLaidOut] is *true*) we call
+     * the *beginDelayedTransition* of the [TransitionManager] to have it run our fade animation
+     * [mTransition] between our current scene and the next frame (which will include the visible
+     * tool bar) otherwise we don't bother animating the change. Next we set the visibility of
+     * [mToolbar] to VISIBLE, remove all [mHideToolbarRunnable]'s from the queue. If our parameter
+     * [autoHide] is *true* and our property [forceToolbarVisible] is *false* we post a delayed
+     * running of [mHideToolbarRunnable] to automatically hide the toolbar again after the delay
+     * AUTO_HIDE_DELAY_MILLIS (3000ms).
      *
-     * @param autoHide Automatically ide toolbar again after delay
+     * @param autoHide Automatically hide toolbar again after delay
      */
     fun showToolbar(autoHide: Boolean) {
         // Only animate if we have been laid out at least once.
@@ -187,7 +283,9 @@ class CalculatorDisplay
     }
 
     /**
-     * Hides the toolbar.
+     * Hides the toolbar. If our property [forceToolbarVisible] is *false* we remove all of the
+     * [mHideToolbarRunnable]'s from the queue, and then call the [run] method of [mHideToolbarRunnable]
+     * to have it hide the toolbar immediately.
      */
     fun hideToolbar() {
         if (!forceToolbarVisible) {
@@ -196,6 +294,9 @@ class CalculatorDisplay
         }
     }
 
+    /**
+     * Contains our static constants.
+     */
     companion object {
 
         /**
