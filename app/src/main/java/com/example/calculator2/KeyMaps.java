@@ -640,7 +640,7 @@ public class KeyMaps {
     }
 
     /**
-     * Return function button id for the substring of s starting at pos and ending with
+     * Return function button id for the substring of s starting at nextPos and ending with
      * the next "(".  Return NO_ID if there is none.
      * We currently check for both (possibly localized) button labels, and standard
      * English names.  (They should currently be the same, and hence this is currently redundant.)

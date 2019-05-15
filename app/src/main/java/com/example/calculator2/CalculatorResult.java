@@ -814,7 +814,7 @@ public class CalculatorResult extends AlignedTextView implements MenuItem.OnMenu
      * @param maxSize maximum number of characters (more or less) in result
      * @param lastDisplayedOffset zeroth entry is set to actual offset of last included digit,
      *                            after adjusting for exponent, etc.  May be null.
-     * @param forcePrecision Ensure that last included digit is at pos, at the expense
+     * @param forcePrecision Ensure that last included digit is at nextPos, at the expense
      *                       of treating maxSize as a soft limit.
      * @param forceSciNotation Force scientific notation, even if not required by maxSize.
      * @param insertCommas Insert commas as digit separators.

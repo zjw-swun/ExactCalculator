@@ -92,7 +92,7 @@ class CalculatorExpr {
          * followed by data needed by subclass constructor,
          * or as a byte >= 0x20 directly describing the OPERATOR token.
          */
-        abstract void write(DataOutput out) throws IOException;
+        abstract void write(DataOutput dataOutput) throws IOException;
 
         /**
          * Return a textual representation of the token.
@@ -116,8 +116,8 @@ class CalculatorExpr {
             id = KeyMaps.fromByte(op);
         }
         @Override
-        void write(DataOutput out) throws IOException {
-            out.writeByte(KeyMaps.toByte(id));
+        void write(DataOutput dataOutput) throws IOException {
+            dataOutput.writeByte(KeyMaps.toByte(id));
         }
         @Override
         public CharSequence toCharSequence(Context context) {
@@ -155,33 +155,33 @@ class CalculatorExpr {
             // mExponent = 0;
         }
 
-        Constant(DataInput in) throws IOException {
-            mWhole = in.readUTF();
-            byte flags = in.readByte();
+        Constant(DataInput dataInput) throws IOException {
+            mWhole = dataInput.readUTF();
+            byte flags = dataInput.readByte();
             if ((flags & SAW_DECIMAL) != 0) {
                 mSawDecimal = true;
-                mFraction = in.readUTF();
+                mFraction = dataInput.readUTF();
             } else {
                 // mSawDecimal = false;
                 mFraction = "";
             }
             if ((flags & HAS_EXPONENT) != 0) {
-                mExponent = in.readInt();
+                mExponent = dataInput.readInt();
             }
         }
 
         @Override
-        void write(DataOutput out) throws IOException {
+        void write(DataOutput dataOutput) throws IOException {
             byte flags = (byte)((mSawDecimal ? SAW_DECIMAL : 0)
                     | (mExponent != 0 ? HAS_EXPONENT : 0));
-            out.writeByte(TokenKind.CONSTANT.ordinal());
-            out.writeUTF(mWhole);
-            out.writeByte(flags);
+            dataOutput.writeByte(TokenKind.CONSTANT.ordinal());
+            dataOutput.writeUTF(mWhole);
+            dataOutput.writeByte(flags);
             if (mSawDecimal) {
-                out.writeUTF(mFraction);
+                dataOutput.writeUTF(mFraction);
             }
             if (mExponent != 0) {
-                out.writeInt(mExponent);
+                dataOutput.writeInt(mExponent);
             }
         }
 
@@ -196,13 +196,13 @@ class CalculatorExpr {
                 mSawDecimal = true;
                 return true;
             }
-            int val = KeyMaps.digVal(id);
+            int value = KeyMaps.digVal(id);
             if (mExponent != 0) {
                 if (Math.abs(mExponent) <= 10000) {
                     if (mExponent > 0) {
-                        mExponent = 10 * mExponent + val;
+                        mExponent = 10 * mExponent + value;
                     } else {
-                        mExponent = 10 * mExponent - val;
+                        mExponent = 10 * mExponent - value;
                     }
                     return true;
                 } else {  // Too large; refuse
@@ -210,9 +210,9 @@ class CalculatorExpr {
                 }
             }
             if (mSawDecimal) {
-                mFraction += val;
+                mFraction += value;
             } else {
-                mWhole += val;
+                mWhole += value;
             }
             return true;
         }
@@ -341,14 +341,14 @@ class CalculatorExpr {
         // This writes out only a shallow representation of the result, without
         // information about subexpressions. To write out a deep representation, we
         // find referenced subexpressions, and iteratively write those as well.
-        public void write(DataOutput out) throws IOException {
-            out.writeByte(TokenKind.PRE_EVAL.ordinal());
+        public void write(DataOutput dataOutput) throws IOException {
+            dataOutput.writeByte(TokenKind.PRE_EVAL.ordinal());
             if (mIndex > Integer.MAX_VALUE || mIndex < Integer.MIN_VALUE) {
                 // This would be millions of expressions per day for the life of the device.
                 throw new AssertionError("Expression index too big");
             }
-            out.writeInt((int)mIndex);
-            out.writeUTF(mShortRep);
+            dataOutput.writeInt((int)mIndex);
+            dataOutput.writeUTF(mShortRep);
         }
         PreEval(DataInput in) throws IOException {
             mIndex = in.readInt();
@@ -405,24 +405,24 @@ class CalculatorExpr {
     }
 
     /**
-     * Construct CalculatorExpr, by reading it from in.
+     * Construct CalculatorExpr, by reading it from dataInput.
      */
-    CalculatorExpr(DataInput in) throws IOException {
+    CalculatorExpr(DataInput dataInput) throws IOException {
         mExpr = new ArrayList<>();
-        int size = in.readInt();
+        int size = dataInput.readInt();
         for (int i = 0; i < size; ++i) {
-            mExpr.add(newToken(in));
+            mExpr.add(newToken(dataInput));
         }
     }
 
     /**
-     * Write this expression to out.
+     * Write this expression to dataOutput.
      */
-    public void write(DataOutput out) throws IOException {
+    public void write(DataOutput dataOutput) throws IOException {
         int size = mExpr.size();
-        out.writeInt(size);
+        dataOutput.writeInt(size);
         for (int i = 0; i < size; ++i) {
-            mExpr.get(i).write(out);
+            mExpr.get(i).write(dataOutput);
         }
     }
 
@@ -432,8 +432,8 @@ class CalculatorExpr {
      */
     public byte[] toBytes() {
         ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
-        try (DataOutputStream out = new DataOutputStream(byteArrayStream)) {
-            write(out);
+        try (DataOutputStream outputStream = new DataOutputStream(byteArrayStream)) {
+            write(outputStream);
         } catch (IOException e) {
             // Impossible; No IO involved.
             throw new AssertionError("Impossible IO exception", e);
@@ -646,11 +646,11 @@ class CalculatorExpr {
      * optimization, and to detect errors exactly when we can.
      */
     private static class EvalRet {
-        public int pos; // Next position (expression index) to be parsed.
-        public final UnifiedReal val; // Constructive Real result of evaluating subexpression.
+        public int nextPos; // Next position (expression index) to be parsed.
+        public final UnifiedReal valueUR; // Constructive Real result of evaluating subexpression.
         EvalRet(int p, UnifiedReal v) {
-            pos = p;
-            val = v;
+            nextPos = p;
+            valueUR = v;
         }
     }
 
@@ -754,72 +754,72 @@ class CalculatorExpr {
             // Does seem to accept a leading minus.
             if (isOperator(i+1, R.id.op_sub, ec)) {
                 argVal = evalUnary(i+2, ec);
-                return new EvalRet(argVal.pos, argVal.val.negate().sqrt());
+                return new EvalRet(argVal.nextPos, argVal.valueUR.negate().sqrt());
             } else {
                 argVal = evalUnary(i+1, ec);
-                return new EvalRet(argVal.pos, argVal.val.sqrt());
+                return new EvalRet(argVal.nextPos, argVal.valueUR.sqrt());
             }
         case R.id.lparen:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, argVal.val);
+            return new EvalRet(argVal.nextPos, argVal.valueUR);
         case R.id.fun_sin:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, toRadians(argVal.val, ec).sin());
+            return new EvalRet(argVal.nextPos, toRadians(argVal.valueUR, ec).sin());
         case R.id.fun_cos:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, toRadians(argVal.val,ec).cos());
+            return new EvalRet(argVal.nextPos, toRadians(argVal.valueUR,ec).cos());
         case R.id.fun_tan:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            UnifiedReal arg = toRadians(argVal.val, ec);
-            return new EvalRet(argVal.pos, arg.sin().divide(arg.cos()));
+            UnifiedReal arg = toRadians(argVal.valueUR, ec);
+            return new EvalRet(argVal.nextPos, arg.sin().divide(arg.cos()));
         case R.id.fun_ln:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, argVal.val.ln());
+            return new EvalRet(argVal.nextPos, argVal.valueUR.ln());
         case R.id.fun_exp:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, argVal.val.exp());
+            return new EvalRet(argVal.nextPos, argVal.valueUR.exp());
         case R.id.fun_log:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, argVal.val.ln().divide(UnifiedReal.TEN.ln()));
+            return new EvalRet(argVal.nextPos, argVal.valueUR.ln().divide(UnifiedReal.TEN.ln()));
         case R.id.fun_arcsin:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, fromRadians(argVal.val.asin(), ec));
+            return new EvalRet(argVal.nextPos, fromRadians(argVal.valueUR.asin(), ec));
         case R.id.fun_arccos:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, fromRadians(argVal.val.acos(), ec));
+            return new EvalRet(argVal.nextPos, fromRadians(argVal.valueUR.acos(), ec));
         case R.id.fun_arctan:
             argVal = evalExpr(i+1, ec);
-            if (isOperator(argVal.pos, R.id.rparen, ec)) {
-                argVal.pos++;
+            if (isOperator(argVal.nextPos, R.id.rparen, ec)) {
+                argVal.nextPos++;
             }
-            return new EvalRet(argVal.pos, fromRadians(argVal.val.atan(),ec));
+            return new EvalRet(argVal.nextPos, fromRadians(argVal.valueUR.atan(),ec));
         default:
             throw new SyntaxException("Unrecognized token in expression");
         }
@@ -829,8 +829,8 @@ class CalculatorExpr {
 
     private EvalRet evalSuffix(int i, EvalContext ec) throws SyntaxException {
         final EvalRet tmp = evalUnary(i, ec);
-        int cpos = tmp.pos;
-        UnifiedReal val = tmp.val;
+        int cpos = tmp.nextPos;
+        UnifiedReal valueTemp = tmp.valueUR;
 
         boolean isFact;
         boolean isSquared = false;
@@ -838,35 +838,35 @@ class CalculatorExpr {
                 (isSquared = isOperator(cpos, R.id.op_sqr, ec)) ||
                 isOperator(cpos, R.id.op_pct, ec)) {
             if (isFact) {
-                val = val.fact();
+                valueTemp = valueTemp.fact();
             } else if (isSquared) {
-                val = val.multiply(val);
+                valueTemp = valueTemp.multiply(valueTemp);
             } else /* percent */ {
-                val = val.multiply(ONE_HUNDREDTH);
+                valueTemp = valueTemp.multiply(ONE_HUNDREDTH);
             }
             ++cpos;
         }
-        return new EvalRet(cpos, val);
+        return new EvalRet(cpos, valueTemp);
     }
 
     private EvalRet evalFactor(int i, EvalContext ec) throws SyntaxException {
         final EvalRet result1 = evalSuffix(i, ec);
-        int cpos = result1.pos;  // current position
-        UnifiedReal val = result1.val;   // value so far
+        int cpos = result1.nextPos;  // current position
+        UnifiedReal value = result1.valueUR;   // value so far
         if (isOperator(cpos, R.id.op_pow, ec)) {
             final EvalRet exp = evalSignedFactor(cpos + 1, ec);
-            cpos = exp.pos;
-            val = val.pow(exp.val);
+            cpos = exp.nextPos;
+            value = value.pow(exp.valueUR);
         }
-        return new EvalRet(cpos, val);
+        return new EvalRet(cpos, value);
     }
 
     private EvalRet evalSignedFactor(int i, EvalContext ec) throws SyntaxException {
         final boolean negative = isOperator(i, R.id.op_sub, ec);
         int cpos = negative ? i + 1 : i;
         EvalRet tmp = evalFactor(cpos, ec);
-        cpos = tmp.pos;
-        final UnifiedReal result = negative ? tmp.val.negate() : tmp.val;
+        cpos = tmp.nextPos;
+        final UnifiedReal result = negative ? tmp.valueUR.negate() : tmp.valueUR;
         return new EvalRet(cpos, result);
     }
 
@@ -890,27 +890,27 @@ class CalculatorExpr {
         //noinspection UnusedAssignment
         boolean is_mul = false;
         boolean is_div = false;
-        int cpos = tmp.pos;   // Current position in expression.
-        UnifiedReal val = tmp.val;    // Current value.
-        while ((is_mul = isOperator(cpos, R.id.op_mul, ec))
+        int cpos = tmp.nextPos;   // Current position in expression.
+        UnifiedReal valueTemp = tmp.valueUR;    // Current value.
+        while ((is_mul = isOperator(cpos, R.id.op_mul, ec)) // TODO: remove assignment from while.
                || (is_div = isOperator(cpos, R.id.op_div, ec))
                || canStartFactor(cpos)) {
             if (is_mul || is_div) ++cpos;
             tmp = evalSignedFactor(cpos, ec);
             if (is_div) {
-                val = val.divide(tmp.val);
+                valueTemp = valueTemp.divide(tmp.valueUR);
             } else {
-                val = val.multiply(tmp.val);
+                valueTemp = valueTemp.multiply(tmp.valueUR);
             }
-            cpos = tmp.pos;
+            cpos = tmp.nextPos;
             //noinspection UnusedAssignment
             is_mul = is_div = false;
         }
-        return new EvalRet(cpos, val);
+        return new EvalRet(cpos, valueTemp);
     }
 
     /**
-     * Is the subexpression starting at pos a simple percent constant?
+     * Is the subexpression starting at nextPos a simple percent constant?
      * This is used to recognize expressions like 200+10%, which we handle specially.
      * This is defined as a Constant or PreEval token, followed by a percent sign, and followed
      * by either nothing or an additive operator.
@@ -943,37 +943,37 @@ class CalculatorExpr {
      * @param pos position of Constant or PreEval expression token corresponding to N.
      * @param isSubtraction this is a subtraction, as opposed to addition.
      * @param ec usable evaluation context; only length matters.
-     * @return UnifiedReal value and position, which is pos + 2, i.e. after percent sign
+     * @return UnifiedReal value and position, which is nextPos + 2, i.e. after percent sign
      */
     private EvalRet getPercentFactor(int pos, boolean isSubtraction, EvalContext ec)
             throws SyntaxException {
         EvalRet tmp = evalUnary(pos, ec);
-        UnifiedReal val = isSubtraction ? tmp.val.negate() : tmp.val;
-        val = UnifiedReal.ONE.add(val.multiply(ONE_HUNDREDTH));
-        return new EvalRet(pos + 2 /* after percent sign */, val);
+        UnifiedReal valueTemp = isSubtraction ? tmp.valueUR.negate() : tmp.valueUR;
+        valueTemp = UnifiedReal.ONE.add(valueTemp.multiply(ONE_HUNDREDTH));
+        return new EvalRet(pos + 2 /* after percent sign */, valueTemp);
     }
 
     private EvalRet evalExpr(int i, EvalContext ec) throws SyntaxException {
         EvalRet tmp = evalTerm(i, ec);
         boolean is_plus;
-        int cpos = tmp.pos;
-        UnifiedReal val = tmp.val;
+        int cpos = tmp.nextPos;
+        UnifiedReal valueTemp = tmp.valueUR;
         while ((is_plus = isOperator(cpos, R.id.op_add, ec))
                || isOperator(cpos, R.id.op_sub, ec)) {
             if (isPercent(cpos + 1)) {
                 tmp = getPercentFactor(cpos + 1, !is_plus, ec);
-                val = val.multiply(tmp.val);
+                valueTemp = valueTemp.multiply(tmp.valueUR);
             } else {
                 tmp = evalTerm(cpos + 1, ec);
                 if (is_plus) {
-                    val = val.add(tmp.val);
+                    valueTemp = valueTemp.add(tmp.valueUR);
                 } else {
-                    val = val.subtract(tmp.val);
+                    valueTemp = valueTemp.subtract(tmp.valueUR);
                 }
             }
-            cpos = tmp.pos;
+            cpos = tmp.nextPos;
         }
-        return new EvalRet(cpos, val);
+        return new EvalRet(cpos, valueTemp);
     }
 
     /**
@@ -1075,7 +1075,7 @@ class CalculatorExpr {
         EvalContext newEc = new EvalContext(er.getDegreeMode(index),
                 nestedExpr.trailingBinaryOpsStart(), er);
         EvalRet new_res = nestedExpr.evalExpr(0, newEc);
-        return er.putResultIfAbsent(index, new_res.val);
+        return er.putResultIfAbsent(index, new_res.valueUR);
     }
 
     /**
@@ -1107,10 +1107,10 @@ class CalculatorExpr {
             int prefixLen = trailingBinaryOpsStart();
             EvalContext ec = new EvalContext(degreeMode, prefixLen, er);
             EvalRet res = evalExpr(0, ec);
-            if (res.pos != prefixLen) {
+            if (res.nextPos != prefixLen) {
                 throw new SyntaxException("Failed to parse full expression");
             }
-            return res.val;
+            return res.valueUR;
         } catch (IndexOutOfBoundsException e) {
             throw new SyntaxException("Unexpected expression end");
         }
