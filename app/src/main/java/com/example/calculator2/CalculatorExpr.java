@@ -964,23 +964,27 @@ class CalculatorExpr {
 
     private EvalRet evalExpr(int i, EvalContext ec) throws SyntaxException {
         EvalRet tmp = evalTerm(i, ec);
-        boolean is_plus;
         int cpos = tmp.nextPos;
+
+        boolean isPlus = isOperator(cpos, R.id.op_add, ec);
+        boolean isMinus = isOperator(cpos, R.id.op_sub, ec);
+
         UnifiedReal valueTemp = tmp.valueUR;
-        while ((is_plus = isOperator(cpos, R.id.op_add, ec)) // TODO: remove assignment from while.
-               || isOperator(cpos, R.id.op_sub, ec)) {
+        while ((isPlus) || (isMinus)) {
             if (isPercent(cpos + 1)) {
-                tmp = getPercentFactor(cpos + 1, !is_plus, ec);
+                tmp = getPercentFactor(cpos + 1, !isPlus, ec);
                 valueTemp = valueTemp.multiply(tmp.valueUR);
             } else {
                 tmp = evalTerm(cpos + 1, ec);
-                if (is_plus) {
+                if (isPlus) {
                     valueTemp = valueTemp.add(tmp.valueUR);
                 } else {
                     valueTemp = valueTemp.subtract(tmp.valueUR);
                 }
             }
             cpos = tmp.nextPos;
+            isPlus = isOperator(cpos, R.id.op_add, ec);
+            isMinus = isOperator(cpos, R.id.op_sub, ec);
         }
         return new EvalRet(cpos, valueTemp);
     }
