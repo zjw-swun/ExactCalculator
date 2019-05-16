@@ -29,30 +29,33 @@ import java.util.*
  * A mathematical expression represented as a sequence of "tokens".
  * Many tokens are represented by button ids for the corresponding operator.
  * A token may also represent the result of a previously evaluated expression.
- * The add() method adds a token to the end of the expression.  The delete method() removes one.
- * Clear() deletes the entire expression contents. Eval() evaluates the expression,
- * producing a UnifiedReal result.
+ * The [add] method adds a token to the end of the expression.  The [delete] method removes one.
+ * [clear] deletes the entire expression contents. [eval] evaluates the expression,
+ * producing a [UnifiedReal] result.
  * Expressions are parsed only during evaluation; no explicit parse tree is maintained.
  *
- * The write() method is used to save the current expression.  Note that neither UnifiedReal
- * nor the underlying CR provide a serialization facility.  Thus we save all previously
+ * The [write] method is used to save the current expression.  Note that neither [UnifiedReal]
+ * nor the underlying [CR] provide a serialization facility.  Thus we save all previously
  * computed values by writing out the expression that was used to compute them, and reevaluate
  * when reading it back in.
  */
 @Suppress("MemberVisibilityCanBePrivate")
 internal class CalculatorExpr {
 
-    private var mExpr: ArrayList<Token>? = null  // The actual representation
+    /**
+     * The actual representation
+     */
+    private var mExpr: ArrayList<Token>
 
     val isEmpty: Boolean
-        get() = mExpr!!.isEmpty()
+        get() = mExpr.isEmpty()
 
     // Am I just a constant?
     @Suppress("unused")
     val isConstant: Boolean
-        get() = if (mExpr!!.size != 1) {
+        get() = if (mExpr.size != 1) {
             false
-        } else mExpr!![0] is Constant
+        } else mExpr[0] is Constant
 
     /**
      * An interface for resolving expression indices in embedded subexpressions to
@@ -401,7 +404,7 @@ internal class CalculatorExpr {
         mExpr = ArrayList()
         val size = dataInput.readInt()
         for (i in 0 until size) {
-            mExpr!!.add(newToken(dataInput))
+            mExpr.add(newToken(dataInput))
         }
     }
 
@@ -410,10 +413,10 @@ internal class CalculatorExpr {
      */
     @Throws(IOException::class)
     fun write(dataOutput: DataOutput) {
-        val size = mExpr!!.size
+        val size = mExpr.size
         dataOutput.writeInt(size)
         for (i in 0 until size) {
-            mExpr!![i].write(dataOutput)
+            mExpr[i].write(dataOutput)
         }
     }
 
@@ -438,11 +441,11 @@ internal class CalculatorExpr {
      * As opposed to an operator or pre-evaluated expression.
      */
     fun hasTrailingConstant(): Boolean {
-        val s = mExpr!!.size
+        val s = mExpr.size
         if (s == 0) {
             return false
         }
-        val t = mExpr!![s - 1]
+        val t = mExpr[s - 1]
         return t is Constant
     }
 
@@ -450,9 +453,9 @@ internal class CalculatorExpr {
      * Does this expression end with a binary operator?
      */
     fun hasTrailingBinary(): Boolean {
-        val s = mExpr!!.size
+        val s = mExpr.size
         if (s == 0) return false
-        val t = mExpr!![s - 1] as? Operator ?: return false
+        val t = mExpr[s - 1] as? Operator ?: return false
         return KeyMaps.isBinary(t.id)
     }
 
@@ -464,10 +467,10 @@ internal class CalculatorExpr {
      * operator.
      */
     fun add(id: Int): Boolean {
-        var s = mExpr!!.size
+        var s = mExpr.size
         val d = KeyMaps.digVal(id)
         val binary = KeyMaps.isBinary(id)
-        val lastTok = if (s == 0) null else mExpr!![s - 1]
+        val lastTok = if (s == 0) null else mExpr[s - 1]
         val lastOp = (lastTok as? Operator)?.id ?: 0
         // Quietly replace a trailing binary operator with another one, unless the second
         // operator is minus, in which case we just allow it as a unary minus.
@@ -485,23 +488,23 @@ internal class CalculatorExpr {
         if (isConstPiece) {
             // Since we treat juxtaposition as multiplication, a constant can appear anywhere.
             if (s == 0) {
-                mExpr!!.add(Constant())
+                mExpr.add(Constant())
                 s++
             } else {
-                val last = mExpr!![s - 1]
+                val last = mExpr[s - 1]
                 if (last !is Constant) {
                     if (last is PreEval) {
                         // Add explicit multiplication to avoid confusing display.
-                        mExpr!!.add(Operator(R.id.op_mul))
+                        mExpr.add(Operator(R.id.op_mul))
                         s++
                     }
-                    mExpr!!.add(Constant())
+                    mExpr.add(Constant())
                     s++
                 }
             }
-            return (mExpr!![s - 1] as Constant).add(id)
+            return (mExpr[s - 1] as Constant).add(id)
         } else {
-            mExpr!!.add(Operator(id))
+            mExpr.add(Operator(id))
             return true
         }
     }
@@ -511,7 +514,7 @@ internal class CalculatorExpr {
      * Assumes there is a constant at the end of the expression.
      */
     fun addExponent(exp: Int) {
-        val lastTok = mExpr!![mExpr!!.size - 1]
+        val lastTok = mExpr[mExpr.size - 1]
         (lastTok as Constant).addExponent(exp)
     }
 
@@ -520,11 +523,11 @@ internal class CalculatorExpr {
      */
     fun removeTrailingAdditiveOperators() {
         while (true) {
-            val s = mExpr!!.size
+            val s = mExpr.size
             if (s == 0) {
                 break
             }
-            val lastTok = mExpr!![s - 1] as? Operator ?: break
+            val lastTok = mExpr[s - 1] as? Operator ?: break
             val lastOp = lastTok.id
             if (lastOp != R.id.op_add && lastOp != R.id.op_sub) {
                 break
@@ -539,21 +542,21 @@ internal class CalculatorExpr {
      * reused directly.
      */
     fun append(expr2: CalculatorExpr) {
-        val s = mExpr!!.size
-        val s2 = expr2.mExpr!!.size
+        val s = mExpr.size
+        val s2 = expr2.mExpr.size
         // Check that we're not concatenating Constant or PreEval tokens, since the result would
         // look like a single constant, with very mysterious results for the user.
         if (s != 0 && s2 != 0) {
-            val last = mExpr!![s - 1]
-            val first = expr2.mExpr!![0]
+            val last = mExpr[s - 1]
+            val first = expr2.mExpr[0]
             if (first !is Operator && last !is Operator) {
                 // Fudge it by adding an explicit multiplication.  We would have interpreted it as
                 // such anyway, and this makes it recognizable to the user.
-                mExpr!!.add(Operator(R.id.op_mul))
+                mExpr.add(Operator(R.id.op_mul))
             }
         }
         for (i in 0 until s2) {
-            mExpr!!.add(expr2.mExpr!![i])
+            mExpr.add(expr2.mExpr[i])
         }
     }
 
@@ -562,25 +565,25 @@ internal class CalculatorExpr {
      * Or possibly remove a trailing exponent digit.
      */
     fun delete() {
-        val s = mExpr!!.size
+        val s = mExpr.size
         if (s == 0) {
             return
         }
-        val last = mExpr!![s - 1]
+        val last = mExpr[s - 1]
         if (last is Constant) {
             last.delete()
             if (!last.isEmpty) {
                 return
             }
         }
-        mExpr!!.removeAt(s - 1)
+        mExpr.removeAt(s - 1)
     }
 
     /**
      * Remove all tokens from the expression.
      */
     fun clear() {
-        mExpr!!.clear()
+        mExpr.clear()
     }
 
     /**
@@ -589,11 +592,11 @@ internal class CalculatorExpr {
      */
     fun clone(): Any {
         val result = CalculatorExpr()
-        for (t in mExpr!!) {
+        for (t in mExpr) {
             if (t is Constant) {
-                result.mExpr!!.add(t.clone() as Token)
+                result.mExpr.add(t.clone() as Token)
             } else {
-                result.mExpr!!.add(t)
+                result.mExpr.add(t)
             }
         }
         return result
@@ -608,7 +611,7 @@ internal class CalculatorExpr {
     fun abbreviate(index: Long, sr: String): CalculatorExpr {
         val result = CalculatorExpr()
         val t = PreEval(index, sr)
-        result.mExpr!!.add(t)
+        result.mExpr.add(t)
         return result
     }
 
@@ -671,7 +674,7 @@ internal class CalculatorExpr {
     // error.  We expect that to be caught in eval below.
 
     private fun isOperatorUnchecked(i: Int, op: Int): Boolean {
-        val t = mExpr!![i]
+        val t = mExpr[i]
         return if (t !is Operator) {
             false
         } else t.id == op
@@ -696,7 +699,7 @@ internal class CalculatorExpr {
 
     @Throws(SyntaxException::class)
     private fun evalUnary(i: Int, ec: EvalContext): EvalRet {
-        val t = mExpr!![i]
+        val t = mExpr[i]
         if (t is Constant) {
             return EvalRet(i + 1, UnifiedReal(t.toRational()))
         }
@@ -848,8 +851,8 @@ internal class CalculatorExpr {
     }
 
     private fun canStartFactor(i: Int): Boolean {
-        if (i >= mExpr!!.size) return false
-        val t = mExpr!![i] as? Operator ?: return true
+        if (i >= mExpr.size) return false
+        val t = mExpr[i] as? Operator ?: return true
         val id = t.id
         if (KeyMaps.isBinary(id)) return false
         return when (id) {
@@ -893,20 +896,20 @@ internal class CalculatorExpr {
      * but is consistent with Google web search.
      */
     private fun isPercent(pos: Int): Boolean {
-        if (mExpr!!.size < pos + 2 || !isOperatorUnchecked(pos + 1, R.id.op_pct)) {
+        if (mExpr.size < pos + 2 || !isOperatorUnchecked(pos + 1, R.id.op_pct)) {
             return false
         }
-        val number = mExpr!![pos]
+        val number = mExpr[pos]
         if (number is Operator) {
             return false
         }
-        if (mExpr!!.size == pos + 2) {
+        if (mExpr.size == pos + 2) {
             return true
         }
-        if (mExpr!![pos + 2] !is Operator) {
+        if (mExpr[pos + 2] !is Operator) {
             return false
         }
-        val op = mExpr!![pos + 2] as Operator
+        val op = mExpr[pos + 2] as Operator
         return op.id == R.id.op_add || op.id == R.id.op_sub || op.id == R.id.rparen
     }
 
@@ -957,9 +960,9 @@ internal class CalculatorExpr {
      * Return the starting position of the sequence of trailing binary operators.
      */
     private fun trailingBinaryOpsStart(): Int {
-        var result = mExpr!!.size
+        var result = mExpr.size
         while (result > 0) {
-            val last = mExpr!![result - 1] as? Operator ?: break
+            val last = mExpr[result - 1] as? Operator ?: break
             if (!KeyMaps.isBinary(last.id)) break
             --result
         }
@@ -977,7 +980,7 @@ internal class CalculatorExpr {
             first++
         }
         for (i in first until last) {
-            val t1 = mExpr!![i]
+            val t1 = mExpr[i]
             if (t1 is Operator || t1 is PreEval && t1.hasEllipsis()) {
                 return true
             }
@@ -989,7 +992,7 @@ internal class CalculatorExpr {
      * Does the expression contain trig operations?
      */
     fun hasTrigFuncs(): Boolean {
-        for (t in mExpr!!) {
+        for (t in mExpr) {
             if (t is Operator) {
                 if (KeyMaps.isTrigFunc(t.id)) {
                     return true
@@ -1007,7 +1010,7 @@ internal class CalculatorExpr {
      * the list.
      */
     private fun addReferencedExprs(list: ArrayList<Long>, er: ExprResolver) {
-        for (t in mExpr!!) {
+        for (t in mExpr) {
             if (t is PreEval) {
                 val index = t.mIndex
                 if (er.getResult(index) == null && !list.contains(index)) {
@@ -1095,7 +1098,7 @@ internal class CalculatorExpr {
     // Produce a string representation of the expression itself
     fun toSpannableStringBuilder(context: Context): SpannableStringBuilder {
         val ssb = SpannableStringBuilder()
-        for (t in mExpr!!) {
+        for (t in mExpr) {
             ssb.append(t.toCharSequence(context))
         }
         return ssb
