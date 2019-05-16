@@ -43,14 +43,25 @@ import java.util.*
 internal class CalculatorExpr {
 
     /**
-     * The actual representation
+     * The actual representation as a list of tokens. Constant tokens are always nonempty.
      */
     private var mExpr: ArrayList<Token>
 
+    /**
+     * Returns true if our field [mExpr] contains no elements.
+     *
+     * @return true if our field [mExpr] contains no elements.
+     */
     val isEmpty: Boolean
         get() = mExpr.isEmpty()
 
-    // Am I just a constant?
+    /**
+     * Am I just a constant? If the *size* of [mExpr] is not 1 it contains several [Token] objects
+     * (a constant occupies only a single [Token]) so we return *false*, otherwise we return *true*
+     * if the only entry in [mExpr] is a [Constant] instance.
+     *
+     * @return true if [mExpr] holds only a single constant.
+     */
     @Suppress("unused")
     val isConstant: Boolean
         get() = if (mExpr.size != 1) {
@@ -59,13 +70,13 @@ internal class CalculatorExpr {
 
     /**
      * An interface for resolving expression indices in embedded subexpressions to
-     * the associated CalculatorExpr, and associating a UnifiedReal result with it.
+     * the associated [CalculatorExpr], and associating a [UnifiedReal] result with it.
      * All methods are thread-safe in the strong sense; they may be called asynchronously
      * at any time from any thread.
      */
     interface ExprResolver {
         /**
-         * Retrieve the expression corresponding to index.
+         * Retrieve the expression corresponding to [index].
          *
          * @param index the index of the expression to retrieve
          * @return the expression corresponding to index.
@@ -73,7 +84,7 @@ internal class CalculatorExpr {
         fun getExpr(index: Long): CalculatorExpr
 
         /**
-         * Retrieve the degree mode associated with the expression at index i.
+         * Retrieve the degree mode associated with the expression at [index].
          *
          * @param index the index of the expression in question
          * @return the degree mode associated with the expression at index
@@ -81,10 +92,10 @@ internal class CalculatorExpr {
         fun getDegreeMode(index: Long): Boolean
 
         /**
-         * Retrieve the stored result for the expression at index, or return null.
+         * Retrieve the stored result for the expression at [index], or return null.
          *
          * @param index the index of the expression whose result we want
-         * @return the stored result for the expression at index, or null.
+         * @return the stored result for the expression at [index], or null.
          */
         fun getResult(index: Long): UnifiedReal?
 
@@ -92,51 +103,92 @@ internal class CalculatorExpr {
          * Atomically test for an existing result, and set it if there was none.
          * Return the prior result if there was one, or the new one if there was not.
          * May only be called after getExpr.
+         *
+         * @param index index of the expression that we are interested in.
+         * @param result the [UnifiedReal] we are to save at index [index].
+         * @return if there was no [UnifiedReal] at [index] we return [result], otherwise we return
+         * the [UnifiedReal] which already occupies position [index].
          */
         fun putResultIfAbsent(index: Long, result: UnifiedReal): UnifiedReal
     }
-    // as a list of tokens.  Constant
-    // tokens are always nonempty.
 
+    /**
+     * The kind of [Token] we are looking at.
+     */
     enum class TokenKind {
         CONSTANT, OPERATOR, PRE_EVAL
     }
 
+    /**
+     * The [TokenKind] types of [Token] extend this class ([Constant], [Operator], and [PreEval]).
+     */
     abstract class Token {
+        /**
+         * Used to query a [Token] for the [TokenKind] that if holds.
+         *
+         * @return the kind of [TokenKind] that this [Token] holds.
+         */
         internal abstract fun kind(): TokenKind
 
         /**
          * Write token as either a very small Byte containing the TokenKind,
          * followed by data needed by subclass constructor,
          * or as a byte >= 0x20 directly describing the OPERATOR token.
+         *
+         * @param dataOutput the [DataOutput] that our [Token] should write our bytes to.
          */
         @Throws(IOException::class)
         internal abstract fun write(dataOutput: DataOutput)
 
         /**
          * Return a textual representation of the token.
-         * The result is suitable for either display as part od the formula or TalkBack use.
+         * The result is suitable for either display as part of the formula or TalkBack use.
          * It may be a SpannableString that includes added TalkBack information.
+         *
          * @param context context used for converting button ids to strings
+         * @return a [CharSequence] representing this [Token] for display use.
          */
         internal abstract fun toCharSequence(context: Context): CharSequence
     }
 
     /**
-     * Representation of an operator token
+     * Representation of an OPERATOR token
      */
     private class Operator : Token {
-        // TODO: rename id.
-        val id: Int // We use the button resource id
+        /**
+         * We use the button resource id to represent the OPERATOR we hold.
+         */
+        val id: Int
 
+        /**
+         * Our constructor from the resource id of the operator button that was clicked. We just
+         * save our parameter [resId] in our field [id].
+         *
+         * @param resId the resource id of the operator button that was clicked.
+         */
         internal constructor(resId: Int) {
             id = resId
         }
 
+        /**
+         * Our constructor from a [Byte] representation of the operator we hold. We set our field
+         * [id] to the key resource id found by the *fromByte* method of [KeyMaps] for our parameter
+         * [op].
+         *
+         * @param op single byte encoding of the operator.
+         */
         internal constructor(op: Byte) {
             id = KeyMaps.fromByte(op)
         }
 
+        /**
+         * Writes the [Byte] encoding of the operator we hold to our parameter [dataOutput]. We call
+         * the *writeByte* method of [dataOutput] to write the low order 8 bits of the [Int] of the
+         * [Byte] representation of [id] created by the *toByte* method of [KeyMaps] to our parameter
+         * [dataOutput].
+         *
+         * @param dataOutput the [DataOutput] we are to write to.
+         */
         @Throws(IOException::class)
         override fun write(dataOutput: DataOutput) {
             dataOutput.writeByte(KeyMaps.toByte(id).toInt())

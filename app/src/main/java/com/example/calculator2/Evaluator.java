@@ -29,6 +29,8 @@ import androidx.annotation.VisibleForTesting;
 import android.text.Spannable;
 import android.util.Log;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -1578,6 +1580,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         final boolean longTimeout = mExprs.get(index).mLongTimeout;
         final CalculatorExpr abbrvExpr = getCollapsedExpr(index);
         clearMain();
+        assert abbrvExpr != null;
         mMainExpr.mExpr.append(abbrvExpr);
         mMainExpr.mLongTimeout = longTimeout;
         mChangedValue = true;
@@ -1785,6 +1788,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         mMainExpr.mLongTimeout |= ei.mLongTimeout;
         CalculatorExpr collapsed = getCollapsedExpr(index);
         if (collapsed != null) {
+            //noinspection ConstantConditions
             mMainExpr.mExpr.append(getCollapsedExpr(index));
         }
     }
@@ -1830,6 +1834,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         return newEi == null ? ei : newEi;
     }
 
+    @NotNull
     @Override
     public CalculatorExpr getExpr(long index) {
         return ensureExprIsCached(index).mExpr;
@@ -1853,8 +1858,9 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
         return ensureExprIsCached(index).mVal.get();
     }
 
+    @NotNull
     @Override
-    public UnifiedReal putResultIfAbsent(long index, UnifiedReal result) {
+    public UnifiedReal putResultIfAbsent(long index, @NotNull UnifiedReal result) {
         ExprInfo ei = mExprs.get(index);
         //noinspection ConstantConditions
         if (ei.mVal.compareAndSet(null, result)) {
