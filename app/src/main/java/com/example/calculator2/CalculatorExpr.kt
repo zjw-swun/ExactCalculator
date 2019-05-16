@@ -39,6 +39,7 @@ import java.util.*
  * computed values by writing out the expression that was used to compute them, and reevaluate
  * when reading it back in.
  */
+@Suppress("MemberVisibilityCanBePrivate")
 internal class CalculatorExpr {
 
     private var mExpr: ArrayList<Token>? = null  // The actual representation
@@ -140,13 +141,13 @@ internal class CalculatorExpr {
 
         public override fun toCharSequence(context: Context): CharSequence {
             val desc = KeyMaps.toDescriptiveString(context, id)
-            if (desc != null) {
+            return if (desc != null) {
                 val result = SpannableString(KeyMaps.toString(context, id))
                 val descSpan = TtsSpan.TextBuilder(desc).build()
                 result.setSpan(descSpan, 0, result.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                return result
+                result
             } else {
-                return KeyMaps.toString(context, id)
+                KeyMaps.toString(context, id)
             }
         }
 
@@ -218,15 +219,15 @@ internal class CalculatorExpr {
             }
             val value = KeyMaps.digVal(id)
             if (mExponent != 0) {
-                if (Math.abs(mExponent) <= 10000) {
-                    if (mExponent > 0) {
-                        mExponent = 10 * mExponent + value
+                return if (Math.abs(mExponent) <= 10000) {
+                    mExponent = if (mExponent > 0) {
+                        10 * mExponent + value
                     } else {
-                        mExponent = 10 * mExponent - value
+                        10 * mExponent - value
                     }
-                    return true
+                    true
                 } else {  // Too large; refuse
-                    return false
+                    false
                 }
             }
             if (mSawDecimal) {
@@ -247,15 +248,12 @@ internal class CalculatorExpr {
          * Assumes the constant is nonempty.
          */
         fun delete() {
-            if (mExponent != 0) {
-                mExponent /= 10
+            when {
+                mExponent != 0 -> mExponent /= 10
                 // Once zero, it can only be added back with addExponent.
-            } else if (!mFraction!!.isEmpty()) {
-                mFraction = mFraction!!.substring(0, mFraction!!.length - 1)
-            } else if (mSawDecimal) {
-                mSawDecimal = false
-            } else {
-                mWhole = mWhole!!.substring(0, mWhole!!.length - 1)
+                mFraction!!.isNotEmpty() -> mFraction = mFraction!!.substring(0, mFraction!!.length - 1)
+                mSawDecimal -> mSawDecimal = false
+                else -> mWhole = mWhole!!.substring(0, mWhole!!.length - 1)
             }
         }
 
@@ -265,11 +263,10 @@ internal class CalculatorExpr {
          * Result is internationalized.
          */
         override fun toString(): String {
-            var result: String?
-            if (mExponent != 0) {
-                result = mWhole
+            var result: String? = if (mExponent != 0) {
+                mWhole
             } else {
-                result = StringUtils.addCommas(mWhole, 0, mWhole!!.length)
+                StringUtils.addCommas(mWhole, 0, mWhole!!.length)
             }
             if (mSawDecimal) {
                 result += '.'.toString()
@@ -326,8 +323,8 @@ internal class CalculatorExpr {
         }
 
         companion object {
-            private val SAW_DECIMAL = 0x1
-            private val HAS_EXPONENT = 0x2
+            private const val SAW_DECIMAL = 0x1
+            private const val HAS_EXPONENT = 0x2
         }
     }
 
@@ -687,8 +684,8 @@ internal class CalculatorExpr {
     }
 
     class SyntaxException : Exception {
-        constructor() : super() {}
-        constructor(s: String) : super(s) {}
+        constructor() : super()
+        constructor(s: String) : super(s)
     }
 
     // The following functions all evaluate some kind of expression starting at position i in
@@ -721,12 +718,12 @@ internal class CalculatorExpr {
                 // Seems to have highest precedence.
                 // Does not add implicit paren.
                 // Does seem to accept a leading minus.
-                if (isOperator(i + 1, R.id.op_sub, ec)) {
+                return if (isOperator(i + 1, R.id.op_sub, ec)) {
                     argVal = evalUnary(i + 2, ec)
-                    return EvalRet(argVal.nextPos, argVal.valueUR.negate().sqrt())
+                    EvalRet(argVal.nextPos, argVal.valueUR.negate().sqrt())
                 } else {
                     argVal = evalUnary(i + 1, ec)
-                    return EvalRet(argVal.nextPos, argVal.valueUR.sqrt())
+                    EvalRet(argVal.nextPos, argVal.valueUR.sqrt())
                 }
             R.id.lparen -> {
                 argVal = evalExpr(i + 1, ec)
@@ -813,13 +810,11 @@ internal class CalculatorExpr {
         var isSquared = isOperator(cpos, R.id.op_sqr, ec)
         var isPct = isOperator(cpos, R.id.op_pct, ec)
         while (isFact || isSquared || isPct) {
-            if (isFact) {
-                valueTemp = valueTemp.fact()
-            } else if (isSquared) {
-                valueTemp = valueTemp.multiply(valueTemp)
-            } else
-            /* percent */ {
-                valueTemp = valueTemp.multiply(ONE_HUNDREDTH)
+            valueTemp = when {
+                isFact -> valueTemp.fact()
+                isSquared -> valueTemp.multiply(valueTemp)
+                /* percent */
+                else -> valueTemp.multiply(ONE_HUNDREDTH)
             }
             ++cpos
             isFact = isOperator(cpos, R.id.op_fact, ec)
@@ -857,9 +852,9 @@ internal class CalculatorExpr {
         val t = mExpr!![i] as? Operator ?: return true
         val id = t.id
         if (KeyMaps.isBinary(id)) return false
-        when (id) {
-            R.id.op_fact, R.id.rparen -> return false
-            else -> return true
+        return when (id) {
+            R.id.op_fact, R.id.rparen -> false
+            else -> true
         }
     }
 
@@ -874,10 +869,10 @@ internal class CalculatorExpr {
         while (isMul || isDiv || canStartFactor(cpos)) {
             if (isMul || isDiv) ++cpos
             tmp = evalSignedFactor(cpos, ec)
-            if (isDiv) {
-                valueTemp = valueTemp.divide(tmp.valueUR)
+            valueTemp = if (isDiv) {
+                valueTemp.divide(tmp.valueUR)
             } else {
-                valueTemp = valueTemp.multiply(tmp.valueUR)
+                valueTemp.multiply(tmp.valueUR)
             }
             cpos = tmp.nextPos
             isMul = isOperator(cpos, R.id.op_mul, ec)
@@ -945,10 +940,10 @@ internal class CalculatorExpr {
                 valueTemp = valueTemp.multiply(tmp.valueUR)
             } else {
                 tmp = evalTerm(cpos + 1, ec)
-                if (isPlus) {
-                    valueTemp = valueTemp.add(tmp.valueUR)
+                valueTemp = if (isPlus) {
+                    valueTemp.add(tmp.valueUR)
                 } else {
-                    valueTemp = valueTemp.subtract(tmp.valueUR)
+                    valueTemp.subtract(tmp.valueUR)
                 }
             }
             cpos = tmp.nextPos
@@ -1040,7 +1035,7 @@ internal class CalculatorExpr {
         while (scanned != list.size) {
             er.getExpr(list[scanned++]).addReferencedExprs(list, er)
         }
-        Collections.reverse(list)
+        list.reverse()
         return list
     }
 
@@ -1053,8 +1048,8 @@ internal class CalculatorExpr {
         val nestedExpr = er.getExpr(index)
         val newEc = EvalContext(er.getDegreeMode(index),
                 nestedExpr.trailingBinaryOpsStart(), er)
-        val new_res = nestedExpr.evalExpr(0, newEc)
-        return er.putResultIfAbsent(index, new_res.valueUR)
+        val newRes = nestedExpr.evalExpr(0, newEc)
+        return er.putResultIfAbsent(index, newRes.valueUR)
     }
 
     /**
@@ -1121,19 +1116,18 @@ internal class CalculatorExpr {
         fun newToken(dataInput: DataInput): Token {
             val kindByte = dataInput.readByte()
             if (kindByte < 0x20) {
-                val kind = tokenKindValues[kindByte.toInt()]
-                when (kind) {
+                when (tokenKindValues[kindByte.toInt()]) {
                     TokenKind.CONSTANT -> return Constant(dataInput)
                     TokenKind.PRE_EVAL -> {
                         val pe = PreEval(dataInput)
-                        if (pe.mIndex == -1L) {
+                        return if (pe.mIndex == -1L) {
                             // Database corrupted by earlier bug.
                             // Return a conspicuously wrong placeholder that won't lead to a crash.
                             val result = Constant()
                             result.add(R.id.dec_point)
-                            return result
+                            result
                         } else {
-                            return pe
+                            pe
                         }
                     }
                     else -> throw IOException("Bad save file format")

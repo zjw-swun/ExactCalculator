@@ -2194,7 +2194,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     private fun displayFraction() {
         val result = mEvaluator.getResult(Evaluator.MAIN_INDEX)
         displayMessage(getString(R.string.menu_fraction),
-                KeyMaps.translateResult(result.toNiceString()))
+                KeyMaps.translateResult(result!!.toNiceString()))
     }
 
     /**
