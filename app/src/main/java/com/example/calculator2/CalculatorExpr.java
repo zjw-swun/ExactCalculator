@@ -54,19 +54,28 @@ class CalculatorExpr {
      * at any time from any thread.
      */
     public interface ExprResolver {
-        /*
+        /**
          * Retrieve the expression corresponding to index.
+         *
+         * @param index the index of the expression to retrieve
+         * @return the expression corresponding to index.
          */
         CalculatorExpr getExpr(long index);
-        /*
+        /**
          * Retrieve the degree mode associated with the expression at index i.
+         *
+         * @param index the index of the expression in question
+         * @return the degree mode associated with the expression at index
          */
         boolean getDegreeMode(long index);
-        /*
+        /**
          * Retrieve the stored result for the expression at index, or return null.
+         *
+         * @param index the index of the expression whose result we want
+         * @return the stored result for the expression at index, or null.
          */
         UnifiedReal getResult(long index);
-        /*
+        /**
          * Atomically test for an existing result, and set it if there was none.
          * Return the prior result if there was one, or the new one if there was not.
          * May only be called after getExpr.
@@ -832,11 +841,10 @@ class CalculatorExpr {
         int cpos = tmp.nextPos;
         UnifiedReal valueTemp = tmp.valueUR;
 
-        boolean isFact;
-        boolean isSquared = false;
-        while ((isFact = isOperator(cpos, R.id.op_fact, ec)) ||
-                (isSquared = isOperator(cpos, R.id.op_sqr, ec)) ||
-                isOperator(cpos, R.id.op_pct, ec)) {
+        boolean isFact = isOperator(cpos, R.id.op_fact, ec);
+        boolean isSquared = isOperator(cpos, R.id.op_sqr, ec);
+        boolean isPct = isOperator(cpos, R.id.op_pct, ec);
+        while ((isFact) || (isSquared) || (isPct)) {
             if (isFact) {
                 valueTemp = valueTemp.fact();
             } else if (isSquared) {
@@ -845,6 +853,9 @@ class CalculatorExpr {
                 valueTemp = valueTemp.multiply(ONE_HUNDREDTH);
             }
             ++cpos;
+            isFact = isOperator(cpos, R.id.op_fact, ec);
+            isSquared = isOperator(cpos, R.id.op_sqr, ec);
+            isPct = isOperator(cpos, R.id.op_pct, ec);
         }
         return new EvalRet(cpos, valueTemp);
     }
@@ -958,7 +969,7 @@ class CalculatorExpr {
         boolean is_plus;
         int cpos = tmp.nextPos;
         UnifiedReal valueTemp = tmp.valueUR;
-        while ((is_plus = isOperator(cpos, R.id.op_add, ec))
+        while ((is_plus = isOperator(cpos, R.id.op_add, ec)) // TODO: remove assignment from while.
                || isOperator(cpos, R.id.op_sub, ec)) {
             if (isPercent(cpos + 1)) {
                 tmp = getPercentFactor(cpos + 1, !is_plus, ec);
