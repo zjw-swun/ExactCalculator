@@ -898,24 +898,22 @@ class CalculatorExpr {
 
     private EvalRet evalTerm(int i, EvalContext ec) throws SyntaxException {
         EvalRet tmp = evalSignedFactor(i, ec);
-        //noinspection UnusedAssignment
-        boolean is_mul = false;
-        boolean is_div = false;
         int cpos = tmp.nextPos;   // Current position in expression.
+
+        boolean isMul = isOperator(cpos, R.id.op_mul, ec);
+        boolean isDiv = isOperator(cpos, R.id.op_div, ec);
         UnifiedReal valueTemp = tmp.valueUR;    // Current value.
-        while ((is_mul = isOperator(cpos, R.id.op_mul, ec)) // TODO: remove assignment from while.
-               || (is_div = isOperator(cpos, R.id.op_div, ec))
-               || canStartFactor(cpos)) {
-            if (is_mul || is_div) ++cpos;
+        while ((isMul) || (isDiv) || canStartFactor(cpos)) {
+            if (isMul || isDiv) ++cpos;
             tmp = evalSignedFactor(cpos, ec);
-            if (is_div) {
+            if (isDiv) {
                 valueTemp = valueTemp.divide(tmp.valueUR);
             } else {
                 valueTemp = valueTemp.multiply(tmp.valueUR);
             }
             cpos = tmp.nextPos;
-            //noinspection UnusedAssignment
-            is_mul = is_div = false;
+            isMul = isOperator(cpos, R.id.op_mul, ec);
+            isDiv = isOperator(cpos, R.id.op_div, ec);
         }
         return new EvalRet(cpos, valueTemp);
     }
