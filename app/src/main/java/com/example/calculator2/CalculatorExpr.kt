@@ -124,7 +124,7 @@ internal class CalculatorExpr {
      */
     abstract class Token {
         /**
-         * Used to query a [Token] for the [TokenKind] that if holds.
+         * Used to query a [Token] for the [TokenKind] that it holds.
          *
          * @return the kind of [TokenKind] that this [Token] holds.
          */
@@ -194,6 +194,25 @@ internal class CalculatorExpr {
             dataOutput.writeByte(KeyMaps.toByte(id).toInt())
         }
 
+        /**
+         * Creates a [CharSequence] which contains both a displayable string describing the key that
+         * generated our operator, as well as a verbose [TtsSpan] describing our operator for the
+         * accessibility system to speak. We initialize our variable *desc* with the [String] that
+         * the *toDescriptiveString* method of [KeyMaps] finds for our key's resource id [id] if
+         * there is one. If *desc* is not *null* we initialize our variable *result* with a
+         * [SpannableString] constructed from the string that the *toString* method of [KeyMaps]
+         * finds for our key [id] (it is the string that appears on the key), and initialize our
+         * variable *descSpan* with a [TtsSpan] built from *desc*. We then attach *descSpan* to
+         * *result* from 0 to the length of *result* with a span type of SPAN_EXCLUSIVE_EXCLUSIVE
+         * so that it will not expand if text is added to *result*, and return *result* to the caller.
+         * If *desc* is *null* we just return the string on our key [id] found by the *toString*
+         * method of [KeyMaps] to the caller.
+         *
+         * @param context activity [Context] to use to access resources
+         * @return a [CharSequence] containing both a displayable string describing the key that
+         * generated our operator, as well as a verbose [TtsSpan] describing our operator for the
+         * accessibility system to speak.
+         */
         public override fun toCharSequence(context: Context): CharSequence {
             val desc = KeyMaps.toDescriptiveString(context, id)
             return if (desc != null) {
@@ -206,6 +225,12 @@ internal class CalculatorExpr {
             }
         }
 
+        /**
+         * Used to query a [Token] for the [TokenKind] that it holds. We always hold an OPERATOR so
+         * we return [TokenKind.OPERATOR].
+         *
+         * @return the kind of [TokenKind] that this [Token] holds (OPERATOR).
+         */
         override fun kind(): TokenKind {
             return TokenKind.OPERATOR
         }
@@ -216,14 +241,35 @@ internal class CalculatorExpr {
      * Supports addition and removal of trailing characters; hence mutable.
      */
     private class Constant : Token, Cloneable {
+        /**
+         * Flag indicating that our constant contains a decimal point.
+         */
         private var mSawDecimal: Boolean = false
-        private var mWhole: String? = null  // String preceding decimal point.
-        private var mFraction: String? = null // String after decimal point.
-        private var mExponent: Int = 0  // Explicit exponent, only generated through addExponent.
+        /**
+         * String preceding decimal point.
+         */
+        private var mWhole: String
+        /**
+         * String after decimal point.
+         */
+        private var mFraction: String
+        /**
+         * Explicit exponent, only generated through [addExponent].
+         */
+        private var mExponent: Int = 0
 
+        /**
+         * This is checked to see if our constant is empty. We return *false* if [mSawDecimal] is
+         * *true* (there is a [mFraction] string by implication (cute)) or if [mWhole] is not empty.
+         * We only return *true* if [mSawDecimal] is *false* and [mWhole] is empty.
+         */
         val isEmpty: Boolean
-            get() = !mSawDecimal && mWhole!!.isEmpty()
+            get() = !mSawDecimal && mWhole.isEmpty()
 
+        /**
+         * Our default constructor, we just initialize [mWhole] and [mFraction] to empty strings,
+         * leaving [mSawDecimal] *false* and [mExponent] 0.
+         */
         internal constructor() {
             mWhole = ""
             mFraction = ""
@@ -231,6 +277,20 @@ internal class CalculatorExpr {
             // mExponent = 0;
         }
 
+        /**
+         * Constructs our constant from a [DataInput] which had earlier been created by the [write]
+         * method of a [Constant] instance by writing itself to a [DataOutput]. We initialize our
+         * field [mWhole] to the string read by the *readUTF* method of [dataInput]. We initialize
+         * our variable *flags* by reading a byte from [dataInput] and converting it to [Int]. If
+         * the SAW_DECIMAL bit of *flags* is set we set our field [mSawDecimal] to *true* and
+         * initialize our field [mFraction] to the next string read by the *readUTF* method of
+         * [dataInput], if the SAW_DECIMAL bit of *flags* is not set we initialize [mFraction] to
+         * the empty string. Next we check if the HAS_EXPONENT bit of *flags* is set and if it is
+         * we initialize our field [mExponent] to the [Int] read from [dataInput] (otherwise we leave
+         * it 0).
+         *
+         * @param dataInput a [DataInput] to read our constant from.
+         */
         @Throws(IOException::class)
         internal constructor(dataInput: DataInput) {
             mWhole = dataInput.readUTF()
@@ -247,9 +307,16 @@ internal class CalculatorExpr {
             }
         }
 
+        /**
+         * Writes an encoded version of *this* [Constant] to the [DataOutput] passed it. The encoding
+         * is then readable by our [DataInput] constructor.
+         *
+         * @param dataOutput the [DataOutput] we are to write ourselves to.
+         */
         @Throws(IOException::class)
         override fun write(dataOutput: DataOutput) {
-            val flags = ((if (mSawDecimal) SAW_DECIMAL else 0) or if (mExponent != 0) HAS_EXPONENT else 0).toByte()
+            val flags = ((if (mSawDecimal) SAW_DECIMAL else 0)
+                    or if (mExponent != 0) HAS_EXPONENT else 0).toByte()
             dataOutput.writeByte(TokenKind.CONSTANT.ordinal)
             dataOutput.writeUTF(mWhole)
             dataOutput.writeByte(flags.toInt())
@@ -294,7 +361,7 @@ internal class CalculatorExpr {
         }
 
         fun addExponent(exp: Int) {
-            // Note that adding a 0 exponent is a no-op.  That's OK.
+            // Note that adding a 0 exponent is a no-op. That's OK.
             mExponent = exp
         }
 
@@ -306,9 +373,9 @@ internal class CalculatorExpr {
             when {
                 mExponent != 0 -> mExponent /= 10
                 // Once zero, it can only be added back with addExponent.
-                mFraction!!.isNotEmpty() -> mFraction = mFraction!!.substring(0, mFraction!!.length - 1)
+                mFraction.isNotEmpty() -> mFraction = mFraction.substring(0, mFraction.length - 1)
                 mSawDecimal -> mSawDecimal = false
-                else -> mWhole = mWhole!!.substring(0, mWhole!!.length - 1)
+                else -> mWhole = mWhole.substring(0, mWhole.length - 1)
             }
         }
 
@@ -321,7 +388,7 @@ internal class CalculatorExpr {
             var result: String? = if (mExponent != 0) {
                 mWhole
             } else {
-                StringUtils.addCommas(mWhole, 0, mWhole!!.length)
+                StringUtils.addCommas(mWhole, 0, mWhole.length)
             }
             if (mSawDecimal) {
                 result += '.'.toString()
@@ -340,16 +407,16 @@ internal class CalculatorExpr {
         @Throws(SyntaxException::class)
         fun toRational(): BoundedRational {
             var whole = mWhole
-            if (whole!!.isEmpty()) {
-                if (mFraction!!.isEmpty()) {
+            if (whole.isEmpty()) {
+                if (mFraction.isEmpty()) {
                     // Decimal point without digits.
                     throw SyntaxException()
                 } else {
                     whole = "0"
                 }
             }
-            var num = BigInteger(whole + mFraction!!)
-            var den = BigInteger.TEN.pow(mFraction!!.length)
+            var num = BigInteger(whole + mFraction)
+            var den = BigInteger.TEN.pow(mFraction.length)
             if (mExponent > 0) {
                 num = num.multiply(BigInteger.TEN.pow(mExponent))
             }
