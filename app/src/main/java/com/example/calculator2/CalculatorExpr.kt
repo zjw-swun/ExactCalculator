@@ -309,7 +309,13 @@ internal class CalculatorExpr {
 
         /**
          * Writes an encoded version of *this* [Constant] to the [DataOutput] passed it. The encoding
-         * is then readable by our [DataInput] constructor.
+         * is then readable by our [DataInput] constructor. We initialize our variable *flags* by
+         * setting its SAW_DECIMAL bit if our field [mSawDecimal] is *true*, and its HAS_EXPONENT
+         * bit if our field [mExponent] is not 0. We then write the *ordinal* of our [TokenKind]
+         * ([TokenKind.CONSTANT.ordinal]) to [dataOutput]. We write our field [mWhole] as a Modified
+         * UTF-8 string to [dataOutput], followed by a byte containing *flags*. If [mSawDecimal] is
+         * *true* we write our field [mFraction] as a Modified UTF-8 string to [dataOutput], and if
+         * [mExponent] is not 0 we write an [Int] containing [mExponent] to [dataOutput].
          *
          * @param dataOutput the [DataOutput] we are to write ourselves to.
          */
@@ -328,11 +334,26 @@ internal class CalculatorExpr {
             }
         }
 
-        // Given a button press, append corresponding digit.
-        // We assume id is a digit or decimal point.
-        // Just return false if this was the second (or later) decimal point
-        // in this constant.
-        // Assumes that this constant does not have an exponent.
+        /**
+         * Given a button press, append corresponding digit. We assume id is a digit or decimal
+         * point. Just return false if this was the second (or later) decimal point in this constant.
+         * Assumes that this constant does not have an exponent. If [id] is R.id.dec_point (a decimal
+         * point) we check if [mSawDecimal] is *true* or [mExponent] is not 0 and return *false* if
+         * that is so, otherwise we set [mSawDecimal] to *true* and return *true* to the caller. If
+         * [id] is not a decimal point it must be a digit, so we initialize our variable **value** to
+         * the [Int] of the digit that the key with reference id [id] represents. If [mExponent] is
+         * not 0 the key is a continuation of the exponent so if the absolute value of [mExponent]
+         * is less than or equal to 10,000 we multiply it by 10 and add __value__ to it if it was
+         * positive, or subtract __value__ if it was positive then return *true* to the caller. If
+         * exponent was already greater than 10,000 we return *false* to indicate that the number is
+         * too big. If [mExponent] is 0 we are adding characters to a real number and if [mSawDecimal]
+         * is *true* we add the string value of __value__ to the end of [mFraction], if [mSawDecimal]
+         * is *false* we add the string value of __value__ to the end of [mWhole]. We then return
+         * *true* to the caller.
+         *
+         * @param id the resource ID of the button that was pressed.
+         * @return *true* if the button press was successfully added, *false* if it was not added.
+         */
         fun add(id: Int): Boolean {
             if (id == R.id.dec_point) {
                 if (mSawDecimal || mExponent != 0) return false
@@ -341,7 +362,7 @@ internal class CalculatorExpr {
             }
             val value = KeyMaps.digVal(id)
             if (mExponent != 0) {
-                return if (Math.abs(mExponent) <= 10000) {
+                return if (Math.abs(mExponent) <= 10_000) {
                     mExponent = if (mExponent > 0) {
                         10 * mExponent + value
                     } else {
@@ -360,14 +381,24 @@ internal class CalculatorExpr {
             return true
         }
 
+        /**
+         * This is called when a keyboard has been used to enter a scientific notation constant, we
+         * just set our field [mExponent] to our parameter [exp].
+         *
+         * @param exp the exponent we are to add to our scientific notation constant
+         */
         fun addExponent(exp: Int) {
             // Note that adding a 0 exponent is a no-op. That's OK.
             mExponent = exp
         }
 
         /**
-         * Undo the last add or remove last exponent digit.
-         * Assumes the constant is nonempty.
+         * Undo the last add or remove last exponent digit. Assumes the constant is nonempty. In a
+         * *when* block we perform different actions depending on where the last character was added:
+         * + [mExponent] is not zero, we remove the character from [mExponent] by dividing it by 10.
+         * + [mFraction] is not empty, we remove the character from the end of [mFraction]
+         * + [mSawDecimal] is *true*, we set [mSawDecimal] to *false*
+         * + Otherwise we remove the character from the end of [mWhole].
          */
         fun delete() {
             when {
@@ -380,12 +411,20 @@ internal class CalculatorExpr {
         }
 
         /**
-         * Produce human-readable string representation of constant, as typed.
-         * We do add digit grouping separators to the whole number, even if not typed.
-         * Result is internationalized.
+         * Produce human-readable string representation of this constant, as typed. We do add digit
+         * grouping separators to the whole number, even if not typed. Result is internationalized.
+         * We initialize our variable __result__ to [mWhole] if [mExponent] is not zero, otherwise
+         * we initialize it to the string that the [StringUtils.addCommas] method creates by adding
+         * digit grouping separators to [mWhole]. If [mSawDecimal] is *true* we append a '.' to the
+         * end of __result__, then append [mFraction]. If [mExponent] is not 0 we append the letter
+         * "E" followed by the string value of [mExponent] to the end. Finally we return the string
+         * that the [KeyMaps.translateResult] method produces when it applies localization to
+         * __result__.
+         *
+         * @return a [String] which is a localization of the constant we represent.
          */
         override fun toString(): String {
-            var result: String? = if (mExponent != 0) {
+            var result: String = if (mExponent != 0) {
                 mWhole
             } else {
                 StringUtils.addCommas(mWhole, 0, mWhole.length)
@@ -397,12 +436,23 @@ internal class CalculatorExpr {
             if (mExponent != 0) {
                 result += "E$mExponent"
             }
-            return KeyMaps.translateResult(result!!)
+            return KeyMaps.translateResult(result)
         }
 
         /**
-         * Return BoundedRational representation of constant, if well-formed.
-         * Result is never null.
+         * Return [BoundedRational] representation of constant, if well-formed. Result is never null.
+         * We initialize our variable __whole__ with our field [mWhole], then check whether __whole__
+         * is empty and if it is we check whether [mFraction] is empty throwing SyntaxException if it
+         * is also empty, otherwise we set __whole__ to the string "0". We initialize our variable
+         * __num__ to the [BigInteger] created by parsing the string formed by the concatenation of
+         * [mFraction] to the end of __whole__, and initialize our variable __den__ to the [BigInteger]
+         * created by raising the constant [BigInteger.TEN] to the power of the length of [mFraction].
+         * When [mExponent] is greater than 0 we multiply __num__ by [BigInteger.TEN] raised to the
+         * [mExponent] power, and when [mExponent] is less than 0 we multiply __den__ by [BigInteger.TEN]
+         * raised to the minus [mExponent] power. Finally we return a [BoundedRational] constructed
+         * from __num__ and __den__.
+         *
+         * @return a [BoundedRational] representation of the constant we hold.
          */
         @Throws(SyntaxException::class)
         fun toRational(): BoundedRational {
@@ -417,24 +467,41 @@ internal class CalculatorExpr {
             }
             var num = BigInteger(whole + mFraction)
             var den = BigInteger.TEN.pow(mFraction.length)
-            if (mExponent > 0) {
-                num = num.multiply(BigInteger.TEN.pow(mExponent))
-            }
-            if (mExponent < 0) {
-                den = den.multiply(BigInteger.TEN.pow(-mExponent))
+            when {
+                mExponent > 0 -> num = num.multiply(BigInteger.TEN.pow(mExponent))
+                mExponent < 0 -> den = den.multiply(BigInteger.TEN.pow(-mExponent))
             }
             return BoundedRational(num, den)
         }
 
+        /**
+         * Return a textual representation of the [Constant] we hold. We just return the [String]
+         * returned by our [toString] method to the caller.
+         *
+         * @param context context used for converting button ids to strings. Unused.
+         * @return a [CharSequence] representing this [Constant] for display use.
+         */
         public override fun toCharSequence(context: Context): CharSequence {
             return toString()
         }
 
+        /**
+         * Used to query a [Token] for the [TokenKind] that it holds, we return [TokenKind.CONSTANT].
+         *
+         * @return the kind of [TokenKind] that this [Token] holds, we return [TokenKind.CONSTANT]
+         */
         public override fun kind(): TokenKind {
             return TokenKind.CONSTANT
         }
 
-        // Override clone to make it public
+        /**
+         * Creates and returns a deep copy of this [Constant]. We initialize our variable __result__
+         * with a new instance of [Constant], set its [mWhole] field to ours, set its [mFraction]
+         * field to ours, set its [mSawDecimal] field to ours, set its [mExponent] field to ours,
+         * and return __result__ to the caller.
+         *
+         * @return a deep copy of this [Constant].
+         */
         public override fun clone(): Any {
             val result = Constant()
             result.mWhole = mWhole
@@ -451,18 +518,19 @@ internal class CalculatorExpr {
     }
 
     /**
-     * The "token" class for previously evaluated subexpressions.
-     * We treat previously evaluated subexpressions as tokens.  These are inserted when we either
-     * continue an expression after evaluating some of it, or copy an expression and paste it back
-     * in.
-     * This only contains enough information to allow us to display the expression in a
-     * formula, or reevaluate the expression with the aid of an ExprResolver; we no longer
-     * cache the result. The expression corresponding to the index can be obtained through
-     * the ExprResolver, which looks it up in a subexpression database.
-     * The representation includes a UnifiedReal value.  In order to
-     * support saving and restoring, we also include the underlying expression itself, and the
-     * context (currently just degree mode) used to evaluate it.  The short string representation
-     * is also stored in order to avoid potentially expensive re-computation in the UI thread.
+     * The "token" class for previously evaluated subexpressions. We treat previously evaluated
+     * subexpressions as tokens. These are inserted when we either continue an expression after
+     * evaluating some of it, or copy an expression and paste it back in.
+     *
+     * This only contains enough information to allow us to display the expression in a formula, or
+     * reevaluate the expression with the aid of an [ExprResolver]; we no longer cache the result.
+     * The expression corresponding to the index can be obtained through the [ExprResolver], which
+     * looks it up in a subexpression database.
+     *
+     * The representation includes a [UnifiedReal] value. In order to support saving and restoring,
+     * we also include the underlying expression itself, and the context (currently just degree mode)
+     * used to evaluate it. The short string representation is also stored in order to avoid
+     * potentially expensive re-computation in the UI thread.
      */
     private class PreEval : Token {
         val mIndex: Long
