@@ -2309,7 +2309,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             }
             val k = KeyMaps.keyForChar(c)
             if (!explicit) {
-                val expEnd: Int = Evaluator.exponentEnd(myMoreChars, current) // TODO: look for 'e' too?
+                val expEnd: Int = Evaluator.exponentEnd(myMoreChars, current)
                 if (lastWasDigit && (current != expEnd)) {
                     // Process scientific notation with 'E' when pasting, in spite of ambiguity
                     // with base of natural log. 'e' is not recognized as equivalent!

@@ -511,8 +511,23 @@ internal class CalculatorExpr {
             return result
         }
 
+        /**
+         * Our static constants.
+         */
         companion object {
+            /**
+             * Bit in the "flags" byte we write to a [DataOutput] which signifies that our
+             * [mSawDecimal] field is *true*. This is then used in our [DataInput] constructor
+             * to set the [mSawDecimal] field correctly, and to know that a string for the
+             * [mFraction] field is in the [DataInput] it is reading from.
+             */
             private const val SAW_DECIMAL = 0x1
+            /**
+             * Bit in the "flags" byte we write to a [DataOutput] which signifies that our
+             * [mExponent] field is not 0. This is then used in our [DataInput] constructor
+             * to know that an [Int] for the [mExponent] field is in the [DataInput] it is
+             * reading from.
+             */
             private const val HAS_EXPONENT = 0x2
         }
     }
@@ -533,19 +548,53 @@ internal class CalculatorExpr {
      * potentially expensive re-computation in the UI thread.
      */
     private class PreEval : Token {
+        /**
+         * Index of expression in the subexpression database.
+         */
         val mIndex: Long
+        /**
+         * Short string representation of the subexpression.
+         */
         private val mShortRep: String  // Not internationalized.
 
+        /**
+         * Our two argument constructor, we just initialize our fields from our parameters.
+         *
+         * @param index Index of expression in the subexpression database.
+         * @param shortRep Short string representation of the subexpression.
+         */
         internal constructor(index: Long, shortRep: String) {
             mIndex = index
             mShortRep = shortRep
         }
 
+        /**
+         * Constructs a [PreEval] by reading one from a [DataInput] that our [write] method wrote
+         * previously. We initialize our field [mIndex] by reading an [Int] from [dataInput] and
+         * converting it to a [Long], then initialize our field [mShortRep] by reading a [String]
+         * from [dataInput] that was encoded using a modified UTF-8 format.
+         *
+         * @param dataInput the [DataInput] we are read to initialize ourselves from.
+         */
         @Throws(IOException::class)
-        public override// This writes out only a shallow representation of the result, without
-        // information about subexpressions. To write out a deep representation, we
-        // find referenced subexpressions, and iteratively write those as well.
-        fun write(dataOutput: DataOutput) {
+        internal constructor(dataInput: DataInput) {
+            mIndex = dataInput.readInt().toLong()
+            mShortRep = dataInput.readUTF()
+        }
+
+        /**
+         * This writes out only a shallow representation of the result, without information about
+         * subexpressions. To write out a deep representation, we find referenced subexpressions,
+         * and iteratively write those as well. First we write a [Byte] containing the ordinal of
+         * our kind of [TokenKind], ([TokenKind.PRE_EVAL]). If [mIndex] is greater than the maximum
+         * [Integer] or less than the minimum we throw an AssertionError ("Expression index too big").
+         * Otherwise we write the [Int] value of [mIndex] to [dataOutput], followed by the [String]
+         * in [mShortRep] encoded using a modified UTF-8 format.
+         *
+         * @param dataOutput the [DataOutput] we are to write to.
+         */
+        @Throws(IOException::class)
+        public override fun write(dataOutput: DataOutput) {
             dataOutput.writeByte(TokenKind.PRE_EVAL.ordinal)
             if (mIndex > Integer.MAX_VALUE || mIndex < Integer.MIN_VALUE) {
                 // This would be millions of expressions per day for the life of the device.
@@ -555,36 +604,62 @@ internal class CalculatorExpr {
             dataOutput.writeUTF(mShortRep)
         }
 
-        @Throws(IOException::class)
-        internal constructor(dataInput: DataInput) {
-            mIndex = dataInput.readInt().toLong()
-            mShortRep = dataInput.readUTF()
-        }
-
+        /**
+         * Returns the localization of the string [mShortRep] representing a numeric answer.
+         *
+         * @param context application [Context] to use to access resources.
+         * @return a [CharSequence] representation of our [mShortRep] string.
+         */
         public override fun toCharSequence(context: Context): CharSequence {
             return KeyMaps.translateResult(mShortRep)
         }
 
+        /**
+         * Used to query a [Token] for the [TokenKind] that it holds, we return [TokenKind.PRE_EVAL]
+         *
+         * @return the kind of [TokenKind] that this [Token] holds, [TokenKind.PRE_EVAL] in our case.
+         */
         public override fun kind(): TokenKind {
             return TokenKind.PRE_EVAL
         }
 
+        /**
+         * Used to see if there is an ELLIPSIS character in our [mShortRep] string. This is used by
+         * our [hasInterestingOps] method to determine if the expression is complex enough to require
+         * evaluating.
+         *
+         * @return *true* if there is an ELLIPSIS character in our [mShortRep] string.
+         */
         fun hasEllipsis(): Boolean {
             return mShortRep.lastIndexOf(KeyMaps.ELLIPSIS) != -1
         }
     }
 
+    /**
+     * The default constructor for a [CalculatorExpr] instance, we just initialize our field [mExpr]
+     * with a new instance of [ArrayList].
+     */
     constructor() {
         mExpr = ArrayList()
     }
 
+    /**
+     * Constructs a [CalculatorExpr] instance from an [ArrayList].
+     *
+     * @param expr an [ArrayList] holding an expression formed from [Token] instances.
+     */
     @Suppress("unused")
     private constructor(expr: ArrayList<Token>) {
         mExpr = expr
     }
 
     /**
-     * Construct CalculatorExpr, by reading it from dataInput.
+     * Construct our [CalculatorExpr], by reading it from [dataInput]. We initialize our field [mExpr]
+     * with a new instance of [ArrayList], and initialize our variable __size__ with the first [Int]
+     * read from [dataInput]. We then loop over __i__ from 0 until __size__ adding each [Token] read
+     * from [dataInput] by our [newToken] method to [mExpr].
+     *
+     * @param dataInput the [DataInput] we are to initialize ourselves from.
      */
     @Throws(IOException::class)
     constructor(dataInput: DataInput) {
@@ -596,7 +671,12 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Write this expression to dataOutput.
+     * Write this expression to dataOutput. We initialize our variable __size__ with the size of our
+     * field [mExpr], and write that [Int] to [dataOutput]. We then loop over __i__ from 0 until
+     * __size__ calling the __write__ method of each of the [Token] entries in [mExpr] to have it
+     * write itself to [dataOutput].
+     *
+     * @param dataOutput the [DataOutput] we are to write ourselves to.
      */
     @Throws(IOException::class)
     fun write(dataOutput: DataOutput) {
@@ -608,8 +688,15 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Use write() above to generate a byte array containing a serialized representation of
-     * this expression.
+     * Use [write] above to generate a byte array containing a serialized representation of this
+     * expression. We initialize our variable __byteArrayStream__ with a new instance of
+     * [ByteArrayOutputStream], then wrapped in a try block intended to catch IOException we create
+     * a new data output stream to write data to __byteArrayStream__ and use it in a call to our
+     * method [write] to have it write ourselves out to the [ByteArrayOutputStream] which the
+     * [DataOutputStream] is writing to. Finally we return a newly allocated byte array that is a
+     * copy of the contents of __byteArrayStream__.
+     *
+     * @return a [ByteArray] holding the [DataOutput] written by our [write] method.
      */
     fun toBytes(): ByteArray {
         val byteArrayStream = ByteArrayOutputStream()
@@ -624,8 +711,13 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Does this expression end with a numeric constant?
-     * As opposed to an operator or pre-evaluated expression.
+     * Does this expression end with a numeric constant? (As opposed to an operator or pre-evaluated
+     * expression). We initialize our variable __s__ with the size of our field [mExpr], and if __s__
+     * is 0 return *false* to the caller. We initialize our variable __t__ with the last [Token] in
+     * [mExpr] then return the results of checking to see if __t__ is a [Constant] instance to the
+     * caller.
+     *
+     * @return *true* if the last [Token] in our expression is a [Constant] token.
      */
     fun hasTrailingConstant(): Boolean {
         val s = mExpr.size
@@ -637,7 +729,14 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Does this expression end with a binary operator?
+     * Does this expression end with a binary operator? We initialize our variable __s__ with the
+     * size of our field [mExpr], and if __s__ is 0 return *false* to the caller. We initialize our
+     * variable __t__ with the last [Operator] in [mExpr] if it is one, and if not we return *false*
+     * to the caller. Finally we return the value returned by the [KeyMaps.isBinary] method for the
+     * __id__ field of __t__ to the caller (the [KeyMaps.isBinary] method returns *true* if the key
+     * with the resource id __id__ is one of the five binary operators).
+     *
+     * @return *true* if the last [Token] in our expression is a binary operator.
      */
     fun hasTrailingBinary(): Boolean {
         val s = mExpr.size
@@ -647,11 +746,43 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Append press of button with given id to expression.
-     * If the insertion would clearly result in a syntax error, either just return false
-     * and do nothing, or make an adjustment to avoid the problem.  We do the latter only
-     * for unambiguous consecutive binary operators, in which case we delete the first
-     * operator.
+     * Append press of button with given id to expression. If the insertion would clearly result in
+     * a syntax error, either just return false and do nothing, or make an adjustment to avoid the
+     * problem. We do the latter only for unambiguous consecutive binary operators, in which case we
+     * delete the first operator. We initialize our variable __s__ with the size of our field [mExpr],
+     * initialize our variable __d__ with the value returned by the [KeyMaps.digVal] for [id] (it will
+     * be the [Int] value represented by the button or the constant NOT_DIGIT if it is not a number
+     * button), and initialize our variable __binary__ to *true* if the [KeyMaps.isBinary] method
+     * determines that the [id] button is one of the five binary operators. We then initialize our
+     * variable __lastTok__ to null if __s__ is 0 or to the last [Token] in [mExpr] if __s__ is not
+     * zero. We initialize our variable __lastOp__ to the __id__ field of __lastTok__ if __lastTok__
+     * is not *null* and is an [Operator] or to 0 if it is *null* or not an [Operator].
+     *
+     * If __binary__ is *true* and the [KeyMaps.isPrefix] method determines that button [id] is not
+     * a prefix operator (the square root operator and the subtract operators are prefix operators)
+     * we want to see if we should replace a trailing binary operator with a new one, so first we
+     * check if __s__ is 0, or the __lastOp__ is a left paren, or the [KeyMaps.isFunc] method
+     * determines that __lastOp__ was a function, or the [KeyMaps.isPrefix] method determines that
+     * __lastOp__ was a prefix operator and not a subtraction operator and we return *false* to the
+     * caller if any of these tests are *true* because the new button will cause a syntax error.
+     * Otherwise we loop while our [hasTrailingBinary] method reports that the last [Token] in our
+     * expression is a binary operator and call our [delete] method to delete that operator.
+     *
+     * We next initialize our variable __isConstPiece__ to *true* if __d__ is not [KeyMaps.NOT_DIGIT]
+     * or if [id] is the decimal point button. We then branch based on whether __isConstPiece__ is
+     * *true*:
+     * - *true*: If __s__ is 0 we just add a new instance of [Constant] to [mExpr] and increment
+     * __s__, otherwise we initialize our variable __last__ to the last [Token] in [mExpr] and if
+     * __last__ is not a [Constant] we check if __last__ is a [PreEval] in which case we add a
+     * multiply operator to [mExpr] and increment __s__. Whether it was a [PreEval] or not we add
+     * a new instance of [Constant] to [mExpr] and increment __s__. Having prepared [mExpr] to
+     * have a [Constant] at its end we add the button [id] to the last [Token] in [mExpr] (it has
+     * to be a [Constant] at this point) and return whether that add was successful to the caller.
+     * - *false*: We add a new instance of [Operator] constructed from [id] to [mExpr] and return
+     * *true* to the caller.
+     *
+     * @param id the resource id of the button that we should try to add to the expression.
+     * @return *true* if the button was added successfully, *false* if it would cause a syntax error.
      */
     fun add(id: Int): Boolean {
         var s = mExpr.size
@@ -669,7 +800,9 @@ internal class CalculatorExpr {
             while (hasTrailingBinary()) {
                 delete()
             }
-            // s invalid and not used below.
+            // s is now invalid and not used below -- thanks to the KeyMaps.NOT_DIGIT check.
+            // Since the above code is only executed if the button is an operator not a digit
+            // it might be worthwhile to refactor this a bit to avoid the second check below.
         }
         val isConstPiece = d != KeyMaps.NOT_DIGIT || id == R.id.dec_point
         if (isConstPiece) {
@@ -697,8 +830,12 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Add exponent to the constant at the end of the expression.
-     * Assumes there is a constant at the end of the expression.
+     * Add exponent to the [Constant] at the end of the expression. Assumes there is a constant at
+     * the end of the expression. We initialize our variable __lastTok__ with the last [Token] in
+     * [mExpr], then cast it to [Constant] and call its __addExponent__ method to add [exp] as a
+     * scientific notation exponent to its number.
+     *
+     * @param exp the exponent to add to the [Constant] at the end of the expression.
      */
     fun addExponent(exp: Int) {
         val lastTok = mExpr[mExpr.size - 1]
