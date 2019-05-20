@@ -843,7 +843,16 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Remove trailing op_add and op_sub operators.
+     * Remove trailing op_add and op_sub operators. We loop until the last [Token] is not an op_add
+     * or op_sub operator:
+     * - We initialize our variable __s__ to the size of [mExpr].
+     * - If __s__ is 0 we are done, so we break out of the loop
+     * - Otherwise we initialize our variable __lastTok__ to the last [Token] in [mExpr], safe casting
+     * it to an [Operator] and breaking out of the loop if this is *null*
+     * - We initialize our variable __lastOp__ to the *id* field of __lastTok__, and if this is not
+     * the id of the add button or the subtract button we break out of the loop.
+     * - Now that we know that the last [Token] is an additive [Operator] we call our [delete] method
+     * to delete it and loop around to test the new last [Token]
      */
     fun removeTrailingAdditiveOperators() {
         while (true) {
@@ -861,9 +870,18 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Append the contents of the argument expression.
-     * It is assumed that the argument expression will not change, and thus its pieces can be
-     * reused directly.
+     * Append the contents of the argument expression. It is assumed that the argument expression
+     * will not change, and thus its pieces can be reused directly. We initialize our variable __s__
+     * to the size of our field [mExpr], and our variable __s2__ to the size of the __mExpr__ field
+     * of [expr2]. If __s__ is not 0 and __s2__ is not 0 we want to make sure we are not concatenating
+     * [Constant] or [PreEval] tokens so we initialize our variables __last__ to the last [Token] in
+     * [mExpr], and __first__ to the first [Token] in the __mExpr__ field of [expr2] and if __first__
+     * is not an [Operator] and __last__ is not an [Operator] we add an explicit multiplication to
+     * the end of [mExpr] in order to make to make our interpretation of this situation recognizable
+     * to the user. Finally we loop over __i__ from 0 until __s2__ adding each [Token] from the
+     * __mExpr__ field of [expr2] to the end of [mExpr].
+     *
+     * @param expr2 the [CalculatorExpr] we are to append.
      */
     fun append(expr2: CalculatorExpr) {
         val s = mExpr.size
@@ -885,8 +903,12 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Undo the last key addition, if any.
-     * Or possibly remove a trailing exponent digit.
+     * Undo the last key addition, if any. Or possibly remove a trailing exponent digit. We initialize
+     * our variable __s__ to the size of [mExpr] and if this is 0 return having done nothing. Otherwise
+     * we initialize our variable __last__ to the last [Token] in [mExpr]. If __last__ is a [Constant]
+     * we call its __delete__ method to delete the last character in it, and if __last__ is not now
+     * empty we return. If __last__ was not a [Constant] or that [Constant] is now empty we remove
+     * the last [Token] from [mExpr].
      */
     fun delete() {
         val s = mExpr.size
@@ -904,15 +926,20 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Remove all tokens from the expression.
+     * Remove all tokens from the expression. We just call the __clear__ function of [mExpr].
      */
     fun clear() {
         mExpr.clear()
     }
 
     /**
-     * Returns a logical deep copy of the CalculatorExpr.
-     * Operator and PreEval tokens are immutable, and thus aren't really copied.
+     * Returns a logical deep copy of the [CalculatorExpr]. [Operator] and [PreEval] tokens are
+     * immutable, and thus aren't really copied. We initialize our variable __result__ with a new
+     * instance of [CalculatorExpr]. Then we loop for all of the __t__ [Token]'s in [mExpr] adding
+     * the *clone* of __t__ to the __mExpr__ field of __result__ if __t__ is a [Constant], or just
+     * adding it without cloning it if it is not a [Constant].
+     *
+     * @return a logical deep copy of this [CalculatorExpr].
      */
     fun clone(): Any {
         val result = CalculatorExpr()
@@ -928,9 +955,16 @@ internal class CalculatorExpr {
 
     /**
      * Return a new expression consisting of a single token representing the current pre-evaluated
-     * expression.
-     * The caller supplies the expression index and short string representation.
-     * The expression must have been previously evaluated.
+     * expression. The caller supplies the expression index and short string representation. The
+     * expression must have been previously evaluated. We initialize our variable __result__ to a
+     * new instance of [CalculatorExpr], and our variable __t__ to a new instance of [PreEval] that
+     * is constructed from our parameters [index] and [sr], add __t__ to the __mExpr__ field of
+     * __result__, and return __result__ to the caller.
+     *
+     * @param index the database index of the expression we are to abbreviate to a single [Token]
+     * @param sr the short string representation of the [index] expression.
+     * @return a [CalculatorExpr] containing of a single [PreEval] token constructed from our
+     * parameters.
      */
     fun abbreviate(index: Long, sr: String): CalculatorExpr {
         val result = CalculatorExpr()
@@ -940,29 +974,56 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Internal evaluation functions return an EvalRet pair.
-     * We compute rational (BoundedRational) results when possible, both as a performance
-     * optimization, and to detect errors exactly when we can.
+     * Internal evaluation functions return an [EvalRet] pair. We compute rational ([BoundedRational])
+     * results when possible, both as a performance optimization, and to detect errors exactly when
+     * we can.
+     *
+     * @param nextPos Next position (expression index) to be parsed.
+     * @param valueUR Constructive Real result of evaluating subexpression.
      */
-    private class EvalRet internal constructor(var nextPos: Int // Next position (expression index) to be parsed.
-                                               , val valueUR: UnifiedReal // Constructive Real result of evaluating subexpression.
-    )
+    private class EvalRet internal constructor(var nextPos: Int, val valueUR: UnifiedReal)
 
     /**
      * Internal evaluation functions take an EvalContext argument.
      */
     private class EvalContext {
-        val mPrefixLength: Int // Length of prefix to evaluate. Not explicitly saved.
+        /**
+         * Length of prefix to evaluate, it is the starting position of the sequence of trailing
+         * binary operators if there are any. Not explicitly saved.
+         */
+        val mPrefixLength: Int
+        /**
+         * Flag indicating that trig functions will use degree mode
+         */
         val mDegreeMode: Boolean
-        val mExprResolver: ExprResolver  // Reconstructed, not saved.
+        /**
+         * The [ExprResolver] to use to resolve expression indices in embedded subexpressions to
+         * the associated [CalculatorExpr]. Reconstructed, not saved.
+         */
+        val mExprResolver: ExprResolver
 
-        // If we add any other kinds of evaluation modes, they go here.
+        /**
+         * Our constructor which just initializes our fields from its parameters.
+         * If we add any other kinds of evaluation modes, they go here.
+         *
+         * @param degreeMode [Boolean] to set our [mDegreeMode] to (*true* degrees, *false* radians)
+         * @param len [Int] to set our [mPrefixLength] to, it is the length of prefix to evaluate.
+         * @param er [ExprResolver] to use for our [mExprResolver] field.
+         */
         internal constructor(degreeMode: Boolean, len: Int, er: ExprResolver) {
             mDegreeMode = degreeMode
             mPrefixLength = len
             mExprResolver = er
         }
 
+        /**
+         * Constructs our [EvalContext] from a [DataInput] which had earlier been created by the
+         * [write] method of a [EvalContext] instance by writing itself to a [DataOutput].
+         *
+         * @param dataInput a [DataInput] to read our [mDegreeMode] field from.
+         * @param len [Int] to set our [mPrefixLength] to, it is the length of prefix to evaluate.
+         * @param er [ExprResolver] to use for our [mExprResolver] field.
+         */
         @Suppress("unused")
         @Throws(IOException::class)
         internal constructor(dataInput: DataInput, len: Int, er: ExprResolver) {
@@ -971,13 +1032,27 @@ internal class CalculatorExpr {
             mExprResolver = er
         }
 
+        /**
+         * Write our [mDegreeMode] as a [Boolean] to our parameter [dataOutput].
+         *
+         * @param dataOutput the [DataOutput] we are to write our [mDegreeMode] field to.
+         */
         @Suppress("unused")
         @Throws(IOException::class)
-        internal fun write(out: DataOutput) {
-            out.writeBoolean(mDegreeMode)
+        internal fun write(dataOutput: DataOutput) {
+            dataOutput.writeBoolean(mDegreeMode)
         }
     }
 
+    /**
+     * Converts our parameter [x] to radians if we are in degree mode, or just returns [x] if it is
+     * already in radians. The trig functions all take radians so we must convert their arguments to
+     * to radians if we are in degree mode.
+     *
+     * @param x the value we are to convert to radians.
+     * @param ec the [EvalContext] to reference to see if we are in degree mode or radian mode.
+     * @return [x] converted to radians if we are in degree mode, or [x] if it is already in radians.
+     */
     private fun toRadians(x: UnifiedReal, ec: EvalContext): UnifiedReal {
         return if (ec.mDegreeMode) {
             x.multiply(UnifiedReal.RADIANS_PER_DEGREE)
@@ -986,6 +1061,15 @@ internal class CalculatorExpr {
         }
     }
 
+    /**
+     * Converts our parameter [x] to degrees if we are in degree mode, or just returns [x] if we are
+     * in radian mode. The inverse trig functions all return their answer in radians, so we need to
+     * convert these answers to degrees if we are in degree mode.
+     *
+     * @param x the value we are to convert to degrees if need be.
+     * @param ec the [EvalContext] to reference to see if we are in degree mode or radian mode.
+     * @return [x] converted to degrees if we are in degree mode, or [x] if we are in radian mode.
+     */
     private fun fromRadians(x: UnifiedReal, ec: EvalContext): UnifiedReal {
         return if (ec.mDegreeMode) {
             x.divide(UnifiedReal.RADIANS_PER_DEGREE)
@@ -997,6 +1081,15 @@ internal class CalculatorExpr {
     // The following methods can all throw IndexOutOfBoundsException in the event of a syntax
     // error.  We expect that to be caught in eval below.
 
+    /**
+     * Returns *true* if the [Token] at index [i] in [mExpr] is an [Operator] and its button __id__
+     * is equal to [op], returns *false* if it is not an [Operator] or it has a different button
+     * __id__.
+     *
+     * @param i index of the [Token] in [mExpr] we are to check.
+     * @param op [Operator] button id we are looking for.
+     * @return *true* if the [Token] has the [Operator] button id [op].
+     */
     private fun isOperatorUnchecked(i: Int, op: Int): Boolean {
         val t = mExpr[i]
         return if (t !is Operator) {
@@ -1004,23 +1097,40 @@ internal class CalculatorExpr {
         } else t.id == op
     }
 
+    /**
+     * Returns *true* if the [Token] at index [i] in [mExpr] is an [Operator] and its button __id__
+     * is equal to [op], returns *false* if [i] is greater than or equal to the __mPrefixLength__
+     * field of [ec] (it is in the range of the trailing binary ops of [mExpr] and not within the
+     * range we evaluate), if it is not an [Operator] or it has a different button __id__.
+     *
+     * @param i index of the [Token] in [mExpr] we are to check.
+     * @param op [Operator] button id we are looking for.
+     * @param ec [EvalContext] to use to check if [i] in range.
+     * @return *true* if the [Token] has the [Operator] button id [op].
+     */
     private fun isOperator(i: Int, op: Int, ec: EvalContext): Boolean {
         return if (i >= ec.mPrefixLength) {
             false
         } else isOperatorUnchecked(i, op)
     }
 
+    /**
+     * The [Exception] we throw when we encounter a syntax error in our expression.
+     */
     class SyntaxException : Exception {
         constructor() : super()
         constructor(s: String) : super(s)
     }
 
     // The following functions all evaluate some kind of expression starting at position i in
-    // mExpr in a specified evaluation context.  They return both the expression value (as
-    // constructive real and, if applicable, as BoundedRational) and the position of the next token
-    // that was not used as part of the evaluation.
+    // mExpr in a specified evaluation context.  They return both the expression value (as a
+    // constructive real and, if applicable, as a BoundedRational) and the position of the next
+    // token that was not used as part of the evaluation.
     // This is essentially a simple recursive descent parser combined with expression evaluation.
 
+    /**
+     *
+     */
     @Throws(SyntaxException::class)
     private fun evalUnary(i: Int, ec: EvalContext): EvalRet {
         val t = mExpr[i]
