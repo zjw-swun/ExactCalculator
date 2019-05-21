@@ -1129,7 +1129,97 @@ internal class CalculatorExpr {
     // This is essentially a simple recursive descent parser combined with expression evaluation.
 
     /**
+     * "Evaluates" the [Token] at index [i] in [mExpr] and returns an [EvalRet] pair which holds the
+     * index of the next [Token] that needs to be evaluated, and a [UnifiedReal] constructive real
+     * result of evaluating the subexpression. We initialize our variable __t__ to the [Token] at
+     * index [i] in [mExpr]. We then branch for the different [Token] subclasses:
+     * - [Constant] we return an [EvalRet] whose next position is [i] plus 1, and whose [UnifiedReal]
+     * is a new instance constructed from the [BoundedRational] of __t__
+     * - [PreEval] we initialize our variable __index__ to the *mIndex* field of __t__, and our
+     * variable __res__ to the [UnifiedReal] returned by the *getResult* method of the *mExprResolver*
+     * field of [ec] for the expression at index __index__. If __res__ is *null* we set it to the
+     * [UnifiedReal] returned by our [nestedEval] method for index __index__ and the *mExprResolver*
+     * of [ec]. In either case we return an [EvalRet] whose next position is [i] plus 1, and whose
+     * [UnifiedReal] is __res__.
+     * - [Operator] we declare our variable __argVal__ to be an [EvalRet]. Then we branch on the *id*
+     * field of the [Operator] __t__:
+     *     - R.id.const_pi (the π button) we return an [EvalRet] whose next position is [i] plus 1,
+     *     and whose [UnifiedReal] is the constant [UnifiedReal.PI].
+     *     - R.id.const_e (the e button) we return an [EvalRet] whose next position is [i] plus 1,
+     *     and whose [UnifiedReal] is the constant [UnifiedReal.E]
+     *     - R.id.op_sqrt (the √ button) if the [Token] at index [i] plus 1 is a subtraction operator
+     *     we set __argVal__ to the [EvalRet] that a recursive call to our [evalUnary] method returns
+     *     for the position [i] plus 2, then return an [EvalRet] whose next position if the *nextPos*
+     *     field of __argVal__ and whose [UnifiedReal] is the square root of the negation of the
+     *     *valueUR* field of __argVal__, if the next operator is not a subtraction operator we set
+     *     __argVal__ to the [EvalRet] that a recursive call to our [evalUnary] method returns for
+     *     the position [i] plus 1, then return an [EvalRet] whose next position if the *nextPos*
+     *     field of __argVal__ and whose [UnifiedReal] is the square root of the *valueUR* field of
+     *     __argVal__.
+     *     - R.id.lparen (the left paren button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the *valueUR* field of __argVal__.
+     *     - R.id.fun_sin (the sine button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `sin()` of the result of converting the *valueUR* field of __argVal__
+     *     to radians (if it is not already in radians).
+     *     - R.id.fun_cos (the cosine button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `cos()` of the result of converting the *valueUR* field of __argVal__
+     *     to radians (if it is not already in radians).
+     *     - R.id.fun_tan (the tangent button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We
+     *     initialize our variable __arg__ to the result of converting the *valueUR* field of __argVal__
+     *     to radians (if it is not already in radians) and then return an [EvalRet] whose next index
+     *     is the *nextPos* field of __argVal__ and whose [UnifiedReal] is the `sin()` of __arg__
+     *     divided by the `cos()` of __arg__.
+     *     - R.id.fun_ln (the ln button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `ln()` of the the *valueUR* field of __argVal__.
+     *     - R.id.fun_exp (the e to the x button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `exp()` of the the *valueUR* field of __argVal__.
+     *     - R.id.fun_log (the log button) we set __argVal__ to the [EvalRet] returned by our
+     *     [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `ln()` of the the *valueUR* field of __argVal__ divided by the `ln()`
+     *     of the constant [UnifiedReal.TEN].
+     *     - R.id.fun_arcsin (the inverse sine button) we set __argVal__ to the [EvalRet] returned by
+     *     our [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos* is an
+     *     R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__. We then
+     *     return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `asin()` of the the *valueUR* field of __argVal__ (converted to degrees
+     *     if [ec] is in degree mode).
+     *     - R.id.fun_arccos (the inverse cosine button) we set __argVal__ to the [EvalRet] returned
+     *     by our [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos*
+     *     is an R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__.
+     *     We then return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `acos()` of the the *valueUR* field of __argVal__ (converted to degrees
+     *     if [ec] is in degree mode).
+     *     - R.id.fun_arctan (the inverse tangent button) we set __argVal__ to the [EvalRet] returned
+     *     by our [evalExpr] method for index [i] plus 1. If the [Token] at index *argVal.nextPos*
+     *     is an R.id.rparen button (a right paren) we increment the *nextPos* field of __argVal__.
+     *     We then return an [EvalRet] whose next index is the *nextPos* field of __argVal__ and whose
+     *     [UnifiedReal] is the `atan()` of the the *valueUR* field of __argVal__ (converted to degrees
+     *     if [ec] is in degree mode).
+     *     - For any other button id we throw a SyntaxException ("Unrecognized token in expression").
      *
+     * @param i the database index of the [Token] we are to work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the subexpression.
      */
     @Throws(SyntaxException::class)
     private fun evalUnary(i: Int, ec: EvalContext): EvalRet {
@@ -1237,6 +1327,9 @@ internal class CalculatorExpr {
         }
     }
 
+    /**
+     *
+     */
     @Throws(SyntaxException::class)
     private fun evalSuffix(i: Int, ec: EvalContext): EvalRet {
         val tmp = evalUnary(i, ec)
