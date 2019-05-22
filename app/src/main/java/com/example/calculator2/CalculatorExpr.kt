@@ -1328,7 +1328,31 @@ internal class CalculatorExpr {
     }
 
     /**
+     * Calls our [evalUnary] method to evaluate the next [Token] then will try to evaluate the three
+     * suffix operators (R.id.op_fact (factorial), R.id.op_sqr (x squared), and R.id.op_pct (the
+     * percent operator)) if the next operator after calling [evalUnary] is one of them. We initialize
+     * our variable `tmp` to the [EvalRet] that our method [evalUnary] returns after evaluating the
+     * [Token] at index [i] using [ec] as the [EvalContext], initialize our variable `cpos` to the
+     * `nextPos` field of `tmp`, and initialize our variable `valueTemp` to the `valueUR` field of
+     * `tmp`. We initialize our variables `isFact` to *true* if the [Token] at index [i] is the factorial
+     * button, `isSquared` to *true* if the [Token] at index [i] is the **x** squared button, and `isPct`
+     * to *true* if the [Token] at index [i] is the percent button. We then loop as long as `isFact`,
+     * `isSquared`, or `isPct` is *true*, setting `valueTemp` depending on which one is true:
+     * - `isFact` we set `valueTemp` to the result of calling the `fact()` method of `valueTemp`
+     * - `isSquared` we set `valueTemp` to the result of multiplying it by itself.
+     * - `isPct` we set `valueTemp` to the result of multiplying it by the constant [ONE_HUNDREDTH].
+     * We then increment `cpos`, and set our variables `isFact` to *true* if the [Token] at index `cpos`
+     * is the factorial button, `isSquared` to *true* if the [Token] at index `cpos` is the **x**
+     * squared button, and `isPct` to *true* if the [Token] at index `cpos` is the percent button and
+     * loop around to see if the next [Token] is a suffix operator.
      *
+     * When we are done looping we return a [EvalRet] constructed from `cpos` and `valueTemp` to the
+     * caller.
+     *
+     * @param i the database index of the [Token] we are to work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the subexpression.
      */
     @Throws(SyntaxException::class)
     private fun evalSuffix(i: Int, ec: EvalContext): EvalRet {
@@ -1354,6 +1378,22 @@ internal class CalculatorExpr {
         return EvalRet(cpos, valueTemp)
     }
 
+    /**
+     * Evaluates the next factor in our expression starting at index [i]. We initialize our variable
+     * `result1` to the [EvalRet] returned by our [evalSuffix] method after evaluating for possible
+     * suffix operators, then initialize our variables `cpos` to the `nextPos` field of `result1`,
+     * and `value` to the `valueUR` field of `result1`. If the [Token] at index `cpos` is a power
+     * operator (button id R.id.op_pow) we initialize our variable `exp` to the [EvalRet] returned
+     * by our [evalSignedFactor] after evaluating starting at index `cpos` plus 1, and then set our
+     * variables `cpos` to the `nextPos` field of `exp` and `value` to the `valueUR` field of `value`
+     * raised to the `valueUR` field of `exp` power. In any case we then return an [EvalRet] constructed
+     * from `cpos` and `value`.
+     *
+     * @param i the database index of the [Token] we are to work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the subexpression.
+     */
     @Throws(SyntaxException::class)
     private fun evalFactor(i: Int, ec: EvalContext): EvalRet {
         val result1 = evalSuffix(i, ec)
@@ -1367,6 +1407,22 @@ internal class CalculatorExpr {
         return EvalRet(cpos, value)
     }
 
+    /**
+     * Evaluates the next factor in our expression starting at index [i], negating the result returned
+     * if the [Token] at index [i] is a minus [Operator] (button id R.id.op_sub). We initialize our
+     * variable `negative` to *true* if the [Operator] at index [i] is a minus [Operator], and if it
+     * is we initialize our variable `cpos` to [i] plus 1, or to [i] if it is not. We initialize our
+     * variable `tmp` to the [EvalRet] returned by our [evalFactor] method after evaluating starting
+     * at index `cpos`, then set `cpos` to the `nextPos` field of `tmp`. We initialize our variable
+     * `result` to the negation of the `valueUR` field of `tmp` if `negative` is *true* or to the
+     * `valueUR` field of `tmp` if it is *false*. Finally we  return an [EvalRet] constructed from
+     * `cpos` and `result`.
+     *
+     * @param i the database index of the [Token] we are to work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the subexpression.
+     */
     @Throws(SyntaxException::class)
     private fun evalSignedFactor(i: Int, ec: EvalContext): EvalRet {
         val negative = isOperator(i, R.id.op_sub, ec)
@@ -1377,6 +1433,18 @@ internal class CalculatorExpr {
         return EvalRet(cpos, result)
     }
 
+    /**
+     * Tests whether the next [Token] at index [i] can be the beginning of a factor in our expression.
+     * If [i] is greater than or equal to the size of [mExpr] we return false (we are at the end of
+     * the expression). We initialize our variable `t` to the [Operator] at index [i] in [mExpr] if
+     * it is one, but return *true* if it is not an [Operator]. If it is an [Operator] we proceed,
+     * setting our variable `id` to the `id` field of `t`. If `id` is a binary [Operator] (power,
+     * multiply, divide, add or subtract) we return *false*, if it is a factorial [Operator] or a
+     * right paren we return *false*. Otherwise we return *true*.
+     *
+     * @param i the database index of the [Token] we are to work on.
+     * @return *true* if the [Token] at index [i] can start a new factor of our expression.
+     */
     private fun canStartFactor(i: Int): Boolean {
         if (i >= mExpr.size) return false
         val t = mExpr[i] as? Operator ?: return true
@@ -1388,6 +1456,14 @@ internal class CalculatorExpr {
         }
     }
 
+    /**
+     * Evaluates a term in our expression.
+     *
+     * @param i the database index of the [Token] we are start work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the term.
+     */
     @Throws(SyntaxException::class)
     private fun evalTerm(i: Int, ec: EvalContext): EvalRet {
         var tmp = evalSignedFactor(i, ec)
