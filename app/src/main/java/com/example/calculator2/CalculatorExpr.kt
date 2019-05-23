@@ -1457,7 +1457,25 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Evaluates a term in our expression.
+     * Evaluates a term in our expression. First we initialize our variable `tmp` to the [EvalRet]
+     * that our [evalSignedFactor] method returns when starting its evaluation at index [i]. We
+     * initialize our variable `cpos` to the `nextPos` field of `tmp`, then initialize our variable
+     * `isMul` to *true* if the [Operator] at `cpos` is a multiply operator, and `isDiv` to *true*
+     * if it is a divide operator. We initialize our variable `valueTemp` to the `valueUR` field of
+     * `cpos`. We then loop while `isMul`, `isDiv` or the return value of our method [canStartFactor]
+     * for the index `cpos` is *true*:
+     * - If `isMul` or `isDiv` are *true* we increment `cpos`
+     * - We set `tmp` to the [EvalRet] returned by our method [evalSignedFactor] when evaluating
+     * starting at `cpos`.
+     * - If `isDiv` is *true* we divide `valueTemp` by the `valueUR` field of `tmp`, and if `isMul`
+     * is *true* we multiply `valueTemp` by the `valueUR` field of `tmp`.
+     * - We set `cpos` to the `nextPos` field of `tmp`.
+     * - We set our variable `isMul` to *true* if the [Operator] at `cpos` is a multiply operator,
+     * and `isDiv` to *true* if it is a divide operator.
+     * - We then loop around to see if we should do further evaluation.
+     *
+     * When our term is fully evaluated we return an [EvalRet] constructed from `cpos` and `valueTemp`
+     * to the caller.
      *
      * @param i the database index of the [Token] we are start work on.
      * @param ec the [EvalContext] in which the [Token] should be evaluated.
@@ -1488,15 +1506,26 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Is the subexpression starting at nextPos a simple percent constant?
-     * This is used to recognize expressions like 200+10%, which we handle specially.
-     * This is defined as a Constant or PreEval token, followed by a percent sign, and followed
-     * by either nothing or an additive operator.
+     * Is the subexpression starting at [pos] a simple percent constant? This is used to recognize
+     * expressions like 200+10%, which we handle specially. This is defined as a [Constant] or [PreEval]
+     * token, followed by a percent sign, and followed by either nothing or an additive operator.
      * Note that we are intentionally far more restrictive in recognizing such expressions than
-     * e.g. http://blogs.msdn.com/b/oldnewthing/archive/2008/01/10/7047497.aspx .
+     * e.g. http://blogs.msdn.com/b/oldnewthing/archive/2008/01/10/7047497.aspx
      * When in doubt, we fall back to the the naive interpretation of % as 1/100.
      * Note that 100+(10)% yields 100.1 while 100+10% yields 110.  This may be controversial,
      * but is consistent with Google web search.
+     *
+     * If the `size` of [mExpr] is less than [pos] plus 2, or the [Token] at [pos] plus 1 is not
+     * an percent operator we return *false* to the caller. Otherwise we initialize our variable
+     * `number` to the [Token] at index [pos] in [mExpr]. If `number` is an [Operator] we return
+     * *false*. If the `size` of [mExpr] is equal to [pos] plus 2 we return *true* to the caller.
+     * If the [Token] at index [pos] plus 2 in [mExpr] is not an operator we return *false* to the
+     * caller. We initialize our variable `op` to the [Operator] at index [pos] plus 2 in [mExpr].
+     * Finally we return *true* if `op` is an addition operator, subtraction operator, or a right
+     * paren.
+     *
+     * @param pos the database index of the [Token] we are to start at.
+     * @return *true* if the subexpression starting at [pos] a simple percent constant.
      */
     private fun isPercent(pos: Int): Boolean {
         if (mExpr.size < pos + 2 || !isOperatorUnchecked(pos + 1, R.id.op_pct)) {
@@ -1517,7 +1546,14 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Compute the multiplicative factor corresponding to an N% addition or subtraction.
+     * Compute the multiplicative factor corresponding to an N% addition or subtraction. We initialize
+     * our variable `tmp` to the [EvalRet] returned by our method [evalUnary] when it evaluates its
+     * portion of the expression which starts at index [pos] in [mExpr], and initialize our variable
+     * `valueTemp` to the negation of the `valueUR` field of `tmp` if [isSubtraction] is *true* or the
+     * `valueUR` field of `tmp` if it is *false*. We then set `valueTemp` to the [UnifiedReal] constant
+     * `ONE` plus `valueTemp` multiplied by the constant [ONE_HUNDREDTH]. Finally we return a [EvalRet]
+     * constructed from [pos] plus 2 (the index after the percent sign) and `valueTemp` to the caller.
+     *
      * @param pos position of Constant or PreEval expression token corresponding to N.
      * @param isSubtraction this is a subtraction, as opposed to addition.
      * @param ec usable evaluation context; only length matters.
@@ -1531,6 +1567,34 @@ internal class CalculatorExpr {
         return EvalRet(pos + 2 /* after percent sign */, valueTemp)
     }
 
+    /**
+     * Evaluate the expression which starts at index [i] (our results may be fed into transcendental
+     * functions or used as a sub-expression when we are just enclosed in parens). We initialize our
+     * variable `tmp` to the [EvalRet] that our [evalTerm] method returns when it does its evaluation
+     * starting at index [i], then initialize our variable `cpos` to the `nextPos` field of `tmp`.
+     * We initialize our variable `isPlus` to *true* if the [Operator] at `cpos` is an addition operator,
+     * and our variable `isMinus` to *true* if it is a subtraction operator. We initialize our variable
+     * `valueTemp` to the `valueUR` field of `tmp`. We then loop while `isPlus` or `isMinus` is *true*:
+     * - If the [Token] at index `cpos` plus 1 is a percent operator we set `tmp` to the [EvalRet] that
+     * is returned by our [getPercentFactor] method when it starts at `cpos` plus 1 with its parameter
+     * `isSubtraction` set to the inverse of `isPlus`, then multiply `valueTemp` by the `valueUR` field
+     * of `tmp`
+     * - If the [Token] at index `cpos` plus 1 is not a percent operator we set `tmp` to the [EvalRet]
+     * returned by our [evalTerm] method when evaluating starting at `cpos` plus `, then if `isPlus`
+     * is *true* we add the `valueUR` field of `tmp` to `valueTemp`, otherwise we subtract the `valueUR`
+     * field of `tmp` from `valueTemp`.
+     * - To prepare for our next iteration through the loop we set `cpos` to the `nextPos` field of
+     * `tmp`, set our variable `isPlus` to *true* if the [Operator] at `cpos` is an addition operator,
+     * and our variable `isMinus` to *true* if it is a subtraction operator then loop back for the
+     * next term in our expression (if any)
+     *
+     * Finally we return an [EvalRet] constructed from `cpos` and `valueTemp` to the caller.
+     *
+     * @param i the database index of the [Token] we are start work on.
+     * @param ec the [EvalContext] in which the [Token] should be evaluated.
+     * @return an [EvalRet] pair that holds the next position (expression index) to be parsed, and a
+     * [UnifiedReal] constructive real result of evaluating the expression.
+     */
     @Throws(SyntaxException::class)
     private fun evalExpr(i: Int, ec: EvalContext): EvalRet {
         var tmp = evalTerm(i, ec)
@@ -1560,7 +1624,18 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Return the starting position of the sequence of trailing binary operators.
+     * Return the starting position of the sequence of trailing binary operators if there is one. We
+     * initialize our variable `result` to the `size` of [mExpr], then we loop while `result` is greater
+     * than 0:
+     * - We intialize our variable `last` to the [Operator] at index `result` minus 1 in [mExpr] if
+     * it is one, or break out of the loop if it is not.
+     * - If the [KeyMaps.isBinary] determines that `last` is not a binary operator we break out of
+     * the loop.
+     * - Otherwise we decrement `result` and loop back to try the next [Token] from the end.
+     *
+     * When done with the loop we return `result` to the caller.
+     *
+     * @return the index of the first [Token] in [mExpr] which is a trailing binary operator.
      */
     private fun trailingBinaryOpsStart(): Int {
         var result = mExpr.size
@@ -1573,7 +1648,20 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Is the current expression worth evaluating?
+     * Is the current expression worth evaluating? We initialize our variable `last` to the index of
+     * the first trailing binary operation in [mExpr] (if any), and initialize our variable `first`
+     * to 0. If `last` is greater than `first` and the [Token] at index `first` is a subtraction
+     * operator we increment `first` in order to skip it. We then loop over `i` from `first` until
+     * `last`:
+     * - We intialize our variable `t1` to the [Token] at index `i` in [mExpr].
+     * - If `t1` is an [Operator] token or `t1` is a [PreEval] token whose `mShortRep` string contains
+     * an ELLIPSIS character we return *true*.
+     *
+     * If we loop through all the tokens from `first` until `last` without finding an "interesting"
+     * [Token] we return *false*.
+     *
+     * @return *true* if there are [Operator] tokens, or [PreEval] tokens with an ELLIPSIS character
+     * in its `mShortRep` string in the expression in [mExpr].
      */
     fun hasInterestingOps(): Boolean {
         val last = trailingBinaryOpsStart()
@@ -1592,7 +1680,13 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Does the expression contain trig operations?
+     * Does the expression contain trig operations? We loop over all the `t` [Token]'s in [mExpr] and
+     * if any `t` is an [Operator] and the [KeyMaps.isTrigFunc] determines that `t` is a trig function
+     * we return *true* to the caller.
+     *
+     * If not of the [Token]'s in [mExpr] is a trig function we return *false*.
+     *
+     * @return *true* if one of the tokens in [mExpr] is a trig function.
      */
     fun hasTrigFuncs(): Boolean {
         for (t in mExpr) {
@@ -1606,11 +1700,18 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Add the indices of unevaluated PreEval expressions embedded in the current expression to
-     * argument.  This includes only directly referenced expressions e, not those indirectly
-     * referenced by e. If the index was already present, it is not added. If the argument
-     * contained no duplicates, the result will not either. New indices are added to the end of
-     * the list.
+     * Add the indices of unevaluated [PreEval] expressions embedded in the current expression to
+     * argument. This includes only directly referenced expressions, not those indirectly referenced.
+     * If the index was already present, it is not added. If the argument contained no duplicates,
+     * the result will not either. New indices are added to the end of the list. We loop over all the
+     * `t` [Token]'s in [mExpr], and if `t` is a [PreEval] we initialize our variable `index` to the
+     * `mIndex` field of `t`. Then if the `getResult` method of [er] returns *null* for index `index`,
+     * and [list] does not contain `index`, we add `index` to [list] and loop around for the next
+     * [Token].
+     *
+     * @param list the [ArrayList] of indices we are to add our [PreEval] indices to.
+     * @param er the [ExprResolver] we are to use to see if our [PreEval]'s have a stored
+     * [UnifiedReal] result.
      */
     private fun addReferencedExprs(list: ArrayList<Long>, er: ExprResolver) {
         for (t in mExpr) {
@@ -1625,7 +1726,7 @@ internal class CalculatorExpr {
 
     /**
      * Return a list of unevaluated expressions transitively referenced by the current one.
-     * All expressions in the resulting list will have had er.getExpr() called on them.
+     * All expressions in the resulting list will have had `er.getExpr()` called on them.
      * The resulting list is ordered such that evaluating expressions in list order
      * should trigger few recursive evaluations.
      */
