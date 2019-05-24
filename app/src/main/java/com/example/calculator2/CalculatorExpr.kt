@@ -1728,7 +1728,20 @@ internal class CalculatorExpr {
      * Return a list of unevaluated expressions transitively referenced by the current one.
      * All expressions in the resulting list will have had `er.getExpr()` called on them.
      * The resulting list is ordered such that evaluating expressions in list order
-     * should trigger few recursive evaluations.
+     * should trigger few recursive evaluations. We initialize our variable `list` with a
+     * new instance of [ArrayList] that will hold the [Long] expression indices. We initialize
+     * our variable `scanned` to 0. We then call our method [addReferencedExprs] to add all of
+     * the indices of unevaluated [PreEval] expressions embedded in the expression in our [mExpr]
+     * to `list`. We then loop while `scanned` is not equal to the `size` of `list`, calling
+     * the `getExpr` method of [er] to get the expression at the index contained in `list[scanned++]`
+     * and then calling its [addReferencedExprs] method to have it add all of the indices of
+     * unevaluated [PreEval] expressions embedded in the expression in **its** [mExpr] to `list`.
+     * When we have finished filling `list` with all of the expressions needed to evaluate our
+     * expression we reverse `list` and return it to the caller.
+     *
+     * @param er the [ExprResolver] that our [addReferencedExprs] method is to use to see if its
+     * [PreEval]'s have a stored [UnifiedReal] result.
+     * @return an [ArrayList] of all of the indices of expressions involved in our expression.
      */
     fun getTransitivelyReferencedExprs(er: ExprResolver): ArrayList<Long> {
         // We could avoid triggering any recursive evaluations by actually building the
@@ -1747,8 +1760,21 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Evaluate the expression at the given index to a UnifiedReal.
-     * Both saves and returns the result.
+     * Evaluate the expression at the given index to a [UnifiedReal]. Both saves and returns the
+     * result. We initialize our variable `nestedExpr` to the [CalculatorExpr] with the index [index]
+     * that is returned by the `getExpr` method of [er]. We initialize our variable `newEc` to a new
+     * instance of [EvalContext] constructed from the degree mode of the expression at index [index],
+     * with the length of the expression specified as the length of `nestedExpr` after removing any
+     * trailing binary operators, and [er] as the [ExprResolver] it is to use to access sub-expressions.
+     * We then initialize our variable `newRes` to the [EvalRet] that the `evalExpr` method of `nestedExpr`
+     * returns when starting its evaluation at index 0 using `newEc` as its [EvalContext]. Finally we
+     * return the [UnifiedReal] that the `putResultIfAbsent` method of [er] returns after making sure
+     * that the expression whose index is [index] and whose value is the `valueUR` field of `newRes`
+     * is stored in the database.
+     *
+     * @param index index of the expression we are evaluate.
+     * @param er [ExprResolver] we should use to retrieve subexpressions.
+     * @return the [UnifiedReal] that results from evaluating the expression.
      */
     @Throws(SyntaxException::class)
     fun nestedEval(index: Long, er: ExprResolver): UnifiedReal {
@@ -1760,12 +1786,27 @@ internal class CalculatorExpr {
     }
 
     /**
-     * Evaluate the expression excluding trailing binary operators.
-     * Errors result in exceptions, most of which are unchecked.  Should not be called
-     * concurrently with modification of the expression.  May take a very long time; avoid calling
-     * from UI thread.
+     * Evaluate the expression excluding trailing binary operators. Errors result in exceptions, most
+     * of which are unchecked. Should not be called concurrently with modification of the expression.
+     * May take a very long time; avoid calling from UI thread. First we initialize our variable
+     * `referenced` to the [ArrayList] of indices that our [getTransitivelyReferencedExprs] returns
+     * for our expression (these are all the indirectly referenced expressions in our expression).
+     * Then we loop over `index` for all of the expressions in `referenced` calling our `nestedEval`
+     * method to evaluate these expressions (using [er] as its [ExprResolver]). Then in a try block
+     * intended to catch IndexOutOfBoundsException in order to re-throw is as a SyntaxException
+     * ("Unexpected expression end") we:
+     * - Initialize our variable `prefixLen` to the length of our [mExpr] expression after removing
+     * trailing binary operators.
+     * - Initialize our variable `ec` to a [EvalContext] that uses [degreeMode] as its degree mode,
+     * `prefixLen` as the length of the expression, and [er] as its [ExprResolver].
+     * - Initialize our variable `res` to the [EvalRet] returned by our [evalExpr] method when starting
+     * its evaluation of [mExpr] at index 0, using `ec` as its [EvalContext].
+     * - If the `nextPos` field of `res` is not equal to `prefixLen` we throw a SyntaxException:
+     * ("Failed to parse full expression")
      *
      * @param degreeMode use degrees rather than radians
+     * @param er the [ExprResolver] we are to use to access sub-expressions.
+     * @return the [UnifiedReal] that results from evaluating our expression.
      */
     @Throws(SyntaxException::class)
     fun eval(degreeMode: Boolean, er: ExprResolver): UnifiedReal
@@ -1799,7 +1840,15 @@ internal class CalculatorExpr {
 
     }
 
-    // Produce a string representation of the expression itself
+    /**
+     * Produce a string representation of the expression itself. We initialize our variable `ssb` to
+     * a new instance of [SpannableStringBuilder]. We then loop through all of the `t` [Token]'s in
+     * [mExpr] appending the [CharSequence] generated by the `toCharSequence` method of `t` to `ssb`.
+     * Finally we return `ssb` to the caller.
+     *
+     * @param context [Context] to use to access string resources.
+     * @return a [SpannableStringBuilder] that is a string representation of our expression.
+     */
     fun toSpannableStringBuilder(context: Context): SpannableStringBuilder {
         val ssb = SpannableStringBuilder()
         for (t in mExpr) {
@@ -1808,16 +1857,48 @@ internal class CalculatorExpr {
         return ssb
     }
 
+    /**
+     * Our constants and static methods.
+     */
     companion object {
 
+        /**
+         * An array of the constants of the [TokenKind] enum type, in the order they're declared.
+         */
         private val tokenKindValues = TokenKind.values()
+        /**
+         * A constant [BigInteger] 1,000,000
+         */
         @Suppress("unused")
-        private val BIG_MILLION = BigInteger.valueOf(1000000)
+        private val BIG_MILLION = BigInteger.valueOf(1_000_000)
+        /**
+         * A constant [BigInteger] 1,000,000,000
+         */
         @Suppress("unused")
-        private val BIG_BILLION = BigInteger.valueOf(1000000000)
+        private val BIG_BILLION = BigInteger.valueOf(1_000_000_000)
+        /**
+         * A constant [UnifiedReal] 1/100
+         */
+        private val ONE_HUNDREDTH = UnifiedReal(100).inverse()
 
         /**
-         * Read token from dataInput.
+         * Read a [Token] from [dataInput]. We initialize our variable `kindByte` by reading a [Byte]
+         * from [dataInput]. If `kindByte` is less than 0x20 we are reading either a CONSTANT token
+         * or a PRE_EVAL token, so when the [tokenKindValues] entry for `kindByte` is:
+         * - [TokenKind.CONSTANT] we return the [Constant] that is constructed by reading from
+         * [dataInput]
+         * - [TokenKind.PRE_EVAL] we initialize our variable `pe` to the [PreEval] constructed by
+         * reading from [dataInput]. If the `mIndex` field of `pe` is equal to -1L, the database has
+         * been corrupted by an earlier bug so we initialize our variable `result` to a new instance
+         * of [Constant], add a decimal point to the end of `result` and return it to the caller.
+         * Otherwise we return `pe` to the caller.
+         * - For all other values of [TokenKind] addressed by a `kindByte` less than 0x20 we throw
+         * an IOException ("Bad save file format").
+         *
+         * If `kindByte` is greater than or equal to 0x20 it is an encoding for an operator, so we
+         * return an [Operator] instance constructed from `kindByte` to the caller.
+         *
+         * @param dataInput the [DataInput] we are to read a [Token] from.
          */
         @Throws(IOException::class)
         fun newToken(dataInput: DataInput): Token {
@@ -1843,7 +1924,5 @@ internal class CalculatorExpr {
                 return Operator(kindByte)
             }
         }
-
-        private val ONE_HUNDREDTH = UnifiedReal(100).inverse()
     }
 }
