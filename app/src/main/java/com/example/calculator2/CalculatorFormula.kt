@@ -20,7 +20,6 @@ import android.annotation.TargetApi
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.res.TypedArray
 import android.graphics.Rect
 import android.os.Build
 import android.text.Layout
@@ -29,30 +28,39 @@ import android.text.TextUtils
 import android.util.AttributeSet
 import android.util.Log
 import android.util.TypedValue
-import android.view.ActionMode
-import android.view.ContextMenu
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
+import android.view.*
 import android.widget.TextView
 
 /**
- * TextView adapted for displaying the formula and allowing pasting.
+ * [TextView] adapted for displaying the formula and allowing pasting.
  */
+@Suppress("MemberVisibilityCanBePrivate")
 class CalculatorFormula
 @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : AlignedTextView(context, attrs, defStyleAttr), MenuItem.OnMenuItemClickListener,
         ClipboardManager.OnPrimaryClipChangedListener {
 
-    // Temporary paint for use in layout methods.
+    /**
+     * Temporary paint for use in layout methods.
+     */
     private val mTempPaint = TextPaint()
 
+    /**
+     * The CalculatorFormula_maxTextSize attribute for this [TextView], defaults to the value
+     * returned by the [getTextSize] method (aka the `textSize` property of this [TextView]).
+     * It is set in the dimens.xml files for the various screen sizes, with the default 28dp.
+     */
     val maximumTextSize: Float
+    /**
+     * The CalculatorFormula_minTextSize attribute for this [TextView], defaults to the value
+     * returned by the [getTextSize] method (aka the `textSize` property of this [TextView]).
+     * It is set in the dimens.xml files for the various screen sizes, with the default 28dp.
+     */
     val minimumTextSize: Float
     private val mStepTextSize: Float
 
     private val mClipboardManager: ClipboardManager
+            = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
     private var mWidthConstraint = -1
     private var mActionMode: ActionMode? = null
@@ -83,8 +91,6 @@ class CalculatorFormula
 
     init {
 
-        mClipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-
         val a = context.obtainStyledAttributes(
                 attrs, R.styleable.CalculatorFormula, defStyleAttr, 0)
         maximumTextSize = a.getDimension(
@@ -112,13 +118,13 @@ class CalculatorFormula
         }
 
         // Ensure we are at least as big as our parent.
-        val width = View.MeasureSpec.getSize(widthMeasureSpec)
+        val width = MeasureSpec.getSize(widthMeasureSpec)
         if (minimumWidth != width) {
             minimumWidth = width
         }
 
         // Re-calculate our textSize based on new width.
-        mWidthConstraint = (View.MeasureSpec.getSize(widthMeasureSpec)
+        mWidthConstraint = (MeasureSpec.getSize(widthMeasureSpec)
                 - paddingLeft - paddingRight)
         val textSize = getVariableTextSize(text)
         if (getTextSize() != textSize) {
@@ -202,13 +208,13 @@ class CalculatorFormula
                 } else {
                     announceForAccessibility(c.toString())
                 }
-            } else if (added.length != 0) {
+            } else if (added.isNotEmpty()) {
                 announceForAccessibility(added)
             }
         } else {
             announceForAccessibility(newText)
         }
-        setText(newText, TextView.BufferType.SPANNABLE)
+        setText(newText, BufferType.SPANNABLE)
     }
 
     fun stopActionModeOrContextMenu(): Boolean {
@@ -244,11 +250,11 @@ class CalculatorFormula
         mPasteActionModeCallback = object : ActionMode.Callback2() {
 
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-                if (onMenuItemClick(item)) {
+                return if (onMenuItemClick(item)) {
                     mode.finish()
-                    return true
+                    true
                 } else {
-                    return false
+                    false
                 }
             }
 
@@ -284,6 +290,7 @@ class CalculatorFormula
     /**
      * Use ContextMenu for paste support on L and lower.
      */
+    @Suppress("UNUSED_ANONYMOUS_PARAMETER")
     private fun setupContextMenu() {
         setOnCreateContextMenuListener { contextMenu, view, contextMenuInfo ->
             val inflater = MenuInflater(context)
@@ -320,16 +327,16 @@ class CalculatorFormula
     }
 
     override fun onMenuItemClick(item: MenuItem): Boolean {
-        when (item.itemId) {
+        return when (item.itemId) {
             R.id.memory_recall -> {
                 mOnContextMenuClickListener!!.onMemoryRecall()
-                return true
+                true
             }
             R.id.menu_paste -> {
                 paste()
-                return true
+                true
             }
-            else -> return false
+            else -> false
         }
     }
 
@@ -352,6 +359,6 @@ class CalculatorFormula
 
     companion object {
 
-        val TAG_ACTION_MODE = "ACTION_MODE"
+        const val TAG_ACTION_MODE = "ACTION_MODE"
     }
 }/* attrs *//* defStyleAttr */
