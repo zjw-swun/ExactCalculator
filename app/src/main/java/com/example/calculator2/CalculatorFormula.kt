@@ -45,6 +45,10 @@ class CalculatorFormula
      */
     private val mTempPaint = TextPaint()
 
+    // The follow three values are used to vary the size of the text based on how many characters
+    // need to be displayed, and are set in the dimens.xml files for the different screen sizes.
+    // Unfortunately my pixel test device does not match any of the screen sizes so the default
+    // dimens.xml is used so there is no change of the text size as you add characters. (Bummer!)
     /**
      * The CalculatorFormula_maxTextSize attribute for this [TextView], defaults to the value
      * returned by the [getTextSize] method (aka the `textSize` property of this [TextView]).
@@ -64,12 +68,28 @@ class CalculatorFormula
      */
     private val mStepTextSize: Float
 
+    /**
+     * A handle to the [ClipboardManager] to use for pasting.
+     */
     private val mClipboardManager: ClipboardManager
             = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
+    /**
+     * How wide is the space for our text, used to decide whether to change the text size to fit.
+     */
     private var mWidthConstraint = -1
+    /**
+     * [ActionMode] we use for pasting.
+     */
     private var mActionMode: ActionMode? = null
+    /**
+     * [ActionMode.Callback] that is used for our [mActionMode] pasting [ActionMode].
+     */
     private var mPasteActionModeCallback: ActionMode.Callback? = null
+    /**
+     * The [ContextMenu] that is displayed when a user long clicks us, used to paste from the clipboard,
+     * or to paste from memory if one or both are holding something.
+     */
     private var mContextMenu: ContextMenu? = null
     private var mOnTextSizeChangeListener: OnTextSizeChangeListener? = null
     private var mOnContextMenuClickListener: OnFormulaContextMenuClickListener? = null
@@ -129,8 +149,7 @@ class CalculatorFormula
         }
 
         // Re-calculate our textSize based on new width.
-        mWidthConstraint = (MeasureSpec.getSize(widthMeasureSpec)
-                - paddingLeft - paddingRight)
+        mWidthConstraint = (MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight)
         val textSize = getVariableTextSize(text)
         if (getTextSize() != textSize) {
             setTextSizeInternal(TypedValue.COMPLEX_UNIT_PX, textSize, false /* notifyListener */)
