@@ -57,6 +57,11 @@ class CalculatorFormula
      * It is set in the dimens.xml files for the various screen sizes, with the default 28dp.
      */
     val minimumTextSize: Float
+    /**
+     * The CalculatorFormula_stepTextSize attribute for this [TextView], defaults to the value
+     * [maximumTextSize] minus [minimumTextSize] divided by 3. It is set in the dimens.xml files
+     * for the various screen sizes, with the default 8dp.
+     */
     private val mStepTextSize: Float
 
     private val mClipboardManager: ClipboardManager
