@@ -91,13 +91,34 @@ class CalculatorFormula
      * or to paste from memory if one or both are holding something.
      */
     private var mContextMenu: ContextMenu? = null
+    /**
+     * The [OnTextSizeChangeListener] that is called to animate a change in text size.
+     */
     private var mOnTextSizeChangeListener: OnTextSizeChangeListener? = null
+    /**
+     * The [OnFormulaContextMenuClickListener] whose `onPaste` or `onMemoryRecall` overrides are
+     * called when the user selects one or the other of these options from the [ContextMenu]
+     */
     private var mOnContextMenuClickListener: OnFormulaContextMenuClickListener? = null
+    /**
+     * The [Calculator2.OnDisplayMemoryOperationsListener] whose `shouldDisplayMemory` is called to
+     * determine if the memory of the calculator is currently holding an expression.
+     */
     private var mOnDisplayMemoryOperationsListener: Calculator2.OnDisplayMemoryOperationsListener? = null
 
+    /**
+     * Property that can be queried to determine if there is data in the memory of the calculator.
+     * The getter for this property returns *false* if our field [mOnDisplayMemoryOperationsListener]
+     * is null or if its `shouldDisplayMemory` method returns *false*, otherwise it returns *true*.
+     */
     private val isMemoryEnabled: Boolean
-        get() = mOnDisplayMemoryOperationsListener != null && mOnDisplayMemoryOperationsListener!!.shouldDisplayMemory()
+        get() = mOnDisplayMemoryOperationsListener != null
+                && mOnDisplayMemoryOperationsListener!!.shouldDisplayMemory()
 
+    /**
+     * Property that can be queried to determine if there is data on the clipboard. The getter for
+     * this property
+     */
     private val isPasteEnabled: Boolean
         get() {
             val clip = mClipboardManager.primaryClip
@@ -181,7 +202,7 @@ class CalculatorFormula
         val oldTextSize = textSize
         super.setTextSize(unit, size)
         if (notifyListener && mOnTextSizeChangeListener != null && textSize != oldTextSize) {
-            mOnTextSizeChangeListener!!.onTextSizeChanged(this, oldTextSize)
+            mOnTextSizeChangeListener?.onTextSizeChanged(this, oldTextSize)
         }
     }
 
@@ -385,4 +406,4 @@ class CalculatorFormula
 
         const val TAG_ACTION_MODE = "ACTION_MODE"
     }
-}/* attrs *//* defStyleAttr */
+}
