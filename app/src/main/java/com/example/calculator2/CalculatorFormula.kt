@@ -32,7 +32,14 @@ import android.view.*
 import android.widget.TextView
 
 /**
- * [TextView] adapted for displaying the formula and allowing pasting.
+ * [TextView] adapted for displaying the formula and allowing pasting.The JvmOverloads annotation
+ * causes the Kotlin compiler to generate overloads that substitute default parameter values.
+ *
+ * @param context The Context the view is running in, through which it can access the current theme,
+ * resources, etc.
+ * @param attrs The attributes of the XML tag that is inflating the view.
+ * @param defStyleAttr An attribute in the current theme that contains a reference to a style
+ * resource that supplies default values for the view. Can be 0 to not look for defaults.
  */
 @Suppress("MemberVisibilityCanBePrivate")
 class CalculatorFormula
@@ -117,7 +124,12 @@ class CalculatorFormula
 
     /**
      * Property that can be queried to determine if there is data on the clipboard. The getter for
-     * this property
+     * this property initializes the variable `clip` with the current primary clip on the clipboard.
+     * If `clip` is *null* or the `itemCount` field (number of items in the clip data) is 0 it returns
+     * *false* to the caller. It then initializes the variable `clipText` to a *null* `CharSequence`.
+     * Wrapped in a try block intended to catch and log any Exception, it sets `clipText` to the index
+     * 0 item in `clip` coerced to text. Finally it returns *true* if `clipText` is not *null* or
+     * empty.
      */
     private val isPasteEnabled: Boolean
         get() {
@@ -135,6 +147,20 @@ class CalculatorFormula
             return !TextUtils.isEmpty(clipText)
         }
 
+    /**
+     * Our init block. We initialize our variable `a` the `TypedArray` that the `obtainStyledAttributes`
+     * method of `context` returns for its styled attribute information for the `CalculatorFormula`
+     * custom attributes ("minTextSize", "maxTextSize", and "stepTextSize") after resolving the
+     * `attrs` attributes of the XML tag that is inflating the view, and the `defStyleAttr` default
+     * values. We initialize our field `maximumTextSize` with the CalculatorFormula_maxTextSize value
+     * in `a` (defaulting to the `textSize` property), initialize our field `minimumTextSize` with
+     * the CalculatorFormula_minTextSize value in `a` (defaulting to the `textSize` property), and
+     * initialize our field `mStepTextSize` with the CalculatorFormula_stepTextSize value in `a`
+     * (defaulting to `maximumTextSize` minus `minimumTextSize` divided by 3). We then recycle `a`.
+     * If the SDK version of the software currently running on this hardware device is greater than
+     * or equal to "M" we call our `setupActionMode` method to set up `ActionMode` for paste support,
+     * otherwise we call our `setupContextMenu` method to set up `ContextMenu` for paste support.
+     */
     init {
 
         val a = context.obtainStyledAttributes(
@@ -154,13 +180,31 @@ class CalculatorFormula
         }
     }
 
+    /**
+     * Measure the view and its content to determine the measured width and the measured height. If
+     * our view has __not__ been through at least one layout since it was last attached to or detached
+     * from a window we call our [setTextSizeInternal] method to set our text size to [maximumTextSize]
+     * in pixels, with the `notifyListener` *false* so that it does not bother to call the
+     * `onTextSizeChanged` override of [mOnTextSizeChangeListener], then we set the minimum height
+     * property of our view to the vertical distance between lines of text plus the bottom padding
+     * and the top padding of our view. We initialize our variable `width` to the width of our parent
+     * as specified in [widthMeasureSpec] and if our `minimumWidth` property is not equal to `width`
+     * we set it to `width`. We set our [mWidthConstraint] field to the width of our parent as specified
+     * in [widthMeasureSpec] minus our left padding and our right padding. We initialize our variable
+     * `textSize` to the variable text size calculated by our [getVariableTextSize] method and if
+     * the text size of this [TextView] is not equal to `textSize` we call our [setTextSizeInternal]
+     * method to set our text size to `textSize` in pixels, with the `notifyListener` *false* so that
+     * it does not bother to call the `onTextSizeChanged` override of [mOnTextSizeChangeListener].
+     * Finally we call our super's implementation of `onMeasure`.
+     *
+     * @param widthMeasureSpec horizontal space requirements as imposed by the parent.
+     * @param heightMeasureSpec vertical space requirements as imposed by the parent.
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         if (!isLaidOut) {
             // Prevent shrinking/resizing with our variable textSize.
-            setTextSizeInternal(TypedValue.COMPLEX_UNIT_PX, maximumTextSize,
-                    false /* notifyListener */)
-            minimumHeight = (lineHeight + compoundPaddingBottom
-                    + compoundPaddingTop)
+            setTextSizeInternal(TypedValue.COMPLEX_UNIT_PX, maximumTextSize,false)
+            minimumHeight = (lineHeight + compoundPaddingBottom + compoundPaddingTop)
         }
 
         // Ensure we are at least as big as our parent.
@@ -173,12 +217,20 @@ class CalculatorFormula
         mWidthConstraint = (MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight)
         val textSize = getVariableTextSize(text)
         if (getTextSize() != textSize) {
-            setTextSizeInternal(TypedValue.COMPLEX_UNIT_PX, textSize, false /* notifyListener */)
+            setTextSizeInternal(TypedValue.COMPLEX_UNIT_PX, textSize, false)
         }
 
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
+    /**
+     * This is called when the view is attached to a window. At this point it has a Surface and will
+     * start drawing. First we call our super's implementation of `onAttachedToWindow`, then we call
+     * the `addPrimaryClipChangedListener` of our clip board manager [mClipboardManager] to add *this*
+     * as a `OnPrimaryClipChangedListener` (our [onPrimaryClipChanged] override will be called when
+     * the primary clip changes). Finally we call our [onPrimaryClipChanged] method to initialize
+     * our [isLongClickable] property appropriately.
+     */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
@@ -186,18 +238,54 @@ class CalculatorFormula
         onPrimaryClipChanged()
     }
 
+    /**
+     * This is called when the view is detached from a window. At this point it no longer has a
+     * surface for drawing. First we call our super's implementation of `onDetachedFromWindow`, then
+     * we call the `removePrimaryClipChangedListener` method of [mClipboardManager] to remove *this*
+     * as a [ClipboardManager.OnPrimaryClipChangedListener].
+     */
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
 
         mClipboardManager.removePrimaryClipChangedListener(this)
     }
 
+    /**
+     * This method is called when the text is changed, in case any subclasses would like to know.
+     * Within `text`, the `lengthAfter` characters beginning at `start` have just replaced old text
+     * that had length `lengthBefore`. It is an error to attempt to make changes to `text` from this
+     * callback.
+     *
+     * First we call our super's implementation of `onTextChanged`. Then we call our [setTextSize]
+     * method to set our textsize to the text size value calculated by our [getVariableTextSize]
+     * method.
+     *
+     * @param text The text the [TextView] is displaying
+     * @param start The offset of the start of the range of the text that was modified
+     * @param lengthBefore The length of the former text that has been replaced
+     * @param lengthAfter The length of the replacement modified text
+     */
     override fun onTextChanged(text: CharSequence, start: Int, lengthBefore: Int, lengthAfter: Int) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter)
 
         setTextSize(TypedValue.COMPLEX_UNIT_PX, getVariableTextSize(text.toString()))
     }
 
+    /**
+     * Called to set our text size, and optionally call the `onTextSizeChanged` override of our
+     * text size change listener [mOnTextSizeChangeListener] so that it can animate a change in
+     * text size. First we save our current `textSize` property in our variable `oldTextSize`.
+     * Then we call our super's `setTextSize` method to have it change our text size to [size].
+     * If our parameter [notifyListener] is *true*, and [mOnTextSizeChangeListener] is not *null*,
+     * and our new `textSize` property is not equal to `oldTextSize` we call the `onTextSizeChanged`
+     * override of our text size change listener [mOnTextSizeChangeListener] to have it animate the
+     * change from `oldTextSize` to the new text size.
+     *
+     * @param unit the unit used by our parameter [size] (always COMPLEX_UNIT_PX in our case).
+     * @param size the size we are to set our text size to.
+     * @param notifyListener if *true* we should call the `onTextSizeChanged` override of our
+     * on text size change listener [mOnTextSizeChangeListener] so that it can animate a change.
+     */
     private fun setTextSizeInternal(unit: Int, size: Float, notifyListener: Boolean) {
         val oldTextSize = textSize
         super.setTextSize(unit, size)
