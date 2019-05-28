@@ -281,7 +281,7 @@ class CalculatorFormula
      * override of our text size change listener [mOnTextSizeChangeListener] to have it animate the
      * change from `oldTextSize` to the new text size.
      *
-     * @param unit the unit used by our parameter [size] (always COMPLEX_UNIT_PX in our case).
+     * @param unit the dimension unit of [size] (COMPLEX_UNIT_PX unless called by [setTextSize]).
      * @param size the size we are to set our text size to.
      * @param notifyListener if *true* we should call the `onTextSizeChanged` override of our
      * on text size change listener [mOnTextSizeChangeListener] so that it can animate a change.
@@ -294,10 +294,24 @@ class CalculatorFormula
         }
     }
 
+    /**
+     * Set the default text size to a given unit and value. See [TypedValue] for the possible
+     * dimension units. We just call our method [setTextSizeInternal] with *true* for the notify
+     * listener parameter.
+     *
+     * @param unit The desired dimension unit.
+     * @param size The desired size in the given units.
+     */
     override fun setTextSize(unit: Int, size: Float) {
         setTextSizeInternal(unit, size, true)
     }
 
+    /**
+     *
+     *
+     * @param text the text we need to fit in our [TextView]
+     * @return the textsize in pixels that we should use.
+     */
     fun getVariableTextSize(text: CharSequence): Float {
         if (mWidthConstraint < 0 || maximumTextSize <= minimumTextSize) {
             // Not measured, bail early.
