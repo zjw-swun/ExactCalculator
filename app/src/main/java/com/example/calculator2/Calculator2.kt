@@ -849,7 +849,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
     /**
      * Called when the activity has detected the user's press of the back key. If our method
-     * [stopActionModeOrContextMenu] returns *false* (no [ActionMode] or [ContextMenu] we in
+     * [stopActionModeOrContextMenu] returns *false* (no [ActionMode] or [ContextMenu] were in
      * progress) we set our variable *historyFragment* to [historyFragment], then when [mDragLayout]
      * is open and *historyFragment* is not null if the *stopActionModeOrContextMenu* method of
      * *historyFragment* returns *false* we call our method [removeHistoryFragment] to have the

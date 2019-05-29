@@ -307,7 +307,22 @@ class CalculatorFormula
     }
 
     /**
+     * Calculates what text size will maximize the amount of [text] that can be displayed without
+     * scrolling given the constraints [minimumTextSize] and [maximumTextSize] setting the minimum
+     * and maximum text size. If [mWidthConstraint] is less than 0, or [maximumTextSize] is less
+     * than of equal to [minimumTextSize] we have not been measured yet so we just return the current
+     * value of our `textSize` property. Otherwise we copy our [TextPaint] property into [mTempPaint],
+     * then we set our variable `lastFitTextSize` to [minimumTextSize] and loop while `lastFitTextSize`
+     * is less than [maximumTextSize]:
+     * - We set the `textSize` property to the minimum of `lastFitTextSize` plus [mStepTextSize] and
+     * [maximumTextSize]
+     * - We call the [Layout.getDesiredWidth] method to determine how wide a layout must be in order
+     * to display the specified text with one line per paragraph, and if this is greater than
+     * [mWidthConstraint] (our width) we break out of the loop.
+     * - Otherwise we set `lastFitTextSize` to the `textSize` property and loop around to try the
+     * next largest text size step.
      *
+     * When we are done with the loop we return `lastFitTextSize` to the caller.
      *
      * @param text the text we need to fit in our [TextView]
      * @return the textsize in pixels that we should use.
@@ -335,9 +350,29 @@ class CalculatorFormula
     }
 
     /**
-     * Functionally equivalent to setText(), but explicitly announce changes.
-     * If the new text is an extension of the old one, announce the addition.
-     * Otherwise, e.g. after deletion, announce the entire new text.
+     * Functionally equivalent to setText(), but explicitly announce changes. If the new text is an
+     * extension of the old one, announce the addition. Otherwise, e.g. after deletion, announce the
+     * entire new text. We initialize our variable `oldText` to our current `text` property, and
+     * initialize our variable `separator` to the localized value for the "," digit separator that
+     * [KeyMaps.translateResult] returns. We then initialize our variable `added` to the string that
+     * the [StringUtils.getExtensionIgnoring] method returns when it compares `newText` and `oldText`
+     * while ignoring `separator` characters. We then branch depending on whether `added` is null:
+     * - **Not** *null*: If the length of `added` is 1, we initialize our variable `c` to the first
+     * (zeroth) character of `added`, initialize our variable `id` to the resource id of the button
+     * that `c` came from that the [KeyMaps.keyForChar] method finds (if there is one), then initialize
+     * our variable `descr` with the descriptive string that the [KeyMaps.toDescriptiveString] method
+     * finds for `id` (if there is one). Then if `descr` is not *null* we call our [announceForAccessibility]
+     * method to have the accessibility service speak `descr`, and if it is *null* we call it to have
+     * the accessibility service speak the string value of `c`. If the length of `added` is not 1 and
+     * is not empty we call our [announceForAccessibility] method to have the accessibility service
+     * speak `added`
+     * - If `added` is *null* on the otherhand we call our [announceForAccessibility] method to have
+     * the accessibility service speak [newText].
+     *
+     * Finally we call the [setText] method to have our [TextView] set its text to [newText] using
+     * `BufferType.SPANNABLE` as the method to store it.
+     *
+     * @param newText the text that we are to display and announce.
      */
     fun changeTextTo(newText: CharSequence) {
         val oldText = text
@@ -364,22 +399,41 @@ class CalculatorFormula
         setText(newText, BufferType.SPANNABLE)
     }
 
+    /**
+     * Closes the action mode or context menu if one of them is open and returns *true* if one of
+     * them was, returns *false* if neither was open. If [mActionMode] is not *null* we call its
+     * `finish` method to finish and close it, then return *true* to the caller. If [mContextMenu]
+     * is not *null* we call its `close` to close it, then return *true* to the caller. If both are
+     * *null* we return *false* to the caller.
+     *
+     * @return *true* if either the action mode or context menu was being displayed, otherwise *false*
+     */
     fun stopActionModeOrContextMenu(): Boolean {
         if (mActionMode != null) {
-            mActionMode!!.finish()
+            mActionMode?.finish()
             return true
         }
         if (mContextMenu != null) {
-            mContextMenu!!.close()
+            mContextMenu?.close()
             return true
         }
         return false
     }
 
+    /**
+     * Sets our [mOnTextSizeChangeListener] to our parameter [listener].
+     *
+     * @param listener the [OnTextSizeChangeListener] we are to use.
+     */
     fun setOnTextSizeChangeListener(listener: OnTextSizeChangeListener) {
         mOnTextSizeChangeListener = listener
     }
 
+    /**
+     * Sets our [mOnContextMenuClickListener] to our parameter [listener].
+     *
+     * @param listener the [OnFormulaContextMenuClickListener] we are to use.
+     */
     fun setOnContextMenuClickListener(listener: OnFormulaContextMenuClickListener) {
         mOnContextMenuClickListener = listener
     }
