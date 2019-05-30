@@ -438,18 +438,40 @@ class CalculatorFormula
         mOnContextMenuClickListener = listener
     }
 
+    /**
+     * Sets our [mOnDisplayMemoryOperationsListener] to our parameter [listener].
+     *
+     * @param listener the `OnDisplayMemoryOperationsListener` we are to use.
+     */
     fun setOnDisplayMemoryOperationsListener(
             listener: Calculator2.OnDisplayMemoryOperationsListener) {
         mOnDisplayMemoryOperationsListener = listener
     }
 
     /**
-     * Use ActionMode for paste support on M and higher.
+     * Use ActionMode for paste support on M and higher. We initialize our field [mPasteActionModeCallback]
+     * with an anonymous [ActionMode.Callback2] which overrides the methods `onActionItemClicked`,
+     * `onCreateActionMode`, `onPrepareActionMode`, `onDestroyActionMode`, and `onGetContentRect`.
+     * Then we set our `OnLongClickListener` to a lambda which sets our field [mActionMode] to the
+     * [ActionMode] started when we call the [startActionMode] method with [mPasteActionModeCallback]
+     * as the [ActionMode.Callback] and the type [ActionMode.TYPE_FLOATING] (the action mode is treated
+     * as a Floating Toolbar), and returns *true* to consume the long click.
      */
     @TargetApi(Build.VERSION_CODES.M)
     private fun setupActionMode() {
         mPasteActionModeCallback = object : ActionMode.Callback2() {
 
+            /**
+             * Called to report a user click on an action button. If our [onMenuItemClick] method
+             * returns *true* for [item], we call the `finish` method of [mode] to finish and close
+             * the [ActionMode] then return *true* to indicate we handled the event, otherwise we
+             * return *false* to allow standard [MenuItem] invocation to continue.
+             *
+             * @param mode The current [ActionMode]
+             * @param item The item that was clicked
+             * @return true if this callback handled the event, false if the standard MenuItem
+             * invocation should continue.
+             */
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
                 return if (onMenuItemClick(item)) {
                     mode.finish()
@@ -459,20 +481,63 @@ class CalculatorFormula
                 }
             }
 
+            /**
+             * Called when action mode is first created. The menu supplied will be used to generate
+             * action buttons for the action mode. We set the `tag` property of [mode] to TAG_ACTION_MODE
+             * ("ACTION_MODE"), and initialize our variable `inflater` with a [MenuInflater] with the
+             * context of [mode]. Finally we return the [Boolean] value returned by our method
+             * [createContextMenu] when it uses `inflater` to inflate our menu R.menu.menu_formula
+             * into [menu] (it returns *true* if either of our [isPasteEnabled] or [isMemoryEnabled]
+             * are *true*).
+             *
+             * @param mode ActionMode being created
+             * @param menu Menu used to populate action buttons
+             * @return true if the action mode should be created, false if entering this mode should
+             * be aborted.
+             */
             override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
                 mode.tag = TAG_ACTION_MODE
                 val inflater = mode.menuInflater
                 return createContextMenu(inflater, menu)
             }
 
+            /**
+             * Called to refresh an action mode's action menu whenever it is invalidated. We always
+             * return *false* to indicate that we did not update the menu or action mode.
+             *
+             * @param mode ActionMode being prepared
+             * @param menu Menu used to populate action buttons
+             * @return true if the menu or action mode was updated, false otherwise.
+             */
             override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
                 return false
             }
 
+            /**
+             * Called when an action mode is about to be exited and destroyed. We just set our field
+             * [mActionMode] to *null*.
+             *
+             * @param mode The current ActionMode being destroyed
+             */
             override fun onDestroyActionMode(mode: ActionMode) {
                 mActionMode = null
             }
 
+            /**
+             * Called when an [ActionMode] needs to be positioned on screen, potentially occluding
+             * view content. Note this may be called on a per-frame basis. First we call our super's
+             * implementation of `onGetContentRect`, then we add our `totalPaddingTop` property to
+             * the `top` field of the [outRect] it returns, subtract our `totalPaddingRight` property
+             * from the `right` field and subtract our `totalPaddingBottom` property to the `bottom`
+             * field. Finally we set the `left` field of [outRect] to 90% of its `right` field.
+             *
+             * @param mode The [ActionMode] that requires positioning.
+             * @param view The [View] that originated the [ActionMode], in whose coordinates the
+             * [Rect] should be provided.
+             * @param outRect The [Rect] to be populated with the content position. Use this to
+             * specify where the content in your app lives within the given view. This will be used
+             * to avoid occluding the given content Rect with the created ActionMode.
+             */
             override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) {
                 super.onGetContentRect(mode, view, outRect)
                 outRect.top += totalPaddingTop
@@ -489,7 +554,14 @@ class CalculatorFormula
     }
 
     /**
-     * Use ContextMenu for paste support on L and lower.
+     * Use ContextMenu for paste support on L and lower. We call the [setOnCreateContextMenuListener]
+     * method to set our `OnCreateContextMenuListener` to a lambda which initializes its variable
+     * `inflater` with a [MenuInflater] constructed to use our `context` property, then calls our
+     * [createContextMenu] method to use it to inflate R.menu.menu_formula into `contextMenu`,
+     * sets our field [mContextMenu] to `contextMenu`. It then loops over `i` for all of the menu
+     * items in `contextMenu` setting their `OnMenuItemClickListener` to *this*. Finally this method
+     * sets our `OnLongClickListener` to a lambda which calls the [showContextMenu] method to display
+     * the context menu.
      */
     @Suppress("UNUSED_ANONYMOUS_PARAMETER")
     private fun setupContextMenu() {
@@ -504,6 +576,25 @@ class CalculatorFormula
         setOnLongClickListener { showContextMenu() }
     }
 
+    /**
+     * Inflates our menu layout file R.menu.menu_formula into its [menu] parameter, and disables
+     * those  menu items which are not presently usable. We initialize our variable `isPasteEnabled`
+     * to our [isPasteEnabled] property, and our variable `isMemoryEnabled` to our property
+     * [isMemoryEnabled]. If both of these are *false* we return *false* to the caller (there is
+     * nothing the user can use our menu for). Otherwise we call the [bringPointIntoView] method of
+     * our [TextView] to have bring the end of our text into view. Then we use [inflater] to inflate
+     * R.menu.menu_formula into our [menu] parameter. We initialize our variable `pasteItem` by
+     * finding the [MenuItem] in [menu] with id R.id.menu_paste, and our variable `memoryRecallItem`
+     * by finding the [MenuItem] in [menu] with id R.id.memory_recall. We set the `isEnabled`
+     * property of `pasteItem` to `isPasteEnabled` and the `isEnabled` property of `memoryRecallItem`
+     * to `isMemoryEnabled` (removing the [MenuItem]'s which have no data to paste from [menu]).
+     * Finally we return *true* so the context menu or action mode will be created.
+     *
+     * @param inflater a [MenuInflater] to use to inflate our menu layout file.
+     * @param menu the [Menu] used to populate the menu items or action buttons
+     * @return true if the context menu or action mode should be created, false if entering this
+     * mode should be aborted.
+     */
     private fun createContextMenu(inflater: MenuInflater, menu: Menu): Boolean {
         val isPasteEnabled = isPasteEnabled
         val isMemoryEnabled = isMemoryEnabled
@@ -520,17 +611,36 @@ class CalculatorFormula
         return true
     }
 
+    /**
+     * Called when the R.id.menu_paste menu item is clicked to paste the primary clips [ClipData]
+     * into our [TextView]. We initialize our variable `primaryClip` with the [ClipData] that our
+     * [mClipboardManager] handle to the [ClipboardManager] returns for the primary clip. If this
+     * is not *null* and [mOnContextMenuClickListener] is not *null* we call its `onPaste` override
+     * to append the contents of the `primaryClip` to the main expression.
+     */
     private fun paste() {
         val primaryClip = mClipboardManager.primaryClip
         if (primaryClip != null && mOnContextMenuClickListener != null) {
-            mOnContextMenuClickListener!!.onPaste(primaryClip)
+            mOnContextMenuClickListener?.onPaste(primaryClip)
         }
     }
 
+    /**
+     * Called when a menu item has been invoked. We return the value returned when branching on the
+     * `itemId` field of [item]:
+     * - R.id.memory_recall: We call the `onMemoryRecall` override of [mOnContextMenuClickListener]
+     * to have it append the contents of memory to the end of the main expression, then return *true*.
+     * - R.id.menu_paste: We call our [paste] method to have it try to append the contents of the
+     * `primaryClip` to the main expression, then return *true*.
+     * - All other menu item id's we just return *false*.
+     *
+     * @param item The menu item that was invoked.
+     * @return Return true to consume this click and prevent others from executing.
+     */
     override fun onMenuItemClick(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.memory_recall -> {
-                mOnContextMenuClickListener!!.onMemoryRecall()
+                mOnContextMenuClickListener?.onMemoryRecall()
                 true
             }
             R.id.menu_paste -> {
@@ -541,25 +651,61 @@ class CalculatorFormula
         }
     }
 
+    /**
+     * Callback that is invoked by [ClipboardManager] when the primary clip changes. We just set our
+     * [View]'s `isLongClickable` property to the boolean or of our properties [isPasteEnabled] and
+     * [isMemoryEnabled].
+     */
     override fun onPrimaryClipChanged() {
         isLongClickable = isPasteEnabled || isMemoryEnabled
     }
 
+    /**
+     * Called by the [Evaluator.Callback] callback of [Calculator2] when it is notified of a change
+     * in the memory register. We just set our [View]'s `isLongClickable` property to the boolean or
+     * of our properties [isPasteEnabled] and [isMemoryEnabled].
+     */
     fun onMemoryStateChanged() {
         isLongClickable = isPasteEnabled || isMemoryEnabled
     }
 
+    /**
+     * The interface which [Calculator2] implements so that it is notified when our textsize changes.
+     * The [onTextSizeChanged] override is called our [setTextSizeInternal] method whenever the
+     * textsize changes.
+     */
     interface OnTextSizeChangeListener {
         fun onTextSizeChanged(textView: TextView, oldSize: Float)
     }
 
+    /**
+     * The interface which [Calculator2] implements so that it is notified when one of the items in
+     * our context menu is clicked.
+     */
     interface OnFormulaContextMenuClickListener {
+        /**
+         * Called when the "paste" menu item is clicked, it should do something with the [clip]'s
+         * [ClipData] it is passed.
+         *
+         * @param clip the primary [ClipData] contents.
+         * @return *true* if the data was used, *false* if there was nothing to paste.
+         */
         fun onPaste(clip: ClipData): Boolean
+
+        /**
+         * Called when a "memory" menu item is clicked, it should do something with the contents of
+         * the memory register.
+         */
         fun onMemoryRecall()
     }
 
+    /**
+     * Our static constant
+     */
     companion object {
-
+        /**
+         * The tag used for our action mode.
+         */
         const val TAG_ACTION_MODE = "ACTION_MODE"
     }
 }

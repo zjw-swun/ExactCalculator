@@ -146,6 +146,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * to the current one (our onMemoryRecall override).
      */
     private val mOnFormulaContextMenuClickListener = object : OnFormulaContextMenuClickListener {
+        /**
+         * Called when the "paste" menu item is clicked, it should do something with the [clip]'s
+         * [ClipData] it is passed.
+         *
+         * @param clip the primary [ClipData] contents.
+         * @return *true* if the data was used, *false* if there was nothing to paste.
+         */
         override fun onPaste(clip: ClipData): Boolean {
             val item = (if (clip.itemCount == 0) null else clip.getItemAt(0))
                     ?: // nothing to paste, bail early...
@@ -163,6 +170,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             return true
         }
 
+        /**
+         * Called when a "memory" menu item is clicked, it should do something with the contents of
+         * the memory register.
+         */
         override fun onMemoryRecall() {
             clearIfNotInputState()
             val memoryIndex = mEvaluator.memoryIndex
