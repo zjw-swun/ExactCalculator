@@ -28,18 +28,56 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 
-class CalculatorPadViewPager @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, attrs) {
+/**
+ * This custom [ViewPager] is used only in portrait mode to allow "swiping" in the advanced keypad
+ * (it is in layout file layout/activity_calculator_port.xml). It has 2 children: a horizontal
+ * `LinearLayout` holding the numeric keypad (layout/pad_numeric.xml) and the operator keypad
+ * (layout/pad_operator.xml) as well as the advanced keypad (which is one of the display size
+ * specific /pad_advanced*.xml layouts).
+ */
+class CalculatorPadViewPager
+@JvmOverloads
+constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, attrs) {
 
+    /**
+     * The [PagerAdapter] we use to "swipe" in the advanced keypad.
+     */
     private val mStaticPagerAdapter = object : PagerAdapter() {
+        /**
+         * Return the number of views available, we just return our `childCount` property.
+         *
+         * @return the number of children we hold.
+         */
         override fun getCount(): Int {
             return childCount
         }
 
+        /**
+         * Create the page for the given position. The adapter is responsible for adding the view to
+         * the container given here, although it only must ensure this is done by the time it returns
+         * from [finishUpdate]. We initialize our variable `child` with the child [View] at position
+         * [position]. We then set its `OnClickListener` to a lambda which calls the [setCurrentItem]
+         * method to scroll smoothly to it's position when it isn't the current item. We set its
+         * `OnTouchListener` to a lambda which calls the [View]'s `onTouchEvent` with the event then
+         * returns *true* so that the touch sequence cannot pass through the item to the item below.
+         * We set its `OnHoverListener` to a lambda which calls the [View]'s `onHoverEvent` method
+         * with the event then returns *true* so that focus cannot pass through the item to the item
+         * below. We then set the `isFocusable` property of `child` to *true* and set its
+         * `contentDescription` to the [CharSequence] returned by our [getPageTitle] override for
+         * the use of the a11y (accessibility) service. Finally we return `child` to the caller.
+         *
+         * @param container The containing View in which the page will be shown.
+         * @param position The page position to be instantiated.
+         * @return Returns an Object representing the new page. This does not need to be a View, but
+         * can be some other container of the page.
+         */
         override fun instantiateItem(container: ViewGroup, position: Int): View {
             val child = getChildAt(position)
 
             // Set a OnClickListener to scroll to item's position when it isn't the current item.
-            child.setOnClickListener { setCurrentItem(position, true /* smoothScroll */) }
+            child.setOnClickListener {
+                setCurrentItem(position, true)
+            }
             // Set an OnTouchListener to always return true for onTouch events so that a touch
             // sequence cannot pass through the item to the item below.
             child.setOnTouchListener { v, event ->
@@ -61,26 +99,75 @@ class CalculatorPadViewPager @JvmOverloads constructor(context: Context, attrs: 
             return child
         }
 
+        /**
+         * Remove a page for the given position. The adapter is responsible for removing the view
+         * from its container, although it only must ensure this is done by the time it returns
+         * from [finishUpdate]. We just call the [removeViewAt] method of [ViewGroup] to have it
+         * remove the child at position [position]
+         *
+         * @param container The containing View from which the page will be removed.
+         * @param position The page position to be removed.
+         * @param object The same object that was returned by [instantiateItem].
+         */
         override fun destroyItem(container: ViewGroup, position: Int, `object`: Any) {
             removeViewAt(position)
         }
 
+        /**
+         * Determines whether a page View is associated with a specific key object as returned by
+         * [instantiateItem]. This method is required for a [PagerAdapter] to function properly.
+         * We just return *true* is [view] points to the same instance as [object] does (referential
+         * equality).
+         *
+         * @param view Page [View] to check for association with [object]
+         * @param object Object to check for association with [view]
+         * @return *true* if [view] is associated with the key object [object]
+         */
         override fun isViewFromObject(view: View, `object`: Any): Boolean {
             return view === `object`
         }
 
+        /**
+         * Returns the proportional width of a given page as a percentage of the ViewPager's measured
+         * width from (0.f-1.f]. If [position] is 1 (the advanced keypad) we return 7/9, otherwise we
+         * return 1.0
+         *
+         * @param position The position of the page requested
+         * @return Proportional width for the given page position
+         */
         override fun getPageWidth(position: Int): Float {
             return if (position == 1) 7.0f / 9.0f else 1.0f
         }
 
+        /**
+         * This method may be called by the [ViewPager] to obtain a title string to describe the
+         * specified page. This method may return null indicating no title for this page. We
+         * initialize our variable `pageDescriptions` with the string array R.array.desc_pad_pages
+         * from our resources, then return the string at index [position] to the caller.
+         *
+         * @param position The position of the title requested
+         * @return A title for the requested page
+         */
         override fun getPageTitle(position: Int): CharSequence? {
-            val pageDescriptions = getContext().resources
-                    .getStringArray(R.array.desc_pad_pages)
+            val pageDescriptions = getContext().resources.getStringArray(R.array.desc_pad_pages)
             return pageDescriptions[position]
         }
     }
 
+    /**
+     * The `SimpleOnPageChangeListener` for our [ViewPager], its `onPageSelected` override will be
+     * called whenever a new page is selected.
+     */
     private val mOnPageChangeListener = object : ViewPager.SimpleOnPageChangeListener() {
+        /**
+         * This method will be invoked when a new page becomes selected. Animation is not
+         * necessarily complete. We loop over `i` from our last child down to our first (zeroth):
+         * - We initialize our variable `child` to our child [View] at position `i`.
+         * - If `i` is not equal to [position] we set its clickable property to *true*, and if they
+         * are equal we set it to *false* (only the "peeking" or covered page should be clickable).
+         *
+         * @param position Position index of the new selected page.
+         */
         override fun onPageSelected(position: Int) {
             for (i in childCount - 1 downTo 0) {
                 val child = getChildAt(i)
@@ -209,16 +296,16 @@ class CalculatorPadViewPager @JvmOverloads constructor(context: Context, attrs: 
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent): Boolean {
-        try {
+        return try {
             // Allow both the gesture detector and super to handle the touch event so they both see
             // the full sequence of events. This should be safe since the gesture detector only
             // handle clicks and super only handles swipes.
             mGestureDetector.onTouchEvent(ev)
-            return super.onTouchEvent(ev)
+            super.onTouchEvent(ev)
         } catch (e: IllegalArgumentException) {
             Log.e("Calculator", "Error processing touch event", e)
-            return false
+            false
         }
 
     }
-}/* attrs */
+}
