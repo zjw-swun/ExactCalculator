@@ -148,7 +148,17 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     private val mOnFormulaContextMenuClickListener = object : OnFormulaContextMenuClickListener {
         /**
          * Called when the "paste" menu item is clicked, it should do something with the [clip]'s
-         * [ClipData] it is passed.
+         * [ClipData] it is passed. We initialize our variable `item` to *null* if the item count
+         * of [clip] is 0 or else to the [ClipData.Item] at index 0 and if the result is *null*
+         * we return *false* to the caller. Otherwise we initialize our variable `uri` with the
+         * raw `Uri` contained in `item`, and if it is not *null* and the `isLastSaved` method of
+         * [mEvaluator] signals that it is the `Uri` of the last expression saved to the preference
+         * data base we call our method [clearIfNotInputState] to clear the main expression, call
+         * the `appendExpr` method of [mEvaluator] to have it append that saved result, and call
+         * our [redisplayAfterFormulaChange] to redisplay the new formula. If `uri` is *null* or
+         * not the last saved result we call our [addChars] method to add the text contents of
+         * `item` to the end of the expression. Finally we return *true* to indicate that we used
+         * the data.
          *
          * @param clip the primary [ClipData] contents.
          * @return *true* if the data was used, *false* if there was nothing to paste.
@@ -172,7 +182,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
 
         /**
          * Called when a "memory" menu item is clicked, it should do something with the contents of
-         * the memory register.
+         * the memory register. First we call our method [clearIfNotInputState] to clear the main
+         * expression, initialize our variable `memoryIndex` with the index of the expression that
+         * memory is currently holding, and if that is not 0 we call the `appendExpr` method of
+         * [mEvaluator] to append that expression to the main expression then call our method
+         * [redisplayAfterFormulaChange] to redisplay the new formula.
          */
         override fun onMemoryRecall() {
             clearIfNotInputState()
@@ -185,15 +199,24 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
     }
 
     /**
-     * [TextWatcher] for the formula TextView, the afterTextChanged override adds our OnPreDrawListener
-     * [mPreDrawListener] to the ViewTreeObserver of the HorizontalScrollView holding [TextWatcher]
-     * which will scroll the scroll view as new characters are added to the formula.
+     * [TextWatcher] for the formula TextView, the `afterTextChanged` override adds our
+     * `OnPreDrawListener` [mPreDrawListener] to the ViewTreeObserver of the [HorizontalScrollView]
+     * holding [TextWatcher] which will scroll the scroll view as new characters are added to the
+     * formula.
      */
     private val mFormulaTextWatcher = object : TextWatcher {
         override fun beforeTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
 
         override fun onTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {}
 
+        /**
+         * This method is called to notify you that, somewhere within [editable], the text has been
+         * changed. We initialize our variable `observer` with the [ViewTreeObserver] for the
+         * [mFormulaContainer] view's hierarchy. If `observer` is alive we remove [mPreDrawListener]
+         * as a `OnPreDrawListener` (if it was already one), then add it back again.
+         *
+         * @param editable the [Editable] text which has been changed.
+         */
         override fun afterTextChanged(editable: Editable) {
             val observer = mFormulaContainer.viewTreeObserver
             if (observer.isAlive) {
