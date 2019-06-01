@@ -165,6 +165,11 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
          * - We initialize our variable `child` to our child [View] at position `i`.
          * - If `i` is not equal to [position] we set its clickable property to *true*, and if they
          * are equal we set it to *false* (only the "peeking" or covered page should be clickable).
+         * - If `child` is a [ViewGroup] we loop down over `j` from the last to the zeroth child
+         * setting each child's `importantForAccessibility` to IMPORTANT_FOR_ACCESSIBILITY_AUTO
+         * if `i` is equal to [position], or to IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS if
+         * it is not (this will prevent clicks and accessibility focus from going through to
+         * descendants of other pages which are covered by the current page).
          *
          * @param position Position index of the new selected page.
          */
@@ -188,6 +193,11 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
         }
     }
 
+    /**
+     * Our `PageTransformer`, it is invoked whenever a visible/attached page is scrolled. This
+     * offers an opportunity for the application to apply a custom transformation to the page views
+     * using animation properties.
+     */
     private val mPageTransformer = PageTransformer { view, position ->
         if (position < 0.0f) {
             // Pin the left page to the left side.
