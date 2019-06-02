@@ -197,6 +197,17 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
      * Our `PageTransformer`, it is invoked whenever a visible/attached page is scrolled. This
      * offers an opportunity for the application to apply a custom transformation to the page views
      * using animation properties.
+     *
+     * The lambda is for the function `transformPage`:
+     * - `view` Apply the transformation to this page
+     * - `position` Position of page relative to the current front-and-center position of the pager.
+     * 0 is front and center. 1 is one full page position to the right, and -1 is one page position
+     * to the left.
+     *
+     * If `position` is less than 0 (left page) we translate `view` by our width times minus `position`
+     * and set its alpha to the maximum of 1.0 plus `position` and 0. Otherwise we translate the right
+     * page using the default slide transition by setting the translation of `view` to 0.0 and its
+     * alpha to 1.0
      */
     private val mPageTransformer = PageTransformer { view, position ->
         if (position < 0.0f) {
@@ -210,12 +221,39 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
         }
     }
 
+    /**
+     * Our [GestureDetector.SimpleOnGestureListener]. Its super implements all the methods in the
+     * `OnGestureListener`, `OnDoubleTapListener`, and `OnContextClickListener` but does nothing
+     * and returns *false* for all applicable methods, so we can override only the methods we are
+     * interested in (which is `onSingleTapUp`).
+     */
     private val mGestureWatcher = object : GestureDetector.SimpleOnGestureListener() {
+        /**
+         * Notified when a tap occurs with the down [MotionEvent] that triggered it. This will be
+         * triggered immediately for every down event. All other events should be preceded by this.
+         * We just return *true* so that calls to [onSingleTapUp] are not blocked.
+         *
+         * @param e The down motion event.
+         * @return *true* to continue getting events for the rest of the gesture, if you return *false*
+         * the system assumes that you want to ignore the rest of the gesture, and the other methods
+         * of [GestureDetector.OnGestureListener] never get called.
+         */
         override fun onDown(e: MotionEvent): Boolean {
             // Return true so calls to onSingleTapUp are not blocked.
             return true
         }
 
+        /**
+         * Notified when a tap occurs with the up [MotionEvent] that triggered it. If [mClickedItemIndex]
+         * is not equal to -1 our [onInterceptTouchEvent] method has intercepted a touch event intended
+         * for our child at index [mClickedItemIndex] so we fetch that child and call its `performClick`
+         * method to pass the click on to it, set [mClickedItemIndex] to -1 and return *true* to consume
+         * the event. Otherwise we return the value returned by our super's implementation of
+         * `onSingleTapUp`.
+         *
+         * @param ev The up motion event that completed the first tap
+         * @return *true* if the event is consumed, else false
+         */
         override fun onSingleTapUp(ev: MotionEvent): Boolean {
             if (mClickedItemIndex != -1) {
                 getChildAt(mClickedItemIndex).performClick()
@@ -226,10 +264,27 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
         }
     }
 
+    /**
+     * The [GestureDetector] whose `onTouchEvent` method is called by our [onTouchEvent] override.
+     * It is used to selectively pass touch events to our children (or not).
+     */
     private val mGestureDetector: GestureDetector
 
+    /**
+     * Index of the child that [mGestureDetector] should pass touch events to, -1 does not pass them.
+     */
     private var mClickedItemIndex = -1
 
+    /**
+     * The init block for our constructor. We initialize `mGestureDetector` with a new instance of
+     * `GestureDetector` constructed to use `mGestureWatcher` as its `OnGestureListener` and call
+     * its `setIsLongpressEnabled` method with *false* to disable long press events (so that we
+     * scroll better). We set our `adapter` property to `mStaticPagerAdapter`, set out background
+     * color to BLACK, set our `pageMargin` property to minus our R.dimen.pad_page_margin resource,
+     * set our `PageTransformer` to `mPageTransformer` with the reverse drawing order option *false*
+     * so that it draws first to last, and finally add `mOnPageChangeListener` as an
+     * `OnPageChangeListener`.
+     */
     init {
 
         mGestureDetector = GestureDetector(context, mGestureWatcher)
@@ -242,6 +297,14 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
         addOnPageChangeListener(mOnPageChangeListener)
     }
 
+    /**
+     * Finalize inflating a view from XML. This is called as the last phase of inflation, after all
+     * child views have been added. First we call our super's implementation of `onFinishInflate`,
+     * then we call the `notifyDataSetChanged` method of `adapter` to invalidate the adapter's data
+     * set since children may have been added during inflation. Finally we call the `onPageSelected`
+     * override of [mOnPageChangeListener] with our `currentItem` property to let it know about our
+     * initial position.
+     */
     override fun onFinishInflate() {
         super.onFinishInflate()
 
@@ -253,6 +316,67 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
         mOnPageChangeListener.onPageSelected(currentItem)
     }
 
+    /**
+     * Implement this method to intercept all touch screen motion events. This allows you to watch
+     * events as they are dispatched to your children, and take ownership of the current gesture at
+     * any point.
+     *
+     * Using this function takes some care, as it has a fairly complicated interaction with
+     * [onTouchEvent], and using it requires implementing that method as well as this one in
+     * the correct way. Events will be received in the following order:
+     * - You will receive the down event here.
+     * - The down event will be handled either by a child of this view group, or given to your own
+     * [onTouchEvent] method to handle; this means you should implement [onTouchEvent] to return
+     * *true*, so you will continue to see the rest of the gesture (instead of looking for a parent
+     * view to handle it). Also, by returning *true* from [onTouchEvent], you will not receive any
+     * following events in [onInterceptTouchEvent] and all touch processing must happen in
+     * onTouchEvent like normal.
+     * - For as long as you return *false* from this function, each following event (up to and
+     * including the final up) will be delivered first here and then to the target's [onTouchEvent].
+     * - If you return true from here, you will not receive any following events: the target view
+     * will receive the same event but with the action ACTION_CANCEL, and all further events will be
+     * delivered to your [onTouchEvent] method and no longer appear here.
+     *
+     * Wrapped in a try block intended to catch and log IllegalArgumentException, we first check
+     * whether we are accessibility focused or our super's implementation of `onInterceptTouchEvent`
+     * returns *true* and if either are *true* we return *true* to intercept the touch event (we do
+     * this because otherwise they will be incorrectly offset by a11y before being dispatched to
+     * children, and the call to our super's implementation is to give it a chance to intercept the
+     * event).
+     *
+     * Otherwise we initialize our variable `action` with the masked off action of [ev]. If `action`
+     * is ACTION_DOWN (a pressed gesture has started) or ACTION_POINTER_DOWN (a non-primary pointer
+     * has gone down) we need to check if any of our children are a11y focused:
+     * - We initialize our variable `childCount` to our `childCount` property.
+     * - We loop over `childIndex` from our last child down to our first and if any of these children
+     * are accessibility focused we set our [mClickedItemIndex] field to that `childIndex` and return
+     * *true* to intercept the event (the `onSingleTapUp` override of our [GestureDetector] instance
+     * [mGestureWatcher] will pass the event to the child's `performClick` method).
+     *
+     * If none of our children are a11y focused we need to check if the touch is on a non-current
+     * item that we want to intercept:
+     * - We initialize our variable `actionIndex` with the `actionIndex` field of [ev].
+     * - We initialize our variable `x` with the X coordinate of the `actionIndex` pointer index of
+     * [ev] plus our `scrollX` property (the scrolled left position of this view: the left edge of
+     * the displayed part of our view) and our variable `y` with the Y coordinate of the `actionIndex`
+     * pointer index of [ev] plus our `scrollY` property (the top edge of the displayed part of our
+     * view).
+     * - We loop over `i` from our last child down to our first:
+     *     - We initialize our variable `childIndex` to the drawing order of the child to draw for
+     *     iteration `i`, and initialize our variable `child` to the child at `childIndex`.
+     *     - If the `child` is visible and `x` and `y` are within the coordinates of `child` we
+     *     check if `action` is ACTION_DOWN and if it is we set `mClickedItemIndex` to `childIndex`.
+     *     Then we return *true* if `childIndex` is not equal to the `currentItem` property of our
+     *     `ViewPager` (the currently selected page) otherwise we return *false*
+     *
+     * If we did not steal the touch event in the above code, we return *false* to continue the
+     * normal touch event handling.
+     *
+     * @param ev The motion event being dispatched down the hierarchy.
+     * @return Return true to steal motion events from the children and have them dispatched to this
+     * [ViewGroup] through [onTouchEvent]. The current target will receive an ACTION_CANCEL event,
+     * and no further messages will be delivered here.
+     */
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         try {
             // Always intercept touch events when a11y focused since otherwise they will be
@@ -304,6 +428,16 @@ constructor(context: Context, attrs: AttributeSet? = null) : ViewPager(context, 
 
     }
 
+    /**
+     * Implement this method to handle touch screen motion events. We return the value returned by
+     * a try block that is intended to catch and log IllegalArgumentException:
+     * - We call the `onTouchEvent` override of [mGestureDetector] with the event [ev], then return
+     * the value returned by our super's implementation of `onTouchEvent`.
+     * - The catch block logs: "Error processing touch event" and returns *false*
+     *
+     * @param ev The motion event.
+     * @return True if the event was handled, false otherwise.
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         return try {
