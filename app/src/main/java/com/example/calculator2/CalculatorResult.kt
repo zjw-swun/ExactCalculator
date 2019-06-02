@@ -53,7 +53,9 @@ import kotlin.annotation.Retention
 // A text widget that is "infinitely" scrollable to the right,
 // and obtains the text to display via a callback to Logic.
 @Suppress("MemberVisibilityCanBePrivate")
-class CalculatorResult(context: Context, attrs: AttributeSet) : AlignedTextView(context, attrs), MenuItem.OnMenuItemClickListener, Evaluator.EvaluationListener, Evaluator.CharMetricsInfo {
+class CalculatorResult(context: Context, attrs: AttributeSet)
+    : AlignedTextView(context, attrs), MenuItem.OnMenuItemClickListener, Evaluator.EvaluationListener,
+        Evaluator.CharMetricsInfo {
     // A larger value is unlikely to avoid running out of space
     internal val mScroller: OverScroller = OverScroller(context)
     internal val mGestureDetector: GestureDetector
@@ -121,7 +123,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet) : AlignedTextView(
     @EvaluationRequest
     private var mEvaluationRequest = SHOULD_REQUIRE
     // Should we evaluate when layout completes, and how?
-    private var mEvaluationListener: Evaluator.EvaluationListener = this
+    private var mEvaluationListener: Evaluator.EvaluationListener? = this
     // The maximum number of digits we're willing to recompute in the UI
     // thread.  We only do this for known rational results, where we
     // can bound the computation cost.
@@ -266,7 +268,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet) : AlignedTextView(
         contentDescription = context.getString(R.string.desc_result)
     }
 
-    internal fun setEvaluator(evaluator: Evaluator, index: Long) {
+    fun setEvaluator(evaluator: Evaluator, index: Long) {
         mEvaluator = evaluator
         mIndex = index
         requestLayout()
@@ -359,7 +361,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet) : AlignedTextView(
      * @param request one of SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE
      */
     fun setShouldEvaluateResult(@EvaluationRequest request: Int,
-                                listener: Evaluator.EvaluationListener) {
+                                listener: Evaluator.EvaluationListener?) {
         mEvaluationListener = listener
         mEvaluationRequest = request
     }
