@@ -50,103 +50,183 @@ import androidx.core.content.ContextCompat
 
 import kotlin.annotation.Retention
 
-// A text widget that is "infinitely" scrollable to the right,
-// and obtains the text to display via a callback to Logic.
+/**
+ * A text widget that is "infinitely" scrollable to the right, and obtains the text to display via
+ * a callback to the program Logic.
+ */
 @Suppress("MemberVisibilityCanBePrivate")
 class CalculatorResult(context: Context, attrs: AttributeSet)
     : AlignedTextView(context, attrs), MenuItem.OnMenuItemClickListener, Evaluator.EvaluationListener,
         Evaluator.CharMetricsInfo {
-    // A larger value is unlikely to avoid running out of space
+    /**
+     * [OverScroller] that we use to calculate our current position [mCurrentPos] when the user is
+     * scrolling or flinging our [AlignedTextView]
+     */
     internal val mScroller: OverScroller = OverScroller(context)
+    /**
+     * The [GestureDetector] that we use to handle `onFling`, `onScroll`, and `onLongPress` gestures
+     * that our view's `OnTouchListener` receives.
+     */
     internal val mGestureDetector: GestureDetector
-    private var mIndex: Long = 0  // Index of expression we are displaying.
+    /**
+     * Index of expression we are displaying.
+     */
+    private var mIndex: Long = 0
+    /**
+     * The [Evaluator] we should use to evaluate the expression whose result we are showing.
+     */
     private var mEvaluator: Evaluator? = null
     /**
+     * A scrollable result is currently displayed.
+     *
      * @return `true` if the currently displayed result is scrollable
      */
     var isScrollable = false
         private set
-    // A scrollable result is currently displayed.
+    /**
+     * The result holds a valid number (not an error message).
+     */
     private var mValid = false
-    // The result holds a valid number (not an error message).
-    // A suffix of "Pos" denotes a pixel offset.  Zero represents a scroll position
-    // in which the decimal point is just barely visible on the right of the display.
-    private var mCurrentPos: Int = 0// Position of right of display relative to decimal point, in pixels.
-    // Large positive values mean the decimal point is scrolled off the
-    // left of the display.  Zero means decimal point is barely displayed
-    // on the right.
-    private var mLastPos: Int = 0   // Position already reflected in display. Pixels.
-    private var mMinPos: Int = 0    // Minimum position to avoid unnecessary blanks on the left. Pixels.
-    private var mMaxPos: Int = 0    // Maximum position before we start displaying the infinite
-    // sequence of trailing zeroes on the right. Pixels.
-    private var mWholeLen: Int = 0  // Length of the whole part of current result.
+    /**
+     * Position of right of display relative to decimal point, in pixels. A suffix of "Pos" denotes
+     * a pixel offset. Zero represents a scroll position in which the decimal point is just barely
+     * visible on the right of the display. Large positive values mean the decimal point is scrolled
+     * off the left of the display.
+     */
+    private var mCurrentPos: Int = 0
+    /**
+     * Position already reflected in display. Pixels.
+     */
+    private var mLastPos: Int = 0
+    /**
+     * Minimum position to avoid unnecessary blanks on the left. Pixels.
+     */
+    private var mMinPos: Int = 0
+    /**
+     * Maximum position before we start displaying the infinite sequence of trailing zeroes
+     * on the right. Pixels.
+     */
+    private var mMaxPos: Int = 0
+    /**
+     * Length of the whole part of current result.
+     */
+    private var mWholeLen: Int = 0
+
     // In the following, we use a suffix of Offset to denote a character position in a numeric
-    // string relative to the decimal point.  Positive is to the right and negative is to
-    // the left. 1 = tenths position, -1 = units.  Integer.MAX_VALUE is sometimes used
-    // for the offset of the last digit in an a non-terminating decimal expansion.
-    // We use the suffix "Index" to denote a zero-based index into a string representing a
-    // result.
-    private var mMaxCharOffset: Int = 0  // Character offset from decimal point of rightmost digit
-    // that should be displayed, plus the length of any exponent
-    // needed to display that digit.
-    // Limited to MAX_RIGHT_SCROLL. Often the same as:
-    private var mLsdOffset: Int = 0      // Position of least-significant digit in result
-    private var mLastDisplayedOffset: Int = 0 // Offset of last digit actually displayed after adding
-    // exponent.
-    private var mWholePartFits: Boolean = false  // Scientific notation not needed for initial display.
+    // string relative to the decimal point. Positive is to the right and negative is to the left.
+    // 1 = tenths position, -1 = units. Integer.MAX_VALUE is sometimes used for the offset of the
+    // last digit in an a non-terminating decimal expansion. We use the suffix "Index" to denote
+    // a zero-based index into a string representing a result.
+    /**
+     * Character offset from decimal point of rightmost digit that should be displayed, plus the
+     * length of any exponent needed to display that digit. Limited to MAX_RIGHT_SCROLL. Often
+     * the same as [mLsdOffset]
+     */
+    private var mMaxCharOffset: Int = 0
+    /**
+     * Position of least-significant digit in result
+     */
+    private var mLsdOffset: Int = 0
+    /**
+     * Offset of last digit actually displayed after adding exponent.
+     */
+    private var mLastDisplayedOffset: Int = 0
+    /**
+     * Scientific notation not needed for initial display.
+     */
+    private var mWholePartFits: Boolean = false
+    /**
+     * Fraction of digit width saved by avoiding scientific notation. Only accessed from UI thread.
+      */
     private var mNoExponentCredit: Float = 0.toFloat()
-    // Fraction of digit width saved by avoiding scientific notation.
-    // Only accessed from UI thread.
+    /**
+     * The result fits entirely in the display, even with an exponent, but not with grouping
+     * separators. Since the result is not scrollable, and we do not add the exponent to max.
+     * scroll position, append an exponent instead of replacing trailing digits.
+     */
     private var mAppendExponent: Boolean = false
-    // The result fits entirely in the display, even with an exponent,
-    // but not with grouping separators. Since the result is not
-    // scrollable, and we do not add the exponent to max. scroll position,
-    // append an exponent instead of replacing trailing digits.
+
+    /**
+     * Protects the next five fields. These fields are only updated by the UI thread, and read
+     * accesses by the UI thread sometimes do not acquire the lock.
+     */
     private val mWidthLock = Any()
-    // Protects the next five fields.  These fields are only
-    // updated by the UI thread, and read accesses by the UI thread
-    // sometimes do not acquire the lock.
+    /**
+     * Our total width in pixels minus space for ellipsis. 0 ==> uninitialized.
+     */
     private var mWidthConstraint = 0
-    // Our total width in pixels minus space for ellipsis.
-    // 0 ==> uninitialized.
+    /**
+     * Maximum character width. For now we pretend that all characters have this width. We're not
+     * really using a fixed width font. But it appears to be close enough for the characters we use
+     * that the difference is not noticeable.
+     */
     private var mCharWidth = 1f
-    // Maximum character width. For now we pretend that all characters
-    // have this width.
-    // TODO: We're not really using a fixed width font.  But it appears
-    // to be close enough for the characters we use that the difference
-    // is not noticeable.
+    /**
+     * Fraction of digit width occupied by a digit separator.
+     */
     private var mGroupingSeparatorWidthRatio: Float = 0.toFloat()
-    // Fraction of digit width occupied by a digit separator.
+    /**
+     * Fraction of digit width saved by replacing digit with decimal point.
+     */
     private var mDecimalCredit: Float = 0.toFloat()
-    // Fraction of digit width saved by replacing digit with decimal point.
+    /**
+     * Fraction of digit width saved by both replacing ellipsis with digit and avoiding
+     * scientific notation.
+     */
     private var mNoEllipsisCredit: Float = 0.toFloat()
+
+    /**
+     * This annotation limits the values assigned to a field to the valid enum choices
+     */
+    @Retention(AnnotationRetention.SOURCE)
+    @IntDef(SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE)
+    annotation class EvaluationRequest
+
+    /**
+     * Should we evaluate when layout completes, and how?
+     */
     @EvaluationRequest
     private var mEvaluationRequest = SHOULD_REQUIRE
-    // Should we evaluate when layout completes, and how?
+    /**
+     * Listener to use if/when evaluation is requested.
+     */
     private var mEvaluationListener: Evaluator.EvaluationListener? = this
-    // The maximum number of digits we're willing to recompute in the UI
-    // thread.  We only do this for known rational results, where we
-    // can bound the computation cost.
+
+    /**
+     * Lighter color for exponent while scrolling when the exponent is used as a position indicator
+     */
     private val mExponentColorSpan: ForegroundColorSpan = ForegroundColorSpan(
             ContextCompat.getColor(context, R.color.display_result_exponent_text_color))
+
+    /**
+     * Background color to use to highlight the result when the context menu has been launched by
+     * long clicking it.
+     */
     private val mHighlightSpan: BackgroundColorSpan = BackgroundColorSpan(highlightColor)
 
+    /**
+     * The [ActionMode] that has been started by long clicking us (Android M and above).
+     */
     private var mActionMode: ActionMode? = null
+    /**
+     * The [ActionMode.Callback2] that interprets the selection of action menu item clicks
+     */
     private var mCopyActionModeCallback: ActionMode.Callback? = null
+    /**
+     * The [ContextMenu] that has been started by long clicking us (Android L and lower).
+     */
     private var mContextMenu: ContextMenu? = null
 
-    // The user requested that the result currently being evaluated should be stored to "memory".
+    /**
+     * The user requested that the result currently being evaluated should be stored to "memory".
+     */
     private var mStoreToMemoryRequested = false
-
-    private val maxCopySize = 1000000
 
     /**
      * Get entire result up to current displayed precision, or up to MAX_COPY_EXTRA additional
      * digits, if it will lead to an exact result.
      */
-    /* withSeparators */// It's reasonable to compute and copy the exact result instead.
-    // Result has trailing decimal point. Remove it.
-    /* forcePrecision *//* forceSciNotation *//* insertCommas */ val fullCopyText: String
+    val fullCopyText: String
         get() {
             if (!mValid
                     || mLsdOffset == Integer.MAX_VALUE
@@ -156,24 +236,23 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                     || mLsdOffset - mLastDisplayedOffset > MAX_COPY_EXTRA) {
                 return getFullText(false)
             }
+            // It's reasonable to compute and copy the exact result instead.
             var fractionLsdOffset = Math.max(0, mLsdOffset)
             var rawResult = mEvaluator!!.getResult(mIndex)!!.toStringTruncated(fractionLsdOffset)
             if (mLsdOffset <= -1) {
+                // Result has trailing decimal point. Remove it.
                 rawResult = rawResult.substring(0, rawResult.length - 1)
                 fractionLsdOffset = -1
             }
-            val formattedResult = formatResult(rawResult, fractionLsdOffset, maxCopySize,
-                    false, rawResult[0] == '-', null, forcePrecision = true,
-                    forceSciNotation = false, insertCommas = false)
+            val formattedResult = formatResult(rawResult, fractionLsdOffset, MAX_COPY_SIZE,
+                    false, rawResult[0] == '-', null,
+                    forcePrecision = true, forceSciNotation = false, insertCommas = false)
             return KeyMaps.translateResult(formattedResult)
         }
 
-    // Fraction of digit width saved by both replacing ellipsis with digit
-    // and avoiding scientific notation.
-    @Retention(AnnotationRetention.SOURCE)
-    @IntDef(SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE)
-    annotation class EvaluationRequest
-
+    /**
+     * Our init block.
+     */
     init {
         mGestureDetector = GestureDetector(context,
                 object : GestureDetector.SimpleOnGestureListener() {
@@ -800,7 +879,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      */
     fun getFullText(withSeparators: Boolean): String {
         if (!mValid) return ""
-        return if (!isScrollable) text.toString() else KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, maxCopySize, null, true, false, withSeparators))
+        return if (!isScrollable) text.toString() else KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, MAX_COPY_SIZE, null, true, false, withSeparators))
     }
 
     /**
@@ -975,8 +1054,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
         setOnLongClickListener(OnLongClickListener {
             if (mValid) {
-                mActionMode = startActionMode(mCopyActionModeCallback,
-                        ActionMode.TYPE_FLOATING)
+                mActionMode = startActionMode(mCopyActionModeCallback, ActionMode.TYPE_FLOATING)
                 return@OnLongClickListener true
             }
             false
@@ -1087,12 +1165,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     companion object {
-        internal const val MAX_RIGHT_SCROLL = 10000000
-        internal const val INVALID = MAX_RIGHT_SCROLL + 10000
+        internal const val MAX_RIGHT_SCROLL = 10_000_000
+        /**
+         * A larger value is unlikely to avoid running out of space
+         */
+        internal const val INVALID = MAX_RIGHT_SCROLL + 10_000
         const val SHOULD_REQUIRE = 2
         const val SHOULD_EVALUATE = 1
         const val SHOULD_NOT_EVALUATE = 0
-        // Listener to use if/when evaluation is requested.
         const val MAX_LEADING_ZEROES = 6
         // Maximum number of leading zeroes after decimal point before we
         // switch to scientific notation with negative exponent.
@@ -1107,7 +1187,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         private const val MAX_COPY_EXTRA = 100
         // The number of extra digits we are willing to compute to copy
         // a result as an exact number.
-        private const val MAX_RECOMPUTE_DIGITS = 2000
+
+        /**
+         * The maximum number of digits we're willing to recompute in the UI thread. We only do
+         * this for known rational results, where we can bound the computation cost.
+         */
+        private const val MAX_RECOMPUTE_DIGITS = 2_000
+
+        private const val MAX_COPY_SIZE = 1_000_000
 
         // Compute maximum digit width the hard way.
         private fun getMaxDigitWidth(paint: TextPaint): Float {
