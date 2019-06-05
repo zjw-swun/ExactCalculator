@@ -251,7 +251,18 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
 
     /**
-     * Our init block.
+     * Our init block. First we initialize `mGestureDetector` with an anonymous `SimpleOnGestureListener`
+     * which overrides `onDown`, `onFling`, `onScroll`, and `onLongPress` in order to provide these
+     * gestures with behavior specific to our use case. We initialize our variable `slop` to the
+     * Distance in pixels a touch can wander before we think the user is scrolling (`scaledTouchSlop`
+     * for the `ViewConfiguration` of the `Context` `context` we were constructed in). We then set
+     * our `OnTouchListener` to an anonymous class whose `onTouch` override extracts values from the
+     * `MotionEvent` it is called for then passes the event on to the `onTouchEvent` override of our
+     * `GestureDetector` `mGestureDetector`. Then is the build version of the device we are running
+     * on is greater than or equal to M we call our `setupActionMode` method to set up the action mode
+     * menu, and for older versions we call our `setupContextMenu` method to set up a context menu.
+     * We set our `isCursorVisible` property to *false*, our `isLongClickable` property to *false*
+     * and set our `contentDescription` to the string "No result".
      */
     init {
         mGestureDetector = GestureDetector(context,
@@ -347,12 +358,40 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         contentDescription = context.getString(R.string.desc_result)
     }
 
+    /**
+     * Called to initialize our fields [mEvaluator] and [mIndex], and then call the [requestLayout]
+     * method to schedule a layout pass of the view tree.
+     *
+     * @param evaluator The [Evaluator] we should use.
+     * @param index The index of the expression whose result we are showing.
+     */
     fun setEvaluator(evaluator: Evaluator, index: Long) {
         mEvaluator = evaluator
         mIndex = index
         requestLayout()
     }
 
+    /**
+     * Measure the view and its content to determine the measured width and the measured height. If
+     * our view has *not* been through at least one layout since it was last attached to or detached
+     * from a window we call our super's implementation of `onMeasure` then set the minimum height
+     * of our view to the sum of the vertical distance between lines of text plus the bottom padding
+     * of our view plus the top padding of our view.
+     *
+     * We then initialize our variable `paint` to the [TextPaint] of our view, our variable `context`
+     * to the context our view is running in, and our variable `newCharWidth` to the maximum digit
+     * width calculated by our method [getMaxDigitWidth] for `paint`. We then perform a bunch of
+     * calculations which determine the widths contributed by non-digit characters we might display
+     * depending on the format we need to use to display our result. Then synchronized on our field
+     * [mWidthLock] we initialize our fields [mWidthConstraint], [mCharWidth], [mNoEllipsisCredit],
+     * [mDecimalCredit], and [mGroupingSeparatorWidthRatio] to values consistent with the size our
+     * view is allowed and the text size of its [TextPaint]. Finally we call our super's implementation
+     * of `onMeasure` with the recalculated [widthMeasureSpec] and the original [heightMeasureSpec]
+     * parameter.
+     *
+     * @param widthMeasureSpec horizontal space requirements as imposed by the parent.
+     * @param heightMeasureSpec vertical space requirements as imposed by the parent.
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         if (!isLaidOut) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -386,8 +425,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         //    A decimal separator.
 
         // Calculate extra space we need to reserve, in addition to character count.
-        val decimalSeparatorWidth = Layout.getDesiredWidth(
-                context.getString(R.string.dec_point), paint)
+        val decimalSeparatorWidth = Layout.getDesiredWidth(context.getString(R.string.dec_point), paint)
         val minusWidth = Layout.getDesiredWidth(context.getString(R.string.op_sub), paint)
         val minusExtraWidth = Math.max(minusWidth - newCharWidth, 0.0f)
         val ellipsisWidth = Layout.getDesiredWidth(KeyMaps.ELLIPSIS, paint)
@@ -420,24 +458,46 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
+    /**
+     * Called from layout when this view should assign a size and position to each of its children.
+     * First we call our super's implementation of `onLayout`. Then if [mEvaluator] is not *null*,
+     * and [mEvaluationRequest] is not SHOULD_NOT_EVALUATE we:
+     * - Initialize our variable `expr` with the [CalculatorExpr] found by the `getExpr` method
+     * of [mEvaluator] for the expression index [mIndex].
+     * - If the `hasInterestingOps` method of `expr` determines that the expression is worth evaluating
+     * We branch on the value of [mEvaluationRequest]:
+     *     - SHOULD_REQUIRE: we call the `requireResult` method of `mEvaluator` start the required
+     *     evaluation of the expression at the index `mIndex` and call back `mEvaluationListener`
+     *     when ready.
+     *     - SHOULD_EVALUATE: we call the `evaluateAndNotify` method of `mEvaluator` to start the
+     *     optional evaluation of the same expression and display when ready.
+     *
+     * @param changed This is a new size or position for this view
+     * @param left Left position, relative to parent
+     * @param top Top position, relative to parent
+     * @param right Right position, relative to parent
+     * @param bottom Bottom position, relative to parent
+     */
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
 
-        if (mEvaluator != null && mEvaluationRequest != SHOULD_NOT_EVALUATE) {
+        if (mEvaluator != null && mEvaluationRequest != mEvaluationRequest) {
             val expr = mEvaluator!!.getExpr(mIndex)
             if (expr.hasInterestingOps()) {
-                if (mEvaluationRequest == SHOULD_REQUIRE) {
-                    mEvaluator!!.requireResult(mIndex, mEvaluationListener, this)
-                } else {
-                    mEvaluator!!.evaluateAndNotify(mIndex, mEvaluationListener, this)
+                when (mEvaluationRequest) {
+                    SHOULD_REQUIRE -> mEvaluator?.requireResult(mIndex, mEvaluationListener, this)
+                    else -> mEvaluator?.evaluateAndNotify(mIndex, mEvaluationListener, this)
                 }
             }
         }
     }
 
     /**
-     * Specify whether we should evaluate result on layout.
+     * Specify whether we should evaluate result on layout. We just set our fields [mEvaluationListener]
+     * and [mEvaluationRequest] to our parameters.
+     *
      * @param request one of SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE
+     * @param listener the `EvaluationListener` whose callback should be called.
      */
     fun setShouldEvaluateResult(@EvaluationRequest request: Int,
                                 listener: Evaluator.EvaluationListener?) {

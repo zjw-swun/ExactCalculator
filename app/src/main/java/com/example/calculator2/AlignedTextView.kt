@@ -71,7 +71,7 @@ open class AlignedTextView
      * initialize our variable *paint* to the *TextPaint* base paint used for the text of our
      * *TextView*, then set [mTempRect] to the smallest rectangle that encloses the letter "H". We
      * set [mTopPaddingOffset] to the minimum of the top padding of our view, and the integer result
-     * of subtractin the ascent of *paint* (a negative value) from the *top* of [mTempRect]. We set
+     * of subtracting the ascent of *paint* (a negative value) from the *top* of [mTempRect]. We set
      * [mBottomPaddingOffset] to the minimum of the bottom padding of our view and the integer value
      * of the descent of *paint* (a positive value). We then call our super's implementation of
      * [onMeasure] without changing [widthMeasureSpec] or [heightMeasureSpec] at all.
