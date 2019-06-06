@@ -505,7 +505,22 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         mEvaluationRequest = request
     }
 
-    // From Evaluator.CharMetricsInfo.
+    /**
+     * From Evaluator.CharMetricsInfo. Return the number of additional digit widths required to add
+     * digit separators to the supplied string prefix. The prefix consists of the first [len]
+     * characters of string [s], which is presumed to represent a whole number. Callable from non-UI
+     * thread. Returns zero if metrics information is not yet available.
+     *
+     * We initialize our variable `start` to 0, then loop incrementing `start` looking for the index
+     * of the first digit character (also stopping if `start` reaches [len]). We assume the rest of
+     * the prefix consists of digits, so we initialize our variable `nDigits` to the number of digits
+     * remaining in the prefix (which is [len] minus `start`).
+     *
+     * @param s the string we are to insert digit separators into.
+     * @param len the length of the prefix string in [s] we are to consider.
+     * @return the number of additional digit widths required to add digit separators to the
+     * supplied string prefix (the first [len] characters of the string [s] is the prefix).
+     */
     override fun separatorChars(s: String, len: Int): Float {
         var start = 0
         while (start < len && !Character.isDigit(s[start])) {
