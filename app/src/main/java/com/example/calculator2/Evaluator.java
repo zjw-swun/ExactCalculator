@@ -159,16 +159,25 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
          * The prefix consists of the first len characters of string s, which is presumed to
          * represent a whole number. Callable from non-UI thread.
          * Returns zero if metrics information is not yet available.
+         *
+         * @param s the string we are to insert digit separators into.
+         * @param len the length of the prefix string in [s] we are to consider.
+         * @return the number of additional digit widths required to add digit separators to the
+         * supplied string prefix (the first [len] characters of the string [s] is the prefix).
          */
         float separatorChars(String s, int len);
         /**
          * Return extra width credit for presence of a decimal point, as fraction of a digit width.
          * May be called by non-UI thread.
+         *
+         * @return fraction of a digit width saved by lack of a decimal point in the display
          */
         float getDecimalCredit();
         /**
          * Return extra width credit for absence of ellipsis, as fraction of a digit width.
          * May be called by non-UI thread.
+         *
+         * @return the faction of a digit width available when there is no ellipsis in the display.
          */
         float getNoEllipsisCredit();
     }

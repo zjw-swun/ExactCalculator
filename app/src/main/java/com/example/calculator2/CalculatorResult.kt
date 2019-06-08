@@ -514,7 +514,10 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * We initialize our variable `start` to 0, then loop incrementing `start` looking for the index
      * of the first digit character (also stopping if `start` reaches [len]). We assume the rest of
      * the prefix consists of digits, so we initialize our variable `nDigits` to the number of digits
-     * remaining in the prefix (which is [len] minus `start`).
+     * remaining in the prefix (which is [len] minus `start`). The number of separators required is
+     * calculated to be `nDigits` minus 1 divided by 3 which we use to initialize `nSeparators`.
+     * Synchronized on our lock [mWidthLock] we return the digit space occupied by the separators:
+     * `nSeparators` times [mGroupingSeparatorWidthRatio].
      *
      * @param s the string we are to insert digit separators into.
      * @param len the length of the prefix string in [s] we are to consider.
@@ -537,32 +540,58 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
     }
 
-    // From Evaluator.CharMetricsInfo.
+    /**
+     * From Evaluator.CharMetricsInfo. Return extra width credit for absence of ellipsis, as fraction
+     * of a digit width. May be called by non-UI thread. Synchronized on our lock [mWidthLock] we
+     * return our field [mNoEllipsisCredit].
+     *
+     * @return the faction of a digit width available when there is no ellipsis in the display.
+     */
     override fun getNoEllipsisCredit(): Float {
         synchronized(mWidthLock) {
             return mNoEllipsisCredit
         }
     }
 
-    // From Evaluator.CharMetricsInfo.
+    /**
+     * From Evaluator.CharMetricsInfo. Return extra width credit for presence of a decimal point, as
+     * fraction of a digit width. May be called by non-UI thread. Synchronized on our lock [mWidthLock]
+     * we return our field [mDecimalCredit].
+     *
+     * @return fraction of a digit width saved by lack of a decimal point in the display
+     */
     override fun getDecimalCredit(): Float {
         synchronized(mWidthLock) {
             return mDecimalCredit
         }
     }
 
-    // Return the length of the exponent representation for the given exponent, in
-    // characters.
+    /**
+     * Return the length of the exponent representation for the given exponent, in characters. If
+     * [exp] is 0, we return 0. Otherwise we initialize our variable `absExpDigits` to the number
+     * of digits needed to represent the absolute value of [exp] then return `absExpDigits` plus
+     * 1 if [exp] is greater than 0 or `absExpDigits` plus 2 if it is a negative exponent.
+     *
+     * @param exp the exponent the size of whose representation we wish to determine.
+     * @return the number of characters that the given exponent will occupy when displayed.
+     */
     private fun expLen(exp: Int): Int {
         if (exp == 0) return 0
-        val absExpDigits = Math.ceil(Math.log10(Math.abs(exp.toDouble())) + 0.0000000001 /* Round whole numbers to next integer */).toInt()
+        val absExpDigits = Math.ceil(Math.log10(Math.abs(exp.toDouble()))
+                + 0.0000000001 /* Round whole numbers to next integer */).toInt()
         return absExpDigits + if (exp >= 0) 1 else 2
     }
 
     /**
-     * Initiate display of a new result.
-     * Only called from UI thread.
-     * The parameters specify various properties of the result.
+     * Initiate display of a new result. Only called from UI thread. The parameters specify various
+     * properties of the result. First we call our method [initPositions] to set up scroll bounds
+     * ([mMinPos], [mMaxPos], etc.) and determine whether the result is scrollable. If our field
+     * [mStoreToMemoryRequested] is true (the user requested that the result currently being evaluated
+     * should be stored to "memory") we call the `copyToMemory` method of [mEvaluator] to copy an
+     * immutable version of the expression index [index] as the "memory" value, and set
+     * [mStoreToMemoryRequested] to *false*. In any case we call our [redisplay] method to refresh
+     * the display.
+     *
      * @param index Index of expression that was just evaluated. Currently ignored, since we only
      * expect notification for the expression result being displayed.
      * @param initPrec Initial display precision computed by evaluator. (1 = tenths digit)
@@ -578,53 +607,70 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         initPositions(initPrec, msd, leastDigPos, truncatedWholePart)
 
         if (mStoreToMemoryRequested) {
-            mEvaluator!!.copyToMemory(index)
+            mEvaluator?.copyToMemory(index)
             mStoreToMemoryRequested = false
         }
         redisplay()
     }
 
     /**
-     * Store the result for this index if it is available.
-     * If it is unavailable, set mStoreToMemoryRequested to indicate that we should store
-     * when evaluation is complete.
+     * Store the result for this index if it is available. If it is unavailable, set our field
+     * [mStoreToMemoryRequested] to *true* to indicate that we should store when evaluation is
+     * complete. If the `hasResult` method of [mEvaluator] returns true to indicate that the
+     * expression at index [mIndex] has explicitly been evaluated (User pressed "=") we call the
+     * `copyToMemory` method of [mEvaluator] to copy an immutable version of the expression index
+     * [mIndex] as the "memory" value, otherwise we set our field [mStoreToMemoryRequested] to
+     * *true* and call the `requireResult` method of [mEvaluator] to start the required evaluation
+     * of expression index [mIndex] using *this* as the `CharMetricsInfo` and call back *this*
+     * `EvaluationListener` when ready.
      */
     fun onMemoryStore() {
         if (mEvaluator!!.hasResult(mIndex)) {
-            mEvaluator!!.copyToMemory(mIndex)
+            mEvaluator?.copyToMemory(mIndex)
         } else {
             mStoreToMemoryRequested = true
-            mEvaluator!!.requireResult(mIndex, this /* listener */, this /* CharMetricsInfo */)
+            mEvaluator?.requireResult(mIndex, this /* listener */, this /* CharMetricsInfo */)
         }
     }
 
     /**
-     * Add the result to the value currently in memory.
+     * Add the result to the value currently in memory. We just call the `addToMemory` method of
+     * [mEvaluator] to add the expression at index [mIndex] to the current contents of "memory".
      */
     fun onMemoryAdd() {
-        mEvaluator!!.addToMemory(mIndex)
+        mEvaluator?.addToMemory(mIndex)
     }
 
     /**
-     * Subtract the result from the value currently in memory.
+     * Subtract the result from the value currently in memory. We just call the `subtractFromMemory`
+     * method of [mEvaluator] to subtract the expression at index [mIndex] from the current contents
+     * of "memory".
      */
     fun onMemorySubtract() {
-        mEvaluator!!.subtractFromMemory(mIndex)
+        mEvaluator?.subtractFromMemory(mIndex)
     }
 
     /**
-     * Set up scroll bounds (mMinPos, mMaxPos, etc.) and determine whether the result is
-     * scrollable, based on the supplied information about the result.
-     * This is unfortunately complicated because we need to predict whether trailing digits
-     * will eventually be replaced by an exponent.
-     * Just appending the exponent during formatting would be simpler, but would produce
-     * jumpier results during transitions.
-     * Only called from UI thread.
+     * Set up scroll bounds ([mMinPos], [mMaxPos], etc.) and determine whether the result is scrollable,
+     * based on the supplied information about the result. This is unfortunately complicated because
+     * we need to predict whether trailing digits will eventually be replaced by an exponent. Just
+     * appending the exponent during formatting would be simpler, but would produce jumpier results
+     * during transitions. Only called from UI thread.
+     *
+     * @param initPrecOffset Initial display precision computed by evaluator. (1 = tenths digit)
+     * @param msdIndex Position of most significant digit.  Offset from left of string.
+     * Evaluator.INVALID_MSD if unknown.
+     * @param lsdOffset Position of least significant digit (1 = tenths digit)
+     * or Integer.MAX_VALUE.
+     * @param truncatedWholePart Result up to but not including decimal point.
+     * Currently we only use the length.
      */
-    private fun initPositions(initPrecOffset: Int, msdIndex: Int, lsdOffset: Int,
+    private fun initPositions(initPrecOffset: Int,
+                              msdIndex: Int, lsdOffset: Int,
                               truncatedWholePart: String) {
+
         var msdIndexLocal = msdIndex
-        val maxChars = maxChars
+        val maxCharsLocal = maxChars
         mWholeLen = truncatedWholePart.length
         // Allow a tiny amount of slop for associativity/rounding differences in length
         // calculation.  If getPreferredPrec() decided it should fit, we want to make it fit, too.
@@ -632,7 +678,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         val nSeparatorChars = Math.ceil(
                 (separatorChars(truncatedWholePart, truncatedWholePart.length)
                         - noEllipsisCredit - 0.0001f).toDouble()).toInt()
-        mWholePartFits = mWholeLen + nSeparatorChars <= maxChars
+        mWholePartFits = mWholeLen + nSeparatorChars <= maxCharsLocal
         mLastPos = INVALID
         mLsdOffset = lsdOffset
         mAppendExponent = false
@@ -675,7 +721,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             var currentExpLen = 0  // Length of required standard scientific notation exponent.
             if (mMaxCharOffset < -1) {
                 currentExpLen = expLen(-minCharOffset - 1)
-            } else if (minCharOffset > -1 || mMaxCharOffset >= maxChars) {
+            } else if (minCharOffset > -1 || mMaxCharOffset >= maxCharsLocal) {
                 // Number is either entirely to the right of decimal point, or decimal point is
                 // not visible when scrolled to the right.
                 currentExpLen = expLen(-minCharOffset)
@@ -683,7 +729,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             // Exponent length does not included added decimal point.  But whenever we add a
             // decimal point, we allow an extra character (SCI_NOTATION_EXTRA).
             val separatorLength = if (mWholePartFits && minCharOffset < -3) nSeparatorChars else 0
-            isScrollable = mMaxCharOffset + currentExpLen + separatorLength - minCharOffset + negative >= maxChars
+            isScrollable = mMaxCharOffset + currentExpLen + separatorLength - minCharOffset + negative >= maxCharsLocal
             // Now adjust mMaxCharOffset for any required exponent.
             val newMaxCharOffset: Int
             if (currentExpLen > 0) {
@@ -710,7 +756,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 // scrolling behavior.  In the un-scrollable case, we thus have to append the
                 // exponent at the end using the forcePrecision argument to formatResult, in order
                 // to ensure that we get the entire result.
-                isScrollable = mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset + negative >= maxChars
+                isScrollable = mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset + negative >= maxCharsLocal
                 if (isScrollable) {
                     mMaxPos = Math.ceil((mMinPos + mCharWidth).toDouble()).toInt()
                     // Single character scroll will remove exponent and show remaining piece.
