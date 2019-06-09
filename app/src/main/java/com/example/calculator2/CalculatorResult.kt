@@ -657,6 +657,16 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * appending the exponent during formatting would be simpler, but would produce jumpier results
      * during transitions. Only called from UI thread.
      *
+     * We initialize our variable `msdIndexLocal` to our parameter [msdIndex], and our variable
+     * `maxCharsLocal` to our property `maxChars`. We then set our field [mWholeLen] to the length
+     * of our parameter [truncatedWholePart]. We initialize our variable `nSeparatorChars` by adding
+     * some slop to the number of separator characters returned by our [separatorChars] method for
+     * our parameter [truncatedWholePart], then initialize our [Boolean] field [mWholePartFits] (the
+     * flag for signaling that scientific notation is not needed for initial display) to *true* if
+     * [mWholeLen] plus `nSeparatorChars` is less than `maxCharsLocal`. We then set [mLastPos] to
+     * an INVALID value, [mLsdOffset] to our parameter [lsdOffset], [mAppendExponent] to *false*
+     * (signaling that the result does not fit entirely in the display),
+     *
      * @param initPrecOffset Initial display precision computed by evaluator. (1 = tenths digit)
      * @param msdIndex Position of most significant digit.  Offset from left of string.
      * Evaluator.INVALID_MSD if unknown.
