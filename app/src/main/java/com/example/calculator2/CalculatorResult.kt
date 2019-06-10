@@ -665,7 +665,69 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * flag for signaling that scientific notation is not needed for initial display) to *true* if
      * [mWholeLen] plus `nSeparatorChars` is less than `maxCharsLocal`. We then set [mLastPos] to
      * an INVALID value, [mLsdOffset] to our parameter [lsdOffset], [mAppendExponent] to *false*
-     * (signaling that the result does not fit entirely in the display),
+     * (signaling that the result does not fit entirely in the display), [mMinPos] to our parameter
+     * [initPrecOffset] times [mCharWidth] (this will prevent scrolling past initial position), and
+     * [mCurrentPos] (Position of right of display relative to decimal point) to [mMinPos].
+     *
+     * If the position of the most significant digit `msdIndexLocal` is INVALID_MSD (unknown) it might
+     * be a zero value, so we check if [lsdOffset] is [Integer.MIN_VALUE] and if it is it is a zero
+     * value so we set [mMaxPos] to [mMinPos], [mMaxCharOffset] to the rounded off value of [mMaxPos]
+     * divided by [mCharWidth] and [isScrollable] to *false*. Otherwise it might be a very small
+     * nonzero value so we set up our scroll bounds to allow the user to scroll the result to see:
+     * setting [mMaxCharOffset] to MAX_RIGHT_SCROLL, [mMaxPos] to [mMaxCharOffset], subtracting
+     * [mCharWidth] from [mMinPos] to allow room for a future minus sign, and set [isScrollable] to
+     * *true*. Then whether zero or almost zero we return.
+     *
+     * Now that we have dealt with zero and near zero values and returned we move on, initializing our
+     * varaible `negative` to 1 if the first (zeroth) character of [truncatedWholePart] is a '-'
+     * character or to 0 if it is not. If `msdIndexLocal` is greater than [mWholeLen] but less than
+     * or equal to [mWholeLen] plus 3 we want to avoid the use of a tiny negative exponent so we
+     * pretend [msdIndex] is just to the right of decimal point by setting it to [mWholeLen] minus 1.
+     *
+     * Now we want to initialize our variable `minCharOffset` to the position of the leftmost
+     * significant digit relative to decimal point which is `msdIndexLocal` minus [mWholeLen]. If
+     * `minCharOffset` is greater than minus 1, and less than 2 more than MAX_LEADING_ZEROES (6) there
+     * are just a small number of leading zeroes, so to avoid scientific notation we set `minCharOffset`
+     * to -1.
+     *
+     * Now we branch on where [lsdOffset] is less than MAX_RIGHT_SCROLL (10,000,000), and if it is
+     * greater than or equal instead we just set [mMaxCharOffset] to MAX_RIGHT_SCROLL, [mMaxPos] to
+     * [mMaxCharOffset] and [isScrollable] to *true*, otherwise we have some complex logic to perform
+     * to determine the scroll values:
+     * - We set [mMaxCharOffset] to [lsdOffset], and if it is less than minus 1 but greater than minus
+     * MAX_TRAILING_ZEROES (6) minus 2 we set it to minus 1.
+     * - We initialize `currentExpLen` (the length of required standard scientific notation exponent)
+     * to 0, and if [mMaxCharOffset] is less than -1 we set it to the value returned by our [expLen]
+     * method for minus `minCharOffset` minus 1, otherwise if `minCharOffset` is greater than -1
+     * or [mMaxCharOffset] is greater than or equal to `maxCharsLocal` the number is  either entirely
+     * to the right of decimal point, or decimal point is not visible when scrolled to the right so
+     * we set `currentExpLen` to the value returned by our [expLen] method for minus `minCharOffset`.
+     * - We initialize our variable `separatorLength` to `nSeparatorChars` if [mWholePartFits] is
+     * *true* and `minCharOffset` is less than minus 3, otherwise we set it to 0.
+     * - We initialize our variable `charReq` to [mMaxCharOffset] plus `currentExpLen` plus
+     * `separatorLength` minus `minCharOffset` plus `negative` then set [isScrollable] to *true* if
+     * `charReq` is greater than or equal to `maxCharsLocal`.
+     *     - Now we need to adjust [mMaxCharOffset] for any required exponent, so we declare our variable
+     *     `newMaxCharOffset`, and if `currentExpLen` is greater than 0, we add the value returned by
+     *      our method [expLen] for minus [lsdOffset] to [mMaxCharOffset] to set `newMaxCharOffset` (using
+     *      the exponent corresponding to leastDigPos when scrolled to right) if [isScrollable] is *true*
+     *      of set it to [mMaxCharOffset] plus `currentExpLen` if it is false.
+     *      - We set [mMaxCharOffset] to minus 1 if -1 is in the range [mMaxCharOffset] until
+     *      `newMaxCharOffset` (while unlikely we just drop the exponent), otherwise we set it the minimum
+     *      of `newMaxCharOffset` and MAX_RIGHT_SCROLL. We then set [mMaxPos] to the minimum of
+     *      [mMaxCharOffset] times [mCharWidth] and MAX_RIGHT_SCROLL.
+     *      - If `currentExpLen` is less than or equal to 0 on the other hand, we branch on whether
+     *      both [mWholePartFits] and [isScrollable] are *false* in which case we have a corner case
+     *      in which entire number fits, but not with grouping separators, so we initialize our
+     *      variable `chrReq` to `mMaxCharOffset` plus the value returned by our  [expLen] method for
+     *      minus `minCharOffset` minus 1, minus `minCharOffset` plus `negative`, and set `isScrollable`
+     *      to *true* if that is greater than or equal to `maxCharsLocal`. Then is `isScrollable` is
+     *      *true* we set `mMaxPos` to the ceiling of `mMinPos` plus `mCharWidth` (a single character
+     *      scroll will remove exponent and show remaining piece), otherwise we set `mMaxPos` to
+     *      `mMinPos` and set `mAppendExponent` to *true*. If neither of the above code paths are used
+     *      we set `mMaxPos` to the minimum of `mMaxCharOffset` times `mCharWidth` and MAX_RIGHT_SCROLL.
+     *      - Then if `isScrollable` is *false* we set `mCurrentPos` to `mMaxPos` to position the
+     *      number consistently with our assumptions to make sure it actually fits.
      *
      * @param initPrecOffset Initial display precision computed by evaluator. (1 = tenths digit)
      * @param msdIndex Position of most significant digit.  Offset from left of string.
@@ -739,7 +801,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             // Exponent length does not included added decimal point.  But whenever we add a
             // decimal point, we allow an extra character (SCI_NOTATION_EXTRA).
             val separatorLength = if (mWholePartFits && minCharOffset < -3) nSeparatorChars else 0
-            isScrollable = mMaxCharOffset + currentExpLen + separatorLength - minCharOffset + negative >= maxCharsLocal
+            val charReq = mMaxCharOffset + currentExpLen + separatorLength - minCharOffset + negative
+            isScrollable = charReq >= maxCharsLocal
             // Now adjust mMaxCharOffset for any required exponent.
             val newMaxCharOffset: Int
             if (currentExpLen > 0) {
@@ -755,8 +818,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 } else {
                     Math.min(newMaxCharOffset, MAX_RIGHT_SCROLL)
                 }
-                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth),
-                        MAX_RIGHT_SCROLL)
+                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth), MAX_RIGHT_SCROLL)
             } else if (!mWholePartFits && !isScrollable) {
                 // Corner case in which entire number fits, but not with grouping separators.  We
                 // will use an exponent in un-scrolled position, which may hide digits.  Scrolling
@@ -766,7 +828,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 // scrolling behavior.  In the un-scrollable case, we thus have to append the
                 // exponent at the end using the forcePrecision argument to formatResult, in order
                 // to ensure that we get the entire result.
-                isScrollable = mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset + negative >= maxCharsLocal
+                val chrReq = mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset + negative
+                isScrollable = chrReq >= maxCharsLocal
                 if (isScrollable) {
                     mMaxPos = Math.ceil((mMinPos + mCharWidth).toDouble()).toInt()
                     // Single character scroll will remove exponent and show remaining piece.
@@ -775,8 +838,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                     mAppendExponent = true
                 }
             } else {
-                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth),
-                        MAX_RIGHT_SCROLL)
+                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth), MAX_RIGHT_SCROLL)
             }
             if (!isScrollable) {
                 // Position the number consistently with our assumptions to make sure it
@@ -791,8 +853,10 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Display error message indicated by resourceId.
-     * UI thread only.
+     * Display error message indicated by resourceId. UI thread only.
+     *
+     * @param index index of the expression which contains an error. UNUSED
+     * @param resourceId resource ID of the error string we are the display.
      */
     override fun onError(index: Long, resourceId: Int) {
         mStoreToMemoryRequested = false
