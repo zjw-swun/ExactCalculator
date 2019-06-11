@@ -1081,7 +1081,7 @@ public class Evaluator implements CalculatorExpr.ExprResolver {
      * @param maxPrecOffset Maximum adjusted precOffset[0]
      * @param maxDigs Maximum length of result
      * @param truncated Zeroth element is set if leading nonzero digits were dropped
-     * @param negative Zeroth element is set of the result is negative.
+     * @param negative Zeroth element is set if the result is negative.
      * @param listener EvaluationListener to notify when reevaluation is complete.
      */
     public String getString(long index, int[] precOffset, int maxPrecOffset, int maxDigs,

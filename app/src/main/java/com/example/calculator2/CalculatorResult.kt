@@ -853,7 +853,22 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Display error message indicated by resourceId. UI thread only.
+     * Display error message indicated by [resourceId]. UI thread only. First we set our field
+     * [mStoreToMemoryRequested] to *false* (we do not want to store an error into "memory" even
+     * if the user requested us to do so), set our field [mValid] to *false* (to indicate that the
+     * result does not hold a valid number), set our long-clickable property flag to *false*, and
+     * set our [isScrollable] property to *false*. We initialize our variable `msg` to the string
+     * with resource id [resourceId], and our variable `measuredWidth` to the width that a layout
+     * must be in order to display `msg` using our [TextPaint] with one line per paragraph. If
+     * `measuredWidth` is greater than [mWidthConstraint] we need to scale the text of `msg`, so
+     * we initialize our variable `scaleFactor` to 0.99 times [mWidthConstraint] divided by
+     * `measuredWidth` (to avoid rounding effects), initialize our variable `smallTextSpan` to an
+     * instance of [RelativeSizeSpan] which will scale its text by `scaleFactor`, initialize our
+     * variable `scaledMsg` to an instance of [SpannableString] constructed from `msg`, and attach
+     * the markup of `smallTextSpan` as a span from 0 to the length of `msg` using the flag
+     * SPAN_EXCLUSIVE_EXCLUSIVE (do not expand to include text inserted at either the starting or
+     * ending point) to `scaledMsg`. We then set our `text` to `scaledMsg`. If on the other hand
+     * the `msg` does fit we just set our `text` to `msg`.
      *
      * @param index index of the expression which contains an error. UNUSED
      * @param resourceId resource ID of the error string we are the display.
@@ -880,15 +895,18 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     /**
      * Format a result returned by Evaluator.getString() into a single line containing ellipses
      * (if appropriate) and an exponent (if appropriate).
+     *
      * We add two distinct kinds of exponents:
-     * (1) If the final result contains the leading digit we use standard scientific notation.
-     * (2) If not, we add an exponent corresponding to an interpretation of the final result as
+     * 1. If the final result contains the leading digit we use standard scientific notation.
+     * 2. If not, we add an exponent corresponding to an interpretation of the final result as
      * an integer.
-     * We add an ellipsis on the left if the result was truncated.
-     * We add ellipses and exponents in a way that leaves most digits in the position they
-     * would have been in had we not done so. This minimizes jumps as a result of scrolling.
-     * Result is NOT internationalized, uses "E" for exponent.
-     * Called only from UI thread; We sometimes omit locking for fields.
+     *
+     * We add an ellipsis on the left if the result was truncated. We add ellipses and exponents in
+     * a way that leaves most digits in the position they would have been in had we not done so.
+     * This minimizes jumps as a result of scrolling. Result is NOT internationalized, uses "E" for
+     * exponent. Called only from UI thread; We sometimes omit locking for fields.
+     *
+     * @param str result returned by Evaluator.getString()
      * @param precOffset The value that was passed to getString. Identifies the significance of
      * the rightmost digit. A value of 1 means the rightmost digits corresponds to tenths.
      * @param maxDigs The maximum number of characters in the result
@@ -908,13 +926,17 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * that we only do it when no exponent is displayed.
      * We insert commas in a way that does consider the width of the actual localized digit
      * separator. Commas count towards maxDigs as the appropriate fraction of a digit.
+     * @return the properly formatted result.
      */
-    private fun formatResult(`in`: String, precOffset: Int, maxDigs: Int, truncated: Boolean,
-                             negative: Boolean, lastDisplayedOffset: IntArray?, forcePrecision: Boolean,
-                             forceSciNotation: Boolean, insertCommas: Boolean): String {
+    private fun formatResult(str: String, precOffset: Int, maxDigs: Int,
+                             truncated: Boolean, negative: Boolean,
+                             lastDisplayedOffset: IntArray?,
+                             forcePrecision: Boolean,
+                             forceSciNotation: Boolean,
+                             insertCommas: Boolean): String {
         val minusSpace = if (negative) 1 else 0
-        val msdIndex = if (truncated) -1 else getNaiveMsdIndexOf(`in`)  // INVALID_MSD is OK.
-        var result = `in`
+        val msdIndex = if (truncated) -1 else getNaiveMsdIndexOf(str)  // INVALID_MSD is OK.
+        var result = str
         var needEllipsis = false
         if (truncated || negative && result[0] != '-') {
             needEllipsis = true
@@ -1046,7 +1068,17 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Get formatted, but not internationalized, result from mEvaluator.
+     * Get formatted, but not internationalized, result from [mEvaluator]. We initialize our variable
+     * `truncated` with a [BooleanArray] of size 1, `negative` with a [BooleanArray] of size 1, and
+     * `requestedPrecOffset` with an [IntArray] containing [precOffset]. We then initialize our
+     * variable `rawResult` to the string returned by [mEvaluator] after it evaluates the expression
+     * at index [mIndex] using the precision specified by the zeroth element of `requestedPrecOffset`,
+     * [mMaxCharOffset] as the maximum adjusted precision offset, [maxSize] as the maximum length of
+     * the result, `truncated` as the array whose zeroth element is set if leading nonzero digits
+     * were dropped, `negative` as the array whose zeroth element is set if the result is negative,
+     * and *this* as the `EvaluationListener` to notify when reevaluation is complete. Finally we
+     * return the string that our method [formatResult] creates after formatting `rawResult` properly.
+     *
      * @param precOffset requested position (1 = tenths) of last included digit
      * @param maxSize maximum number of characters (more or less) in result
      * @param lastDisplayedOffset zeroth entry is set to actual offset of last included digit,
@@ -1055,6 +1087,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * of treating maxSize as a soft limit.
      * @param forceSciNotation Force scientific notation, even if not required by maxSize.
      * @param insertCommas Insert commas as digit separators.
+     * @return the result returned by [mEvaluator] formatted by our method [formatResult]
      */
     private fun getFormattedResult(precOffset: Int, maxSize: Int, lastDisplayedOffset: IntArray?,
                                    forcePrecision: Boolean, forceSciNotation: Boolean,
@@ -1069,20 +1102,40 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Return entire result (within reason) up to current displayed precision.
+     * Return entire result (within reason) up to current displayed precision. If our field [mValid]
+     * is *false* (indicating our result does not hold a valid number) we return the empty string "".
+     * Otherwise if our [isScrollable] field is *false* (indicating that our result is short enough
+     * to fit without scrolling) we just return the string value of our `text` property. Otherwise
+     * we return the string returned by our [KeyMaps.translateResult] returns after localizing the
+     * string returned by our [getFormattedResult] method when it formats our [mIndex] expression
+     * using [mLastDisplayedOffset] as the requested position of last included digit, MAX_COPY_SIZE
+     * (1,000,000) as the maximum number of characters in the result, *null* for the offset of last
+     * included digit (ie. none specified), *true* for the `forcePrecision` parameter to forse the
+     * last included digit is at `nextPos`, *false* to not force scientific notation, and our parameter
+     * [withSeparators] to have it insert commas as digit separators if our caller wanted them.
+     *
      * @param withSeparators  Add digit separators
+     * @return string representing the entire result up to the current displayed precision.
      */
     fun getFullText(withSeparators: Boolean): String {
         if (!mValid) return ""
-        return if (!isScrollable) text.toString() else KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, MAX_COPY_SIZE, null, true, false, withSeparators))
+        return if (!isScrollable) {
+            text.toString()
+        } else {
+            KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, MAX_COPY_SIZE,
+                    null, true, false, withSeparators))
+        }
     }
 
     /**
-     * Did the above produce a correct result?
-     * UI thread only.
+     * Did the above produce an exact result? UI thread only.
+     *
+     * @return *true* if the result is exact.
      */
     fun fullTextIsExact(): Boolean {
-        return !isScrollable || getCharOffset(mMaxPos) == getCharOffset(mCurrentPos) && mMaxCharOffset != MAX_RIGHT_SCROLL
+        val terminating = getCharOffset(mMaxPos) == getCharOffset(mCurrentPos)
+                && mMaxCharOffset != MAX_RIGHT_SCROLL
+        return !isScrollable || terminating
     }
 
     /**
