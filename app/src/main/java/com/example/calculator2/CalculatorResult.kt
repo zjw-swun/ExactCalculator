@@ -1128,7 +1128,13 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Did the above produce an exact result? UI thread only.
+     * Did the above produce an exact result? UI thread only. We initialize our variable `terminating`
+     * to *true* if the character offset of the maximum position before we start displaying the
+     * infinite sequence of trailing zeroes on the right ([mMaxPos]) is equal to the character offset
+     * of the current position ([mCurrentPos]) and the character offset from decimal point of rightmost
+     * digit that should be displayed ([mMaxCharOffset]) is not equal to MAX_RIGHT_SCROLL. We then
+     * return *true* if [isScrollable] is *false* (our number fits our display without scrolling)
+     * or `terminating` is *true*.
      *
      * @return *true* if the result is exact.
      */
@@ -1139,9 +1145,13 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Return the maximum number of characters that will fit in the result display.
-     * May be called asynchronously from non-UI thread. From Evaluator.CharMetricsInfo.
-     * Returns zero if measurement hasn't completed.
+     * Return the maximum number of characters that will fit in the result display. May be called
+     * asynchronously from non-UI thread. From Evaluator.CharMetricsInfo. Returns zero if measurement
+     * hasn't completed. In a block synchronized on [mWidthLock] we return the rounded down [Int]
+     * value of [mWidthConstraint] (our total width in pixels minus space for ellipsis) divided by
+     * [mCharWidth] (maximum character width).
+     *
+     * @return the maximum number of characters that will fit in the result display.
      */
     override fun getMaxChars(): Int {
         synchronized(mWidthLock) {
