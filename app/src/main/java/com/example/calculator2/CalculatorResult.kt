@@ -267,10 +267,44 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     init {
         mGestureDetector = GestureDetector(context,
                 object : GestureDetector.SimpleOnGestureListener() {
+                    /**
+                     * Notified when a tap occurs with the down [MotionEvent] that triggered it. This
+                     * will be triggered immediately for every down event. All other events should be
+                     * preceded by this. We just return *true* so that we continue to recieve events.
+                     *
+                     * @param e The down motion event.
+                     * @return *true* if you wish to receive the following events.
+                     */
                     override fun onDown(e: MotionEvent): Boolean {
                         return true
                     }
 
+                    /**
+                     * Notified of a fling event when it occurs with the initial on down [MotionEvent]
+                     * and the matching up [MotionEvent]. The calculated velocity is supplied along
+                     * the x and y axis in pixels per second. If the [mScroller] `OverScroller` has
+                     * not yet finished scrolling we set our field [mCurrentPos] (position of right
+                     * of our display relative to decimal point) to the end position (`finalX`) that
+                     * the scroll would reach. Finished or not we then call the `forceFinished` method
+                     * of [mScroller] to force its finished field to *true*. We then call our
+                     * [stopActionModeOrContextMenu] to close a possible action mode or context menu,
+                     * and call our [cancelLongPress] to cancel any pending long press. If our result
+                     * is not scrollable (text which fits our display is not scrolled) we just return
+                     * *true* to consume the event. Otherwise we call the `fling` method of [mScroller]
+                     * to have it start to fling the text it contains starting from [mCurrentPos] with
+                     * a velocity of minus [velocityX], with its minimum X value [mMinPos], and maximum
+                     * X value [mMaxPos] (we do not scroll vertically so all the Y values are 0). Then
+                     * we call the [postInvalidateOnAnimation] method to cause an invalidate to happen
+                     * on the next animation time step. Finally we return *true* to consume the event.
+                     *
+                     * @param e1 The first down motion event that started the fling.
+                     * @param e2 The move motion event that triggered the current onFling.
+                     * @param velocityX The velocity of this fling measured in pixels per second
+                     *              along the x axis.
+                     * @param velocityY The velocity of this fling measured in pixels per second
+                     *              along the y axis.
+                     * @return *true* if the event is consumed, else *false*
+                     */
                     override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float,
                                          velocityY: Float): Boolean {
                         if (!mScroller.isFinished) {
@@ -287,6 +321,38 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                         return true
                     }
 
+                    /**
+                     * Notified when a scroll occurs with the initial on down [MotionEvent] and the
+                     * current move [MotionEvent]. The distance in x and y is also supplied for
+                     * convenience. We initialize our variable `distance` with the [Int] value of
+                     * [distanceX]. If the [mScroller] `OverScroller` has not yet finished scrolling
+                     * we set our field [mCurrentPos] (position of right of our display relative to
+                     * decimal point) to the end position (`finalX`) that the scroll would reach.
+                     * Finished or not we then call the `forceFinished` method of [mScroller] to force
+                     * its finished field to *true*. We then call our [stopActionModeOrContextMenu]
+                     * to close a possible action mode or context menu, and call our [cancelLongPress]
+                     * to cancel any pending long press. If our result is not scrollable (text which
+                     * fits our display is not scrolled) we just return *true* to consume the event.
+                     * If the end position of the scroll ([mCurrentPos] plus `distance`) is less than
+                     * [mMinPos] we set `distance` to [mMinPos] minus [mCurrentPos], and if the end
+                     * position is greater than [mMaxPos] we set `distance` to [mMaxPos] minus
+                     * [mCurrentPos]. We initialize our variable `duration` to the [Int] value of
+                     * the `eventTime` field of [e2] minus the `eventTime` field of [e1]. If `duration`
+                     * is less than 1 or greater than 100 we set it to 10. We then call the `startScroll`
+                     * method of [mScroller] to have it scroll its text contents starting from the
+                     * X position [mCurrentPos] and moving `distance` pixels with a duration of
+                     * `duration` milliseconds (the Y coordinates are 0 since we do not scroll verically).
+                     * Then we call the [postInvalidateOnAnimation] method to cause an invalidate to
+                     * happen on the next animation time step, and return *true* to consume the event.
+                     *
+                     * @param e1 The first down motion event that started the scrolling.
+                     * @param e2 The move motion event that triggered the current [onScroll].
+                     * @param distanceX The distance along the X axis that has been scrolled since
+                     * the last call to [onScroll]. This is NOT the distance between [e1] and [e2].
+                     * @param distanceY The distance along the Y axis that has been scrolled since
+                     * the last call to [onScroll]. This is NOT the distance between [e1] and [e2].
+                     * @return *true* if the event is consumed, else *false*
+                     */
                     override fun onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float,
                                           distanceY: Float): Boolean {
                         var distance = distanceX.toInt()
@@ -309,6 +375,13 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                         return true
                     }
 
+                    /**
+                     * Notified when a long press occurs with the initial on down [MotionEvent] that
+                     * triggered it. If our contents represents a valid result we call our
+                     * [performLongClick] method to handle the event.
+                     *
+                     * @param e The initial on down motion event that started the longpress.
+                     */
                     override fun onLongPress(e: MotionEvent) {
                         if (mValid) {
                             performLongClick()
@@ -506,8 +579,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * From Evaluator.CharMetricsInfo. Return the number of additional digit widths required to add
-     * digit separators to the supplied string prefix. The prefix consists of the first [len]
+     * Part of the `CharMetricsInfo` interface. Return the number of additional digit widths required
+     * to add digit separators to the supplied string prefix. The prefix consists of the first [len]
      * characters of string [s], which is presumed to represent a whole number. Callable from non-UI
      * thread. Returns zero if metrics information is not yet available.
      *
@@ -541,9 +614,9 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * From Evaluator.CharMetricsInfo. Return extra width credit for absence of ellipsis, as fraction
-     * of a digit width. May be called by non-UI thread. Synchronized on our lock [mWidthLock] we
-     * return our field [mNoEllipsisCredit].
+     * Part of the `CharMetricsInfo` interface. Return extra width credit for absence of ellipsis, as
+     * fraction of a digit width. May be called by non-UI thread. Synchronized on our lock [mWidthLock]
+     * we return our field [mNoEllipsisCredit].
      *
      * @return the faction of a digit width available when there is no ellipsis in the display.
      */
@@ -554,9 +627,9 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * From Evaluator.CharMetricsInfo. Return extra width credit for presence of a decimal point, as
-     * fraction of a digit width. May be called by non-UI thread. Synchronized on our lock [mWidthLock]
-     * we return our field [mDecimalCredit].
+     * Part of the `CharMetricsInfo` interface. Return extra width credit for presence of a decimal
+     * point, as fraction of a digit width. May be called by non-UI thread. Synchronized on our lock
+     * [mWidthLock] we return our field [mDecimalCredit].
      *
      * @return fraction of a digit width saved by lack of a decimal point in the display
      */
@@ -583,14 +656,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Initiate display of a new result. Only called from UI thread. The parameters specify various
-     * properties of the result. First we call our method [initPositions] to set up scroll bounds
-     * ([mMinPos], [mMaxPos], etc.) and determine whether the result is scrollable. If our field
-     * [mStoreToMemoryRequested] is true (the user requested that the result currently being evaluated
-     * should be stored to "memory") we call the `copyToMemory` method of [mEvaluator] to copy an
-     * immutable version of the expression index [index] as the "memory" value, and set
-     * [mStoreToMemoryRequested] to *false*. In any case we call our [redisplay] method to refresh
-     * the display.
+     * Part of the `EvaluationListener` interface. Initiate display of a new result. Only called from
+     * UI thread. The parameters specify various properties of the result. First we call our method
+     * [initPositions] to set up scroll bounds ([mMinPos], [mMaxPos], etc.) and determine whether the
+     * result is scrollable. If our field [mStoreToMemoryRequested] is true (the user requested that
+     * the result currently being evaluated should be stored to "memory") we call the `copyToMemory`
+     * method of [mEvaluator] to copy an immutable version of the expression index [index] as the
+     * "memory" value, and set [mStoreToMemoryRequested] to *false*. In any case we call our [redisplay]
+     * method to refresh the display.
      *
      * @param index Index of expression that was just evaluated. Currently ignored, since we only
      * expect notification for the expression result being displayed.
@@ -853,18 +926,18 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Display error message indicated by [resourceId]. UI thread only. First we set our field
-     * [mStoreToMemoryRequested] to *false* (we do not want to store an error into "memory" even
-     * if the user requested us to do so), set our field [mValid] to *false* (to indicate that the
-     * result does not hold a valid number), set our long-clickable property flag to *false*, and
-     * set our [isScrollable] property to *false*. We initialize our variable `msg` to the string
-     * with resource id [resourceId], and our variable `measuredWidth` to the width that a layout
-     * must be in order to display `msg` using our [TextPaint] with one line per paragraph. If
-     * `measuredWidth` is greater than [mWidthConstraint] we need to scale the text of `msg`, so
-     * we initialize our variable `scaleFactor` to 0.99 times [mWidthConstraint] divided by
-     * `measuredWidth` (to avoid rounding effects), initialize our variable `smallTextSpan` to an
-     * instance of [RelativeSizeSpan] which will scale its text by `scaleFactor`, initialize our
-     * variable `scaledMsg` to an instance of [SpannableString] constructed from `msg`, and attach
+     * Part of the `EvaluationListener` interface. Display error message indicated by [resourceId].
+     * UI thread only. First we set our field [mStoreToMemoryRequested] to *false* (we do not want
+     * to store an error into "memory" even if the user requested us to do so), set our field [mValid]
+     * to *false* (to indicate that the result does not hold a valid number), set our long-clickable
+     * property flag to *false*, and set our [isScrollable] property to *false*. We initialize our
+     * variable `msg` to the string with resource id [resourceId], and our variable `measuredWidth`
+     * to the width that a layout must be in order to display `msg` using our [TextPaint] with one
+     * line per paragraph. If `measuredWidth` is greater than [mWidthConstraint] we need to scale the
+     * text of `msg`, so we initialize our variable `scaleFactor` to 0.99 times [mWidthConstraint]
+     * divided by `measuredWidth` (to avoid rounding effects), initialize our variable `smallTextSpan`
+     * to an instance of [RelativeSizeSpan] which will scale its text by `scaleFactor`, initialize
+     * our variable `scaledMsg` to an instance of [SpannableString] constructed from `msg`, and attach
      * the markup of `smallTextSpan` as a span from 0 to the length of `msg` using the flag
      * SPAN_EXCLUSIVE_EXCLUSIVE (do not expand to include text inserted at either the starting or
      * ending point) to `scaledMsg`. We then set our `text` to `scaledMsg`. If on the other hand
@@ -1145,11 +1218,11 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Return the maximum number of characters that will fit in the result display. May be called
-     * asynchronously from non-UI thread. From Evaluator.CharMetricsInfo. Returns zero if measurement
-     * hasn't completed. In a block synchronized on [mWidthLock] we return the rounded down [Int]
-     * value of [mWidthConstraint] (our total width in pixels minus space for ellipsis) divided by
-     * [mCharWidth] (maximum character width).
+     * Part of the `CharMetricsInfo` interface. Return the maximum number of characters that will
+     * fit in the result display. May be called asynchronously from non-UI thread. Returns zero if
+     * measurement hasn't completed. In a block synchronized on [mWidthLock] we return the rounded
+     * down [Int] value of [mWidthConstraint] (our total width in pixels minus space for ellipsis)
+     * divided by [mCharWidth] (maximum character width).
      *
      * @return the maximum number of characters that will fit in the result display.
      */
@@ -1160,13 +1233,22 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Map pixel position to digit offset.
-     * UI thread only.
+     * Map pixel position to digit offset. UI thread only. We just return the rounded division of
+     * [pos] by [mCharWidth].
+     *
+     * @param pos pixel position we are interested in.
+     * @return the character position which occupies pixel position [pos]
      */
     internal fun getCharOffset(pos: Int): Int {
         return Math.round(pos / mCharWidth)  // Lock not needed.
     }
 
+    /**
+     * Clears our text contents and state variables to reflect a cleared state. We set our field
+     * [mValid] to *false* (we do not hold a valid number), set [isScrollable] to *false* (we do not
+     * hold a scrollable number), set our text to the empty string, and set our long clickable state
+     * to *false*.
+     */
     internal fun clear() {
         mValid = false
         isScrollable = false
@@ -1174,14 +1256,25 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         isLongClickable = false
     }
 
+    /**
+     * Part of the `EvaluationListener` interface. Called if evaluation was explicitly cancelled or
+     * evaluation timed out. We call our [clear] method to "clear" our contents, then set our
+     * [mStoreToMemoryRequested] field to *false* (cancelling the possible request by the user to
+     * store our result to "memory").
+     *
+     * @param index Index of expression that has been cancelled (UNUSED)
+     */
     override fun onCancelled(index: Long) {
         clear()
         mStoreToMemoryRequested = false
     }
 
     /**
-     * Refresh display.
-     * Only called in UI thread. Index argument is currently ignored.
+     * Part of the `EvaluationListener` interface. Refresh display. Only called in UI thread. Index
+     * [index] argument is currently ignored. We just call our [redisplay] method to redisplay the
+     * current value of the expression we hold.
+     *
+     * @param index the index of the expression (UNUSED)
      */
     override fun onReevaluate(index: Long) {
         redisplay()
