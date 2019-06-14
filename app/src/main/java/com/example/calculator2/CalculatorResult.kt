@@ -1280,9 +1280,40 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         redisplay()
     }
 
+    /**
+     * Redisplay the result of evaluating our current expression. We initialize our variable
+     * `maxCharsLocal` to the maximum number of characters that will fit in the result display.
+     * If this is less than 4 we just return to avoid crashing. If [mScroller] is finished scrolling
+     * and the length of the text managed by this `TextView` is greater than 0 we set the live region
+     * mode for this view to ACCESSIBILITY_LIVE_REGION_POLITE (the accessibility services should
+     * announce changes to this view). We initialize our variable `currentCharOffset` to the
+     * character offset occupied by [mCurrentPos] (Position of right of display relative to decimal
+     * point). We initialize our variable `lastDisplayedOffset` to an [Int] array of size 1. Then
+     * we initialize our variable `result` to the string returned by our method [getFormattedResult]
+     * when it has our [mEvaluator] evaluate our expression using `currentCharOffset` as the position
+     * of the last included digit, using `maxCharsLocal` as the maximum number of characters, and
+     * `lastDisplayedOffset` to hold the actual offset of last included digit. We also pass it
+     * [mAppendExponent] to have it preserve entire the result if it is *true*, if [mWholePartFits]
+     * is *false* (the whole result does not fit our display) and `currentCharOffset` is equal to the
+     * character offset of [mMinPos] we have it force scientific notation, and we have it insert
+     * commas as digit separators if [mWholePartFits] is *true*. We initialize our variable `expIndex`
+     * to the index of the 'E' scientific notation character in `result` (or -1 if none is found),
+     * then set `result` to the the string that the [KeyMaps.translateResult] method returns when it
+     * localizes `result`. If `expIndex` is greater than 0, and there is no '.' character in `result`
+     * the exponent is being used as a position indicator in a result that needs to be scrolled to
+     * view the less significant digits so we want to gray it out. To do this we initialize our
+     * variable `formattedResult` to a [SpannableString] constructed from `result`, then set the span
+     * from `expIndex` to the end of `result` to use [mExponentColorSpan] as its [ForegroundColorSpan].
+     * We then set our `text` to `formattedResult`. If it was not necessary to gray our the exponent
+     * we just set our `text` to `result`.
+     *
+     * To finish up we set our field [mLastDisplayedOffset] to the zeroth entry in `lastDisplayedOffset`
+     * that was determined by [getFormattedResult], set [mValid] to *true* and `isLongClickable` to
+     * *true*.
+     */
     fun redisplay() {
-        val maxChars = maxChars
-        if (maxChars < 4) {
+        val maxCharsLocal = maxChars
+        if (maxCharsLocal < 4) {
             // Display currently too small to display a reasonable result. Punt to avoid crash.
             return
         }
@@ -1291,7 +1322,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
         val currentCharOffset = getCharOffset(mCurrentPos)
         val lastDisplayedOffset = IntArray(1)
-        var result = getFormattedResult(currentCharOffset, maxChars, lastDisplayedOffset,
+        var result = getFormattedResult(currentCharOffset, maxCharsLocal, lastDisplayedOffset,
                 mAppendExponent /* forcePrecision; preserve entire result */,
                 !mWholePartFits && currentCharOffset == getCharOffset(mMinPos) /* forceSciNotation */,
                 mWholePartFits /* insertCommas */)
@@ -1300,7 +1331,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         if (expIndex > 0 && result.indexOf('.') == -1) {
             // Gray out exponent if used as position indicator
             val formattedResult = SpannableString(result)
-            formattedResult.setSpan(mExponentColorSpan, expIndex, result.length,
+            formattedResult.setSpan(mExponentColorSpan,
+                    expIndex, result.length,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             text = formattedResult
         } else {
@@ -1311,6 +1343,24 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         isLongClickable = true
     }
 
+    /**
+     * This method is called when the text is changed, in case any subclasses would like to know
+     * Within [text], the [lengthAfter] characters beginning at [start] have just replaced old text
+     * that had length [lengthBefore]. First we call our super's implementation of `onTextChanged`.
+     * Then if [isScrollable] is *false* (result fits without scrolling) or [mScroller] has finished
+     * scrolling we branch on whether [lengthBefore] was 0, and [lengthAfter] is greater than 0:
+     * - The text has changed from empty to non-empty: we set our `accessibilityLiveRegion` property
+     * (live region mode for this view) to ACCESSIBILITY_LIVE_REGION_POLITE (accessibility services
+     * should announce changes to this view), and set our `contentDescription` to *null*
+     * - The text has changed from non-empty to empty: we set our `accessibilityLiveRegion` property
+     * to ACCESSIBILITY_LIVE_REGION_NONE (accessibility services should not automatically announce
+     * changes to this view), and set our `contentDescription` to the string "No result".
+     *
+     * @param text The text the TextView is displaying
+     * @param start The offset of the start of the range of the text that was modified
+     * @param lengthBefore The length of the former text that has been replaced
+     * @param lengthAfter The length of the replacement modified text
+     */
     override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter)
 
@@ -1325,6 +1375,21 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
     }
 
+    /**
+     * Called by a parent to request that a child update its values for `mScrollX` and `mScrollY` if
+     * necessary. If [isScrollable] is *false* (our text fits the display without scrolling) we just
+     * return having done nothing. If the `computeScrollOffset` method of [mScroller] returns *true*
+     * (the animation is not yet finished), we set [mCurrentPos] to the `currX` field of [mScroller],
+     * and if the character offset of [mCurrentPos] is not equal to the character offset of [mLastPos]
+     * (the new position is different than that already reflected in the display), we set [mLastPos]
+     * to [mCurrentPos] and call our [redisplay] method to update our display. If [mScroller] has not
+     * finished scrolling we call the [postInvalidateOnAnimation] method to cause an invalidate to
+     * happen on the next animation time step and set our `accessibilityLiveRegion` property (live
+     * region mode for this view) to ACCESSIBILITY_LIVE_REGION_NONE (accessibility services should
+     * not automatically announce changes to this view), otherwise if the length of our text is greater
+     * than 0 we set our `accessibilityLiveRegion` property to ACCESSIBILITY_LIVE_REGION_POLITE
+     * (accessibility services should announce changes to this view).
+     */
     override fun computeScroll() {
         if (!isScrollable) {
             return
