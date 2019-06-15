@@ -1412,21 +1412,60 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Use ActionMode for copy/memory support on M and higher.
+     * Sets up ActionMode for copy/memory support on M and higher, this is called from our init block
+     * instead of [setupContextMenu] which is called for Android versions less than M. We just
+     * initialize [mCopyActionModeCallback] with an anonymous [ActionMode.Callback2] whose overrides
+     * of `onCreateActionMode`, `onPrepareActionMode`, `onActionItemClicked`, `onDestroyActionMode`,
+     * and `onGetContentRect` do what needs to be done for copy/memory actions performed on our
+     * contents, then set our `OnLongClickListener` to a lambda which starts the action mode.
      */
     @TargetApi(Build.VERSION_CODES.M)
     private fun setupActionMode() {
         mCopyActionModeCallback = object : ActionMode.Callback2() {
 
+            /**
+             * Called when action mode is first created. The menu supplied will be used to generate
+             * action buttons for the action mode. We initialize our variable `inflater` with a
+             * [MenuInflater] with the `ActionMode` [mode]'s context, then return the value returned
+             * by our [createContextMenu] method when it uses `inflater` to inflate our menu layout
+             * into `menu`.
+             *
+             * @param mode ActionMode being created
+             * @param menu Menu used to populate action buttons
+             * @return true if the action mode should be created, false if entering this mode should
+             * be aborted.
+             */
             override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
                 val inflater = mode.menuInflater
                 return createContextMenu(inflater, menu)
             }
 
+            /**
+             * Called to refresh an action mode's action menu whenever it is invalidated. We just
+             * return *false* to indicate that we did nothing to the `menu`.
+             *
+             * @param mode ActionMode being prepared
+             * @param menu Menu used to populate action buttons
+             * @return true if the menu or action mode was updated, false otherwise.
+             */
             override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
                 return false // Return false if nothing is done
             }
 
+            /**
+             * Called to report a user click on an action button. If our method [onMenuItemClick]
+             * returns *true* to indicate that the [item] clicked was one that it handled (one of
+             * R.id.memory_add, R.id.memory_subtract, R.id.memory_store, or a R.id.menu_copy while
+             * our [mEvaluator] is not currently reevaluating our expression) we call the `finish`
+             * method of [mode] to finish it and return *true* to the caller to indicate that we
+             * handled the event, otherwise we just return *false* to allow it to deal with the
+             * event as it sees fit.
+             *
+             * @param mode The current ActionMode
+             * @param item The item that was clicked
+             * @return *true* if this callback handled the event, *false* if the standard [MenuItem]
+             * invocation should continue.
+             */
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
                 return if (onMenuItemClick(item)) {
                     mode.finish()
@@ -1436,11 +1475,29 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 }
             }
 
+            /**
+             * Called when an action mode is about to be exited and destroyed. We call our method
+             * [unhighlightResult] to remove the highlighting span from our [Spannable] text, and
+             * set our field [mActionMode] to *null*.
+             *
+             * @param mode The current ActionMode being destroyed
+             */
             override fun onDestroyActionMode(mode: ActionMode) {
                 unhighlightResult()
                 mActionMode = null
             }
 
+            /**
+             * Called when an ActionMode needs to be positioned on screen, potentially occluding view
+             * content. Note this may be called on a per-frame basis.
+             *
+             * @param mode The [ActionMode] that requires positioning.
+             * @param view The [View] that originated the [ActionMode], in whose coordinates the
+             * [Rect] should be provided.
+             * @param outRect The [Rect] to be populated with the content position. Use this to
+             * specify where the content in your app lives within the given view. This will be used
+             * to avoid occluding the given content [Rect] with the created [ActionMode].
+             */
             override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) {
                 super.onGetContentRect(mode, view, outRect)
 
