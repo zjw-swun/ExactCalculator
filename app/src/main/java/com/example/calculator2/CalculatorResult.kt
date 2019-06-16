@@ -554,12 +554,13 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
 
-        if (mEvaluator != null && mEvaluationRequest != mEvaluationRequest) {
+        if (mEvaluator != null && mEvaluationRequest != SHOULD_NOT_EVALUATE) {
             val expr = mEvaluator!!.getExpr(mIndex)
             if (expr.hasInterestingOps()) {
-                when (mEvaluationRequest) {
-                    SHOULD_REQUIRE -> mEvaluator?.requireResult(mIndex, mEvaluationListener, this)
-                    else -> mEvaluator?.evaluateAndNotify(mIndex, mEvaluationListener, this)
+                if (mEvaluationRequest == SHOULD_REQUIRE) {
+                    mEvaluator!!.requireResult(mIndex, mEvaluationListener, this)
+                } else {
+                    mEvaluator!!.evaluateAndNotify(mIndex, mEvaluationListener, this)
                 }
             }
         }
