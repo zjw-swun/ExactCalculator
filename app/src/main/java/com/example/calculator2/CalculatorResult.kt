@@ -1489,7 +1489,20 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
 
             /**
              * Called when an ActionMode needs to be positioned on screen, potentially occluding view
-             * content. Note this may be called on a per-frame basis.
+             * content. Note this may be called on a per-frame basis. First we call our super's
+             * implementation of [onGetContentRect] (this sets the left and top of [outRect] to 0,
+             * the right to the width of [view] and the bottom to the height of [view], ie. [outRect]
+             * starts out surrounding the entire [view]). We add the left padding of [view] to the
+             * left side of [outRect], the top padding to the top side, and subtract the right padding
+             * of [view] from the right side of [outRect] and the bottom padding from the bottom side
+             * (narrowing in [outRect] to the area which is not occupied by empty padding). We then
+             * initialize our variable `width` to the width that our layout must be in order to
+             * display our `text` using our [TextPaint] `paint` (using one line per paragraph). Then
+             * if `width` is less than the width of [outRect], we set the left size of [outRect] to
+             * the right side of [outRect] minus `width` (this tends to center our text underneath
+             * the `view`0.
+             *
+             * If the device we are running on is older than Android N
              *
              * @param mode The [ActionMode] that requires positioning.
              * @param view The [View] that originated the [ActionMode], in whose coordinates the
