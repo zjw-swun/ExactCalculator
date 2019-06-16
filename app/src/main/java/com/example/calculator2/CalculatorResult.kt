@@ -1503,7 +1503,11 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
              * the right side of [outRect] minus `width` (this tends to center our text underneath
              * the `view`0.
              *
-             * If the device we are running on is older than Android N
+             * If the device we are running on is older than Android N we have to compensate for the
+             * fact that it does not take scaling into account when positioning the CAB. To do this
+             * we initialize our variable `scaleX` to the `scaleX` of [view], and `scaleY` to the
+             * `scaleY` of [view]. We then multiply the left and right coordinates of [outRect] by
+             * `scaleX`, and the top and bottom coordiantes by `scaleY`.
              *
              * @param mode The [ActionMode] that requires positioning.
              * @param view The [View] that originated the [ActionMode], in whose coordinates the
@@ -1539,6 +1543,10 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 }
             }
         }
+        // The lambda of this `OnLongClickListener` will if `mValid` is *true* set `mActionMode` to
+        // the `ActionMode` that is returned by the `startActionMode` method for the `Callback`
+        // `mCopyActionModeCallback` with the type TYPE_FLOATING, then return *true* to the caller
+        // to consume the long click. If `mValid` is *false* it just returns *false*
         setOnLongClickListener(OnLongClickListener {
             if (mValid) {
                 mActionMode = startActionMode(mCopyActionModeCallback, ActionMode.TYPE_FLOATING)
@@ -1549,7 +1557,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Use ContextMenu for copy/memory support on L and lower.
+     * Sets up [ContextMenu] for copy/memory support on L and lower.
      */
     @Suppress("UNUSED_ANONYMOUS_PARAMETER")
     private fun setupContextMenu() {
