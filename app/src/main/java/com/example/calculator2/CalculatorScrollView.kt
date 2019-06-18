@@ -26,14 +26,28 @@ import android.view.View.MeasureSpec.UNSPECIFIED
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 
+/**
+ * The custom [HorizontalScrollView] we use to hold our [CalculatorFormula] in our layout files for
+ * our [CalculatorDisplay] and our history items.
+ */
 class CalculatorScrollView
+/**
+ * Our constructors, the JvmOverloads annotation causes the Kotlin compiler to generate overloads
+ * that substitute default parameter values.
+ *
+ * @param context The Context the view is running in, through which it can access the current theme,
+ * resources, etc.
+ * @param attrs The attributes of the XML tag that is inflating the view.
+ * @param defStyleAttr An attribute in the current theme that contains a reference to a style
+ * resource that supplies default values for the view. Can be 0 to not look for defaults.
+ */
 @JvmOverloads
 constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : HorizontalScrollView(context, attrs, defStyleAttr) {
 
     private fun getChildMeasureSpecCompat(spec: Int, padding: Int, childDimension: Int): Int {
-        if (MeasureSpec.getMode(spec) == UNSPECIFIED && (childDimension == MATCH_PARENT
-                        || childDimension == WRAP_CONTENT)) {
+        if (MeasureSpec.getMode(spec) == UNSPECIFIED
+                && (childDimension == MATCH_PARENT || childDimension == WRAP_CONTENT)) {
             val size = Math.max(0, MeasureSpec.getSize(spec) - padding)
             return MeasureSpec.makeMeasureSpec(size, UNSPECIFIED)
         }
