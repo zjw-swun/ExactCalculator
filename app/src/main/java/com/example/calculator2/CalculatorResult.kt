@@ -176,7 +176,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     private var mNoEllipsisCredit: Float = 0.toFloat()
 
     /**
-     * This annotation limits the values assigned to a field to the valid enum choices
+     * This annotation limits the values assigned to a field to the valid [Int] choices
      */
     @Retention(AnnotationRetention.SOURCE)
     @IntDef(SHOULD_REQUIRE, SHOULD_EVALUATE, SHOULD_NOT_EVALUATE)
@@ -1557,7 +1557,15 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Sets up [ContextMenu] for copy/memory support on L and lower.
+     * Sets up [ContextMenu] for copy/memory support on L and lower. First we register a lambda as a
+     * `OnCreateContextMenuListener` which initializes a variable `inflater` with a [MenuInflater]
+     * constructed for our view's context when calling our [createContextMenu] method to inflate
+     * and configure the `contextMenu` menu that is passed it as a parameter. It then sets our field
+     * [mContextMenu] to this `contextMenu`, then loops through all the items in `contextMenu` setting
+     * their `OnMenuItemClickListener` to *this* [CalculatorResult].
+     *
+     * Finally we set our `OnLongClickListener` to a lambda which calls the [showContextMenu] method
+     * to show our context menu (returning the [Boolean] it returns) or returns *false*.
      */
     @Suppress("UNUSED_ANONYMOUS_PARAMETER")
     private fun setupContextMenu() {
@@ -1576,6 +1584,20 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
     }
 
+    /**
+     * Inflate our menu xml file into the [Menu] passed it and enables or disables items in it if
+     * need be. We use our parameter [inflater] to inflate our menu R.menu.menu_result into our
+     * parameter [menu]. We initialize our variable `displayMemory` to *true* if the index of the
+     * expression in our "memory" is not 0 (0 denotes an empty memory). We initialize our variable
+     * `memoryAddItem` with the [MenuItem] with id R.id.memory_add, and `memorySubtractItem` with
+     * the [MenuItem] with id R.id.memory_subtract. We enable `memoryAddItem` and `memorySubtractItem`
+     * only if `displayMemory` is true. We then call our method [highlightResult] to highlight the
+     * text of our result and return *true* to the caller.
+     *
+     * @param inflater [MenuInflater] to use to inflate our menu xml file.
+     * @param menu [Menu] to fill and configure for use as a context menu.
+     * @return always returns *true*, which is returned to the caller of `onCreateActionMode`
+     */
     private fun createContextMenu(inflater: MenuInflater, menu: Menu): Boolean {
         inflater.inflate(R.menu.menu_result, menu)
         val displayMemory = mEvaluator!!.memoryIndex != 0L
@@ -1587,6 +1609,18 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         return true
     }
 
+    /**
+     * Stops any action mode or context menu which might be in progress. If our field [mActionMode]
+     * is not *null* we call its `finish` method to finish and close the action mode (the action
+     * [ActionMode.Callback] will have its `onDestroyActionMode(ActionMode)` method called) then
+     * return *true* to the caller. If our field [mContextMenu] is not *null* we call our method
+     * [unhighlightResult] to remove the highlighting from our text, all the `close` method of
+     * [mContextMenu] to close the menu if it is open, then return *true* to the caller. If both
+     * of these fields are *null* we return false to the caller.
+     *
+     * @return *true* if an action mode or context menu has been stopped, *false* if there was none
+     * to stop.
+     */
     fun stopActionModeOrContextMenu(): Boolean {
         if (mActionMode != null) {
             mActionMode!!.finish()
@@ -1600,22 +1634,53 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         return false
     }
 
+    /**
+     * Highlights our text when it has been selected for copying. We initialize our variable `text`
+     * by casting the `text` of our `TextView` to a [Spannable]. We then attach the [mHighlightSpan]
+     * markup object to `text` starting from the zeroth character to the length of `text` using the
+     * flag SPAN_EXCLUSIVE_EXCLUSIVE (do not expand to include text inserted at either their starting
+     * or ending point).
+     */
     private fun highlightResult() {
         val text = text as Spannable
         text.setSpan(mHighlightSpan, 0, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * Removes the highlighting from our `text`. We initialize our variable `text` by casting the
+     * `text` of our `TextView` to a [Spannable], then call its `removeSpan` method to remove the
+     * [mHighlightSpan] markup object from the range of text to which it was attached, if any.
+     */
     private fun unhighlightResult() {
         val text = text as Spannable
         text.removeSpan(mHighlightSpan)
     }
 
+    /**
+     * Sets current primary clip property of the clipboard to [clip] (this is the clip that is
+     * involved in normal cut and paste operations). We initialize our variable `clipboard` to the
+     * system level service [ClipboardManager], then set its `primaryClip` property to [clip].
+     */
     @Suppress("unused")
     private fun setPrimaryClip(clip: ClipData) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.primaryClip = clip
     }
 
+    /**
+     * Copies our expression to the clipboard. First we initialize our variable `text` to the string
+     * returned when we access our [fullCopyText] property for our expression (entire result up to the
+     * current displayed precision, or up to MAX_COPY_EXTRA additional digits, if it will lead to an
+     * exact result). Then we initialize our variable `clipboard` to the system level [ClipboardManager]
+     * service. We initialize our variable `newItem` to a [ClipData.Item] constructed from `text`
+     * with a *null* `Intent`, and the `Uri` created for the expression with index [mIndex] by the
+     * `capture` method of [mEvaluator]. We initialize our variable `mimeTypes` to an array containing
+     * the single entry [ClipDescription.MIMETYPE_TEXT_PLAIN] (MIME type for a clip holding plain text).
+     * We then initialize our variable `cd` to a [ClipData] constructed using the label "calculator
+     * result" for display to the user, the MIME type `mimeTypes` and `newItem` as the [ClipData.Item]
+     * contents for the first item in the clip. We then set the `primaryClip` property of `clipboard`
+     * to `cd`. Finally we toast the message "Text copied".
+     */
     private fun copyContent() {
         val text = fullCopyText
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -1628,6 +1693,25 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         Toast.makeText(context, R.string.text_copied_toast, Toast.LENGTH_SHORT).show()
     }
 
+    /**
+     * Called when a menu item has been invoked. This is the first code that is executed; if it
+     * returns true, no other callbacks will be executed. We branch on the `itemId` of [item]:
+     * - R.id.memory_add: we call our method [onMemoryAdd] to add the result to the value currently
+     * in memory and return true to the caller.
+     * - R.id.memory_subtract: we call our method [onMemorySubtract] to subtract the result from the
+     * value currently in memory and return true to the caller.
+     * - R.id.memory_store: we call our method [onMemoryStore] to store the result for our expression
+     * if it is available and return true to the caller.
+     * - R.id.menu_copy: If the `evaluationInProgress` method of [mEvaluator] returns *true* to
+     * indicate that a reevaluation is still in progress we return *false* to refuse to copy
+     * placeholder characters to the clipboard, otherwise we call our method [copyContent] to copy
+     * our expression to the clipboard, call our method [unhighlightResult] to remove the highlight
+     * from our text and return *true* to the caller.
+     * - For all other menu item id's we return *false* to the caller.
+     *
+     * @param item The menu item that was invoked.
+     * @return Return true to consume this click and prevent others from executing.
+     */
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.memory_add -> {
@@ -1654,44 +1738,86 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         }
     }
 
+    /**
+     * This is called when the view is detached from a window. At this point it no longer has a
+     * surface for drawing. We call our [stopActionModeOrContextMenu] to cancel any action mode or
+     * context menu which might be displayed, then call our super's implementation of
+     * [onDetachedFromWindow].
+     */
     override fun onDetachedFromWindow() {
         stopActionModeOrContextMenu()
         super.onDetachedFromWindow()
     }
 
+    /**
+     * Our static constants and static methods.
+     */
     companion object {
+        /**
+         * Maximum value our result can be scrolled to the right.
+         */
         internal const val MAX_RIGHT_SCROLL = 10_000_000
         /**
+         * Value for the scroll position that indicates that the current result is invalid.
          * A larger value is unlikely to avoid running out of space
          */
         internal const val INVALID = MAX_RIGHT_SCROLL + 10_000
+        /**
+         * Require the evaluation of our expression by our [Evaluator] (our [mEvaluator] field).
+         */
         const val SHOULD_REQUIRE = 2
+        /**
+         * Explicitly call `evaluateAndNotify` when ready.
+         */
         const val SHOULD_EVALUATE = 1
+        /**
+         * Explicitly request evaluation.
+         */
         const val SHOULD_NOT_EVALUATE = 0
-        const val MAX_LEADING_ZEROES = 6
-        // Maximum number of leading zeroes after decimal point before we
-        // switch to scientific notation with negative exponent.
-        const val MAX_TRAILING_ZEROES = 6
-        // Maximum number of trailing zeroes before the decimal point before
-        // we switch to scientific notation with positive exponent.
-        private const val SCI_NOTATION_EXTRA = 1
-        // Extra digits for standard scientific notation.  In this case we
-        // have a decimal point and no ellipsis.
-        // We assume that we do not drop digits to make room for the decimal
-        // point in ordinary scientific notation. Thus >= 1.
-        private const val MAX_COPY_EXTRA = 100
-        // The number of extra digits we are willing to compute to copy
-        // a result as an exact number.
 
+        /**
+         * Maximum number of leading zeroes after decimal point before we switch to scientific
+         * notation with negative exponent.
+         */
+        const val MAX_LEADING_ZEROES = 6
+        /**
+         * Maximum number of trailing zeroes before the decimal point before we switch to scientific
+         * notation with positive exponent.
+         */
+        const val MAX_TRAILING_ZEROES = 6
+        /**
+         * Extra digits for standard scientific notation. In this case we have a decimal point and
+         * no ellipsis. We assume that we do not drop digits to make room for the decimal point in
+         * ordinary scientific notation. Thus >= 1.
+         */
+        private const val SCI_NOTATION_EXTRA = 1
+
+        /**
+         * The number of extra digits we are willing to compute to copy a result as an exact number.
+         */
+        private const val MAX_COPY_EXTRA = 100
         /**
          * The maximum number of digits we're willing to recompute in the UI thread. We only do
          * this for known rational results, where we can bound the computation cost.
          */
         private const val MAX_RECOMPUTE_DIGITS = 2_000
-
+        /**
+         * Maximum number of characters we are willing to copy for an exact result.
+         */
         private const val MAX_COPY_SIZE = 1_000_000
 
-        // Compute maximum digit width the hard way.
+        /**
+         * Compute maximum digit width the hard way. We initialize our variable `allDigits` to a
+         * string consisting of the 10 digits, then initialize our variable `widths` to a [Float]
+         * array allocated to hold an entry for each of these digits. We call the `getTextWidths`
+         * method of [paint] to fill `widths` with the width of each of the characters in `allDigits`.
+         * Then we initalize our variable `maxWidth` to 0f, and loop through all the `x` values in
+         * `widths` setting `maxWidth` to the maximum of `x`, and `maxWidth`. Finally we return
+         * `maxWidth` to the caller.
+         *
+         * @param paint the [TextPaint] our text is being painted by.
+         * @return the pixels required to paint the maximum width digit.
+         */
         private fun getMaxDigitWidth(paint: TextPaint): Float {
             // Compute the maximum advance width for each digit, thus accounting for between-character
             // spaces. If we ever support other kinds of digits, we may have to avoid kerning effects
@@ -1706,11 +1832,18 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             return maxWidth
         }
 
-        /*
-     * Return the most significant digit position in the given string or Evaluator.INVALID_MSD.
-     * Unlike Evaluator.getMsdIndexOf, we treat a final 1 as significant.
-     * Pure function; callable from anywhere.
-     */
+        /**
+         * Return the most significant digit position in the given string or Evaluator.INVALID_MSD.
+         * Unlike Evaluator.getMsdIndexOf, we treat a final 1 as significant. Pure function; callable
+         * from anywhere. We initialize our variable `len` to the length of [s], then we loop over
+         * `i` from 0 until `len` setting `c` to character at index `i` in [s] and if `c` is not
+         * equal to '-' and not equal to '.' and not equal to '0' we return the index `i` where we
+         * found `c` to the caller. If no character in [s] passes that test we return INVALID_MSD
+         * to the caller.
+         *
+         * @param s string containing a number whose most significant digit we are to find.
+         * @return the index within [s] of the first non-zero digit character.
+         */
         fun getNaiveMsdIndexOf(s: String): Int {
             val len = s.length
             for (i in 0 until len) {
