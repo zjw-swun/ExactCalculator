@@ -45,6 +45,10 @@ class CalculatorScrollView
 constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
     : HorizontalScrollView(context, attrs, defStyleAttr) {
 
+    /**
+     * @param spec measure specification we are to adjust for the padding of our parent.
+     * @param padding the padding in pixels of our parent view.
+     */
     private fun getChildMeasureSpecCompat(spec: Int, padding: Int, childDimension: Int): Int {
         if (MeasureSpec.getMode(spec) == UNSPECIFIED
                 && (childDimension == MATCH_PARENT || childDimension == WRAP_CONTENT)) {
@@ -54,6 +58,14 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         return ViewGroup.getChildMeasureSpec(spec, padding, childDimension)
     }
 
+    /**
+     * Ask one of the children of this view to measure itself, taking into account both the
+     * MeasureSpec requirements for this view and its padding.
+     *
+     * @param child The child to measure
+     * @param parentWidthMeasureSpec The width requirements for this view
+     * @param parentHeightMeasureSpec The height requirements for this view
+     */
     override fun measureChild(child: View, parentWidthMeasureSpec: Int,
                               parentHeightMeasureSpec: Int) {
         var widthMeasureSpec = parentWidthMeasureSpec
