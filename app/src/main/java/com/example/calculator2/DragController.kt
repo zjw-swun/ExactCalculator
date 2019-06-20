@@ -26,18 +26,49 @@ import androidx.recyclerview.widget.RecyclerView
 class DragController {
 
     // References to views from the Calculator Display.
+    /**
+     * The [CalculatorFormula] containing the current expression
+     */
     private var mDisplayFormula: CalculatorFormula? = null
+    /**
+     * The [CalculatorResult] containing the current result of our current expression
+     */
     private var mDisplayResult: CalculatorResult? = null
+    /**
+     * The `ToolBar` of the calculator.
+     */
     private var mToolbar: View? = null
 
+    /**
+     * Translation in the Y direction of the formula whose drag we are animating
+     */
     private var mFormulaTranslationY: Int = 0
+    /**
+     * Translation in the X direction of the formula whose drag we are animating
+     */
     private var mFormulaTranslationX: Int = 0
-    private var mFormulaScale: Float = 0.toFloat()
-    private var mResultScale: Float = 0.toFloat()
+    /**
+     * Scale of the formula whose drag we are animating
+     */
+    private var mFormulaScale: Float = 0f
+    /**
+     * Scale of the result whose drag we are animating
+     */
+    private var mResultScale: Float = 0f
 
-    private var mResultTranslationY: Float = 0.toFloat()
+    /**
+     * Translation in the Y direction of the result whose drag we are animating
+     */
+    private var mResultTranslationY: Float = 0f
+    /**
+     * Translation in the X direction of the result whose drag we are animating
+     */
     private var mResultTranslationX: Int = 0
 
+    /**
+     * Total height of the calculator display -- that is the sum of the heights of the [mToolbar],
+     * [mDisplayResult], and [mDisplayFormula]
+     */
     private var mDisplayHeight: Int = 0
 
     private var mFormulaStartColor: Int = 0
