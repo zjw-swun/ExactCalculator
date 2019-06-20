@@ -391,18 +391,18 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
             boolean at_left, at_right;
             BigInteger l, f_l;
             BigInteger h, f_h;
-            BigInteger low_appr = low[0].get_appr(working_arg_prec)
+            BigInteger low_appr = low[0].getAppr(working_arg_prec)
                                         .add(big1);
-            BigInteger high_appr = high[0].get_appr(working_arg_prec)
+            BigInteger high_appr = high[0].getAppr(working_arg_prec)
                                           .subtract(big1);
-            BigInteger arg_appr = arg.get_appr(working_eval_prec);
-            boolean have_good_appr = (appr_valid && min_prec < max_msd[0]);
+            BigInteger arg_appr = arg.getAppr(working_eval_prec);
+            boolean have_good_appr = (apprValid && minPrec < max_msd[0]);
             if (digits_needed < 30 && !have_good_appr) {
                 trace("Setting interval to entire domain");
                 h = high_appr;
-                f_h = f_high[0].get_appr(working_eval_prec);
+                f_h = f_high[0].getAppr(working_eval_prec);
                 l = low_appr;
-                f_l = f_low[0].get_appr(working_eval_prec);
+                f_l = f_low[0].getAppr(working_eval_prec);
                 // Check for clear out-of-bounds case.
                 // Close cases may fail in other ways.
                   if (f_h.compareTo(arg_appr.subtract(big1)) < 0
@@ -416,10 +416,10 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                 int rough_prec = p + digits_needed/2;
 
                 if (have_good_appr &&
-                    (digits_needed < 30 || min_prec < p + 3*digits_needed/4)) {
-                    rough_prec = min_prec;
+                    (digits_needed < 30 || minPrec < p + 3*digits_needed/4)) {
+                    rough_prec = minPrec;
                 }
-                BigInteger rough_appr = get_appr(rough_prec);
+                BigInteger rough_appr = getAppr(rough_prec);
                 trace("Setting interval based on prev. appr");
                 trace("prev. prec = " + rough_prec + " appr = " + rough_appr);
                 h = rough_appr.add(big1)
@@ -428,26 +428,26 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                               .shiftLeft(rough_prec - working_arg_prec);
                 if (h.compareTo(high_appr) > 0)  {
                     h = high_appr;
-                    f_h = f_high[0].get_appr(working_eval_prec);
+                    f_h = f_high[0].getAppr(working_eval_prec);
                     at_right = true;
                 } else {
                     CR h_cr = CR.valueOf(h).shiftLeft(working_arg_prec);
-                    f_h = fn.execute(h_cr).get_appr(working_eval_prec);
+                    f_h = fn.execute(h_cr).getAppr(working_eval_prec);
                     at_right = false;
                 }
                 if (l.compareTo(low_appr) < 0) {
                     l = low_appr;
-                    f_l = f_low[0].get_appr(working_eval_prec);
+                    f_l = f_low[0].getAppr(working_eval_prec);
                     at_left = true;
                 } else {
                     CR l_cr = CR.valueOf(l).shiftLeft(working_arg_prec);
-                    f_l = fn.execute(l_cr).get_appr(working_eval_prec);
+                    f_l = fn.execute(l_cr).getAppr(working_eval_prec);
                     at_left = false;
                 }
             }
             BigInteger difference = h.subtract(l);
             for(int i = 0;; ++i) {
-                if (Thread.interrupted() || please_stop)
+                if (Thread.interrupted() || pleaseStop)
                     throw new AbortedException();
                 trace("***Iteration: " + i);
                 trace("Arg prec = " + working_arg_prec
@@ -510,7 +510,7 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                               + " with precision " + working_eval_prec);
                         CR f_guess_cr = fn.execute(guess_cr);
                         trace("fn value = " + f_guess_cr);
-                        f_guess = f_guess_cr.get_appr(working_eval_prec);
+                        f_guess = f_guess_cr.getAppr(working_eval_prec);
                         outcome = sloppy_compare(f_guess, arg_appr);
                         if (outcome != 0) break;
                         // Alternately increase evaluation precision
@@ -530,18 +530,18 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                                   + (at_left? "(at left)" : "")
                                   + (at_right? "(at right)" : ""));
                             if (at_left) {
-                                f_l = f_low[0].get_appr(working_eval_prec);
+                                f_l = f_low[0].getAppr(working_eval_prec);
                             } else {
                                 f_l = fn.execute(l_cr)
-                                        .get_appr(working_eval_prec);
+                                        .getAppr(working_eval_prec);
                             }
                             if (at_right) {
-                                f_h = f_high[0].get_appr(working_eval_prec);
+                                f_h = f_high[0].getAppr(working_eval_prec);
                             } else {
                                 f_h = fn.execute(h_cr)
-                                        .get_appr(working_eval_prec);
+                                        .getAppr(working_eval_prec);
                             }
-                            arg_appr = arg.get_appr(working_eval_prec);
+                            arg_appr = arg.getAppr(working_eval_prec);
                         } else {
                             // guess might be exactly right; tweak it
                             // slightly.
@@ -663,14 +663,14 @@ class monotoneDerivative_UnaryCRFunction extends UnaryCRFunction {
             CR left_deriv = f_arg.subtract(f_left).shiftRight(log_delta);
             CR right_deriv = f_right.subtract(f_arg).shiftRight(log_delta);
             int eval_prec = p - extra_prec;
-            BigInteger appr_left_deriv = left_deriv.get_appr(eval_prec);
-            BigInteger appr_right_deriv = right_deriv.get_appr(eval_prec);
+            BigInteger appr_left_deriv = left_deriv.getAppr(eval_prec);
+            BigInteger appr_right_deriv = right_deriv.getAppr(eval_prec);
             BigInteger deriv_difference =
                 appr_right_deriv.subtract(appr_left_deriv).abs();
             if (deriv_difference.compareTo(big8) < 0) {
                 return scale(appr_left_deriv, -extra_prec);
             } else {
-                if (Thread.interrupted() || please_stop)
+                if (Thread.interrupted() || pleaseStop)
                     throw new AbortedException();
                 deriv2_msd[0] =
                         eval_prec + deriv_difference.bitLength() + 4/*slop*/;
