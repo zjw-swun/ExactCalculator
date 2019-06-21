@@ -412,7 +412,7 @@ public class UnifiedReal {
         boolean negative = false;
         BigInteger intScaled;
         if (exactlyTruncatable()) {
-            intScaled = scaled.getAppr(0);
+            intScaled = scaled.approxGet(0);
             if (intScaled.signum() < 0) {
                 negative = true;
                 intScaled = intScaled.negate();
@@ -423,7 +423,7 @@ public class UnifiedReal {
             check(CR.valueOf(intScaled).compareTo(scaled.abs()) < 0);
         } else {
             // Approximate case.  Exact comparisons are impossible.
-            intScaled = scaled.getAppr(-EXTRA_PREC);
+            intScaled = scaled.approxGet(-EXTRA_PREC);
             if (intScaled.signum() < 0) {
                 negative = true;
                 intScaled = intScaled.negate();
@@ -1257,7 +1257,7 @@ public class UnifiedReal {
     public UnifiedReal fact() {
         BigInteger asBI = bigIntegerValue();
         if (asBI == null) {
-            asBI = crValue().getAppr(0);  // Correct if it was an integer.
+            asBI = crValue().approxGet(0);  // Correct if it was an integer.
             if (!approxEquals(new UnifiedReal(asBI), DEFAULT_COMPARE_TOLERANCE)) {
                 throw new ArithmeticException("Non-integral factorial argument");
             }
@@ -1322,7 +1322,7 @@ public class UnifiedReal {
         if (isNamed(mCrFactor)) {
             return mRatFactor.wholeNumberBits() > bound;
         } else {
-            return crValue().getAppr(bound - 2).bitLength() > 2;
+            return crValue().approxGet(bound - 2).bitLength() > 2;
         }
     }
 }

@@ -19,103 +19,105 @@
  * The original code is licensed as follows:
  */
 
-//
-// Copyright (c) 1999, Silicon Graphics, Inc. -- ALL RIGHTS RESERVED
-//
-// Permission is granted free of charge to copy, modify, use and distribute
-// this software  provided you include the entirety of this notice in all
-// copies made.
-//
-// THIS SOFTWARE IS PROVIDED ON AN AS IS BASIS, WITHOUT WARRANTY OF ANY
-// KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION,
-// WARRANTIES THAT THE SUBJECT SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT
-// FOR A PARTICULAR PURPOSE OR NON-INFRINGING.   SGI ASSUMES NO RISK AS TO THE
-// QUALITY AND PERFORMANCE OF THE SOFTWARE.   SHOULD THE SOFTWARE PROVE
-// DEFECTIVE IN ANY RESPECT, SGI ASSUMES NO COST OR LIABILITY FOR ANY
-// SERVICING, REPAIR OR CORRECTION.  THIS DISCLAIMER OF WARRANTY CONSTITUTES
-// AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY SUBJECT SOFTWARE IS
-// AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
-//
-// UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT (INCLUDING,
-// WITHOUT LIMITATION, NEGLIGENCE OR STRICT LIABILITY), CONTRACT, OR
-// OTHERWISE, SHALL SGI BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL,
-// INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER WITH RESPECT TO THE
-// SOFTWARE INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK
-// STOPPAGE, LOSS OF DATA, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL
-// OTHER COMMERCIAL DAMAGES OR LOSSES, EVEN IF SGI SHALL HAVE BEEN INFORMED OF
-// THE POSSIBILITY OF SUCH DAMAGES.  THIS LIMITATION OF LIABILITY SHALL NOT
-// APPLY TO LIABILITY RESULTING FROM SGI's NEGLIGENCE TO THE EXTENT APPLICABLE
-// LAW PROHIBITS SUCH LIMITATION.  SOME JURISDICTIONS DO NOT ALLOW THE
-// EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THAT
-// EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
-//
-// These license terms shall be governed by and construed in accordance with
-// the laws of the United States and the State of California as applied to
-// agreements entered into and to be performed entirely within California
-// between California residents.  Any litigation relating to these license
-// terms shall be subject to the exclusive jurisdiction of the Federal Courts
-// of the Northern District of California (or, absent subject matter
-// jurisdiction in such courts, the courts of the State of California), with
-// venue lying exclusively in Santa Clara County, California.
-
-// Copyright (c) 2001-2004, Hewlett-Packard Development Company, L.P.
-//
-// Permission is granted free of charge to copy, modify, use and distribute
-// this software  provided you include the entirety of this notice in all
-// copies made.
-//
-// THIS SOFTWARE IS PROVIDED ON AN AS IS BASIS, WITHOUT WARRANTY OF ANY
-// KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION,
-// WARRANTIES THAT THE SUBJECT SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT
-// FOR A PARTICULAR PURPOSE OR NON-INFRINGING.   HEWLETT-PACKARD ASSUMES
-// NO RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE.
-// SHOULD THE SOFTWARE PROVE DEFECTIVE IN ANY RESPECT,
-// HEWLETT-PACKARD ASSUMES NO COST OR LIABILITY FOR ANY
-// SERVICING, REPAIR OR CORRECTION.  THIS DISCLAIMER OF WARRANTY CONSTITUTES
-// AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY SUBJECT SOFTWARE IS
-// AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
-//
-// UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT (INCLUDING,
-// WITHOUT LIMITATION, NEGLIGENCE OR STRICT LIABILITY), CONTRACT, OR
-// OTHERWISE, SHALL HEWLETT-PACKARD BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL,
-// INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER WITH RESPECT TO THE
-// SOFTWARE INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK
-// STOPPAGE, LOSS OF DATA, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL
-// OTHER COMMERCIAL DAMAGES OR LOSSES, EVEN IF HEWLETT-PACKARD SHALL
-// HAVE BEEN INFORMED OF THE POSSIBILITY OF SUCH DAMAGES.
-// THIS LIMITATION OF LIABILITY SHALL NOT APPLY TO LIABILITY RESULTING
-// FROM HEWLETT-PACKARD's NEGLIGENCE TO THE EXTENT APPLICABLE
-// LAW PROHIBITS SUCH LIMITATION.  SOME JURISDICTIONS DO NOT ALLOW THE
-// EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THAT
-// EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
-//
-
-// Added valueOf(string, radix), fixed some documentation comments.
-//              Hans_Boehm@hp.com 1/12/2001
-// Fixed a serious typo in inv_CR():  For negative arguments it produced
-//              the wrong sign.  This affected the sign of divisions.
-// Added byteValue and fixed some comments.  Hans.Boehm@hp.com 12/17/2002
-// Added toStringFloatRep.      Hans.Boehm@hp.com 4/1/2004
-// Added getAppr() synchronization to allow access from multiple threads
-// hboehm@google.com 4/25/2014
-// Changed cos() pre-scaling to avoid logarithmic depth tree.
-// hboehm@google.com 6/30/2014
-// Added explicit asin() implementation.  Remove one.  Add ZERO and ONE and
-// make them public.  hboehm@google.com 5/21/2015
-// Added Gauss-Legendre PI implementation.  Removed two.
-// hboehm@google.com 4/12/2016
-// Fix shift operation in doubleValue. That produced incorrect values for
-// large negative exponents.
-// Don't negate argument and compute inverse for exp(). That causes severe
-// performance problems for (-huge).exp()
-// hboehm@google.com 8/21/2017
-// Have comparison check for interruption. hboehm@google.com 10/31/2017
-// Fix precision overflow issue in most general compareTo function.
-// Fix a couple of unused variable bugs. Notably selector_sign was
-// accidentally locally re-declared. (This turns out to be safe but useless.)
-// hboehm@google.com 11/20/2018.
-// Fix an exception-safety issue in gl_pi_CR.approximate.
-// hboehm@google.com 3/3/2019.
+/*
+ *
+ * Copyright (c) 1999, Silicon Graphics, Inc. -- ALL RIGHTS RESERVED
+ *
+ * Permission is granted free of charge to copy, modify, use and distribute
+ * this software  provided you include the entirety of this notice in all
+ * copies made.
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN AS IS BASIS, WITHOUT WARRANTY OF ANY
+ * KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION,
+ * WARRANTIES THAT THE SUBJECT SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT
+ * FOR A PARTICULAR PURPOSE OR NON-INFRINGING.   SGI ASSUMES NO RISK AS TO THE
+ * QUALITY AND PERFORMANCE OF THE SOFTWARE.   SHOULD THE SOFTWARE PROVE
+ * DEFECTIVE IN ANY RESPECT, SGI ASSUMES NO COST OR LIABILITY FOR ANY
+ * SERVICING, REPAIR OR CORRECTION.  THIS DISCLAIMER OF WARRANTY CONSTITUTES
+ * AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY SUBJECT SOFTWARE IS
+ * AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
+ *
+ * UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT (INCLUDING,
+ * WITHOUT LIMITATION, NEGLIGENCE OR STRICT LIABILITY), CONTRACT, OR
+ * OTHERWISE, SHALL SGI BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER WITH RESPECT TO THE
+ * SOFTWARE INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK
+ * STOPPAGE, LOSS OF DATA, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL
+ * OTHER COMMERCIAL DAMAGES OR LOSSES, EVEN IF SGI SHALL HAVE BEEN INFORMED OF
+ * THE POSSIBILITY OF SUCH DAMAGES.  THIS LIMITATION OF LIABILITY SHALL NOT
+ * APPLY TO LIABILITY RESULTING FROM SGI's NEGLIGENCE TO THE EXTENT APPLICABLE
+ * LAW PROHIBITS SUCH LIMITATION.  SOME JURISDICTIONS DO NOT ALLOW THE
+ * EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THAT
+ * EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
+ *
+ * These license terms shall be governed by and construed in accordance with
+ * the laws of the United States and the State of California as applied to
+ * agreements entered into and to be performed entirely within California
+ * between California residents.  Any litigation relating to these license
+ * terms shall be subject to the exclusive jurisdiction of the Federal Courts
+ * of the Northern District of California (or, absent subject matter
+ * jurisdiction in such courts, the courts of the State of California), with
+ * venue lying exclusively in Santa Clara County, California.
+ *
+ * Copyright (c) 2001-2004, Hewlett-Packard Development Company, L.P.
+ *
+ * Permission is granted free of charge to copy, modify, use and distribute
+ * this software  provided you include the entirety of this notice in all
+ * copies made.
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN AS IS BASIS, WITHOUT WARRANTY OF ANY
+ * KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION,
+ * WARRANTIES THAT THE SUBJECT SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT
+ * FOR A PARTICULAR PURPOSE OR NON-INFRINGING.   HEWLETT-PACKARD ASSUMES
+ * NO RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE.
+ * SHOULD THE SOFTWARE PROVE DEFECTIVE IN ANY RESPECT,
+ * HEWLETT-PACKARD ASSUMES NO COST OR LIABILITY FOR ANY
+ * SERVICING, REPAIR OR CORRECTION.  THIS DISCLAIMER OF WARRANTY CONSTITUTES
+ * AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY SUBJECT SOFTWARE IS
+ * AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
+ *
+ * UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT (INCLUDING,
+ * WITHOUT LIMITATION, NEGLIGENCE OR STRICT LIABILITY), CONTRACT, OR
+ * OTHERWISE, SHALL HEWLETT-PACKARD BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER WITH RESPECT TO THE
+ * SOFTWARE INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK
+ * STOPPAGE, LOSS OF DATA, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL
+ * OTHER COMMERCIAL DAMAGES OR LOSSES, EVEN IF HEWLETT-PACKARD SHALL
+ * HAVE BEEN INFORMED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * THIS LIMITATION OF LIABILITY SHALL NOT APPLY TO LIABILITY RESULTING
+ * FROM HEWLETT-PACKARD's NEGLIGENCE TO THE EXTENT APPLICABLE
+ * LAW PROHIBITS SUCH LIMITATION.  SOME JURISDICTIONS DO NOT ALLOW THE
+ * EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THAT
+ * EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
+ *
+ *
+ * Added valueOf(string, radix), fixed some documentation comments.
+ *              Hans_Boehm@hp.com 1/12/2001
+ * Fixed a serious typo in InvCR():  For negative arguments it produced
+ *              the wrong sign.  This affected the sign of divisions.
+ * Added byteValue and fixed some comments.  Hans.Boehm@hp.com 12/17/2002
+ * Added toStringFloatRep.      Hans.Boehm@hp.com 4/1/2004
+ * Added approxGet() synchronization to allow access from multiple threads
+ * hboehm@google.com 4/25/2014
+ * Changed cos() pre-scaling to avoid logarithmic depth tree.
+ * hboehm@google.com 6/30/2014
+ * Added explicit asin() implementation.  Remove one.  Add ZERO and ONE and
+ * make them public.  hboehm@google.com 5/21/2015
+ * Added Gauss-Legendre PI implementation.  Removed two.
+ * hboehm@google.com 4/12/2016
+ * Fix shift operation in doubleValue. That produced incorrect values for
+ * large negative exponents.
+ * Don't negate argument and compute inverse for exp(). That causes severe
+ * performance problems for (-huge).exp()
+ * hboehm@google.com 8/21/2017
+ * Have comparison check for interruption. hboehm@google.com 10/31/2017
+ * Fix precision overflow issue in most general compareTo function.
+ * Fix a couple of unused variable bugs. Notably selectorSign was
+ * accidentally locally re-declared. (This turns out to be safe but useless.)
+ * hboehm@google.com 11/20/2018.
+ * Fix an exception-safety issue in GlPiCR.approximate.
+ * hboehm@google.com 3/3/2019.
+*/
 
 package com.example.calculator2;
 
@@ -150,7 +152,7 @@ import java.util.ArrayList;
  * <p>
  * We expect that the vast majority of uses will ignore the particular
  * implementation, and the member functions <TT>approximate</tt>
- * and <TT>getAppr</tt>.  Such applications will treat <TT>CR</tt> as
+ * and <TT>approxGet</tt>.  Such applications will treat <TT>CR</tt> as
  * a conventional numerical type, with an interface modeled on
  * <TT>java.math.BigInteger</tt>.  No subclasses of <TT>CR</tt>
  * will be explicitly mentioned by such a program.
@@ -162,7 +164,7 @@ import java.util.ArrayList;
  * A few uses will require explicit construction of approximation functions.
  * The requires the construction of a subclass of <TT>CR</tt> with
  * an overridden <TT>approximate</tt> function.  Note that <TT>approximate</tt>
- * should only be defined, but never called.  <TT>getAppr</tt>
+ * should only be defined, but never called.  <TT>approxGet</tt>
  * provides the same functionality, but adds the caching necessary to obtain
  * reasonable performance.
  * <p>
@@ -265,7 +267,7 @@ public abstract class CR extends Number {
      */
     transient BigInteger maxAppr;
     /**
-     * minPrec and max_val are valid.
+     * minPrec and maxVal are valid.
      */
     transient boolean apprValid = false;
 
@@ -297,7 +299,7 @@ public abstract class CR extends Number {
      * <TT>BigInteger</tt>.
      */
     public static CR valueOf(BigInteger n) {
-        return new intCR(n);
+        return new IntCR(n);
     }
 
     /**
@@ -381,7 +383,7 @@ public abstract class CR extends Number {
      * methods in subclasses.  Not needed if the provided operations
      * on constructive reals suffice.
      */
-    public synchronized BigInteger getAppr(int precision) {
+    public synchronized BigInteger approxGet(int precision) {
         checkPrec(precision);
         if (apprValid && precision >= minPrec) {
             return scale(maxAppr, minPrec - precision);
@@ -400,16 +402,16 @@ public abstract class CR extends Number {
     // This initial version assumes that maxAppr is valid
     // and sufficiently removed from zero
     // that the msd is determined.
-    int known_msd() {
-        int first_digit;
+    int knownMsd() {
+        int firstDigit;
         int length;
         if (maxAppr.signum() >= 0) {
             length = maxAppr.bitLength();
         } else {
             length = maxAppr.negate().bitLength();
         }
-        first_digit = minPrec + length - 1;
-        return first_digit;
+        firstDigit = minPrec + length - 1;
+        return firstDigit;
     }
 
     // This version may return Integer.MIN_VALUE if the correct
@@ -418,19 +420,19 @@ public abstract class CR extends Number {
         if (!apprValid ||
                 maxAppr.compareTo(big1) <= 0
                         && maxAppr.compareTo(bigm1) >= 0) {
-            getAppr(n - 1);
+            approxGet(n - 1);
             if (maxAppr.abs().compareTo(big1) <= 0) {
                 // msd could still be arbitrarily far to the right.
                 return Integer.MIN_VALUE;
             }
         }
-        return known_msd();
+        return knownMsd();
     }
 
 
     // Functionally equivalent, but iteratively evaluates to higher
     // precision.
-    int iter_msd(int n) {
+    int iterMsd(int n) {
         int prec = 0;
 
         for (; prec > n + 30; prec = (prec * 3) / 2 - 16) {
@@ -448,7 +450,7 @@ public abstract class CR extends Number {
     // that it loops forever (or throws an exception when the
     // requested precision overflows) if this constructive real is zero.
     int msd() {
-        return iter_msd(Integer.MIN_VALUE);
+        return iterMsd(Integer.MIN_VALUE);
     }
 
     // A helper function for toString.
@@ -463,23 +465,22 @@ public abstract class CR extends Number {
 
     // Natural log of 2.  Needed for some pre-scaling below.
     // ln(2) = 7ln(10/9) - 2ln(25/24) + 3ln(81/80)
-    CR simple_ln() {
-        return new prescaled_ln_CR(this.subtract(ONE));
+    CR simpleLn() {
+        return new PrescaledLnCR(this.subtract(ONE));
     }
 
-    static CR ten_ninths = valueOf(10).divide(valueOf(9));
-    static CR twentyfive_twentyfourths = valueOf(25).divide(valueOf(24));
-    static CR eightyone_eightyeths = valueOf(81).divide(valueOf(80));
-    static CR ln2_1 = valueOf(7).multiply(ten_ninths.simple_ln());
-    static CR ln2_2 =
-            valueOf(2).multiply(twentyfive_twentyfourths.simple_ln());
-    static CR ln2_3 = valueOf(3).multiply(eightyone_eightyeths.simple_ln());
-    static CR ln2 = ln2_1.subtract(ln2_2).add(ln2_3);
+    static CR tenNinths = valueOf(10).divide(valueOf(9));
+    static CR twentyfiveTwentyfourths = valueOf(25).divide(valueOf(24));
+    static CR eightyoneEightyeths = valueOf(81).divide(valueOf(80));
+    static CR ln2s1 = valueOf(7).multiply(tenNinths.simpleLn());
+    static CR ln2s2 = valueOf(2).multiply(twentyfiveTwentyfourths.simpleLn());
+    static CR ln2s3 = valueOf(3).multiply(eightyoneEightyeths.simpleLn());
+    static CR ln2 = ln2s1.subtract(ln2s2).add(ln2s3);
 
-    // Atan of integer reciprocal.  Used for atan_PI.  Could perhaps be made
+    // Atan of integer reciprocal.  Used for atanPI.  Could perhaps be made
     // public.
-    static CR atan_reciprocal(int n) {
-        return new integral_atan_CR(n);
+    static CR atanReciprocal(int n) {
+        return new IntegralAtanCR(n);
     }
 
     // Other constants used for PI computation.
@@ -500,16 +501,16 @@ public abstract class CR extends Number {
      * @param a Absolute tolerance in bits
      */
     public int compareTo(CR x, int r, int a) {
-        int this_msd = iter_msd(a);
-        int x_msd = x.iter_msd(this_msd > a ? this_msd : a);
-        int max_msd = (x_msd > this_msd ? x_msd : this_msd);
-        if (max_msd == Integer.MIN_VALUE) {
+        int thisMsd = iterMsd(a);
+        int xMsd = x.iterMsd(thisMsd > a ? thisMsd : a);
+        int maxMsd = (xMsd > thisMsd ? xMsd : thisMsd);
+        if (maxMsd == Integer.MIN_VALUE) {
             return 0;
         }
         checkPrec(r);
-        int rel = max_msd + r;
-        int abs_prec = (rel > a ? rel : a);
-        return compareTo(x, abs_prec);
+        int rel = maxMsd + r;
+        int absPrec = (rel > a ? rel : a);
+        return compareTo(x, absPrec);
     }
 
     /**
@@ -523,12 +524,12 @@ public abstract class CR extends Number {
      * @param a Absolute tolerance in bits
      */
     public int compareTo(CR x, int a) {
-        int needed_prec = a - 1;
-        BigInteger this_appr = getAppr(needed_prec);
-        BigInteger x_appr = x.getAppr(needed_prec);
-        int comp1 = this_appr.compareTo(x_appr.add(big1));
+        int neededPrec = a - 1;
+        BigInteger thisAppr = approxGet(neededPrec);
+        BigInteger xAppr = x.approxGet(neededPrec);
+        int comp1 = thisAppr.compareTo(xAppr.add(big1));
         if (comp1 > 0) return 1;
-        int comp2 = this_appr.compareTo(x_appr.subtract(big1));
+        int comp2 = thisAppr.compareTo(xAppr.subtract(big1));
         if (comp2 < 0) return -1;
         return 0;
     }
@@ -557,12 +558,12 @@ public abstract class CR extends Number {
      */
     public int signum(int a) {
         if (apprValid) {
-            int quick_try = maxAppr.signum();
-            if (0 != quick_try) return quick_try;
+            int quickTry = maxAppr.signum();
+            if (0 != quickTry) return quickTry;
         }
-        int needed_prec = a - 1;
-        BigInteger this_appr = getAppr(needed_prec);
-        return this_appr.signum();
+        int neededPrec = a - 1;
+        BigInteger thisAppr = approxGet(neededPrec);
+        return thisAppr.signum();
     }
 
     /**
@@ -595,21 +596,21 @@ public abstract class CR extends Number {
     public static CR valueOf(String s, int radix)
             throws NumberFormatException {
         int len = s.length();
-        int start_pos = 0, point_pos;
+        int startPos = 0, pointPos;
         String fraction;
-        while (s.charAt(start_pos) == ' ') ++start_pos;
+        while (s.charAt(startPos) == ' ') ++startPos;
         while (s.charAt(len - 1) == ' ') --len;
-        point_pos = s.indexOf('.', start_pos);
-        if (point_pos == -1) {
-            point_pos = len;
+        pointPos = s.indexOf('.', startPos);
+        if (pointPos == -1) {
+            pointPos = len;
             fraction = "0";
         } else {
-            fraction = s.substring(point_pos + 1, len);
+            fraction = s.substring(pointPos + 1, len);
         }
-        String whole = s.substring(start_pos, point_pos);
-        BigInteger scaled_result = new BigInteger(whole + fraction, radix);
+        String whole = s.substring(startPos, pointPos);
+        BigInteger scaledResult = new BigInteger(whole + fraction, radix);
         BigInteger divisor = BigInteger.valueOf(radix).pow(fraction.length());
-        return CR.valueOf(scaled_result).divide(CR.valueOf(divisor));
+        return CR.valueOf(scaledResult).divide(CR.valueOf(divisor));
     }
 
     /**
@@ -620,31 +621,31 @@ public abstract class CR extends Number {
      * @param radix Base ( >= 2, <= 16) for the resulting representation.
      */
     public String toString(int n, int radix) {
-        CR scaled_CR;
+        CR scaledCR;
         if (16 == radix) {
-            scaled_CR = shiftLeft(4 * n);
+            scaledCR = shiftLeft(4 * n);
         } else {
-            BigInteger scale_factor = BigInteger.valueOf(radix).pow(n);
-            scaled_CR = multiply(new intCR(scale_factor));
+            BigInteger scaleFactor = BigInteger.valueOf(radix).pow(n);
+            scaledCR = multiply(new IntCR(scaleFactor));
         }
-        BigInteger scaled_int = scaled_CR.getAppr(0);
-        String scaled_string = scaled_int.abs().toString(radix);
+        BigInteger scaledInt = scaledCR.approxGet(0);
+        String scaledString = scaledInt.abs().toString(radix);
         String result;
         if (0 == n) {
-            result = scaled_string;
+            result = scaledString;
         } else {
-            int len = scaled_string.length();
+            int len = scaledString.length();
             if (len <= n) {
                 // Add sufficient leading zeroes
                 String z = zeroes(n + 1 - len);
-                scaled_string = z + scaled_string;
+                scaledString = z + scaledString;
                 len = n + 1;
             }
-            String whole = scaled_string.substring(0, len - n);
-            String fraction = scaled_string.substring(len - n);
+            String whole = scaledString.substring(0, len - n);
+            String fraction = scaledString.substring(len - n);
             result = whole + "." + fraction;
         }
-        if (scaled_int.signum() < 0) {
+        if (scaledInt.signum() < 0) {
             result = "-" + result;
         }
         return result;
@@ -686,44 +687,44 @@ public abstract class CR extends Number {
      */
     public StringFloatRep toStringFloatRep(int n, int radix, int m) {
         if (n <= 0) throw new ArithmeticException("Bad precision argument");
-        double log2_radix = Math.log((double) radix) / doubleLog2;
-        BigInteger big_radix = BigInteger.valueOf(radix);
-        long long_msd_prec = (long) (log2_radix * (double) m);
-        if (long_msd_prec > (long) Integer.MAX_VALUE
-                || long_msd_prec < (long) Integer.MIN_VALUE)
+        double log2Radix = Math.log((double) radix) / doubleLog2;
+        BigInteger bigRadix = BigInteger.valueOf(radix);
+        long longMsdPrec = (long) (log2Radix * (double) m);
+        if (longMsdPrec > (long) Integer.MAX_VALUE
+                || longMsdPrec < (long) Integer.MIN_VALUE)
             throw new PrecisionOverflowException();
-        int msd_prec = (int) long_msd_prec;
-        checkPrec(msd_prec);
-        int msd = iter_msd(msd_prec - 2);
+        int msdPrec = (int) longMsdPrec;
+        checkPrec(msdPrec);
+        int msd = iterMsd(msdPrec - 2);
         if (msd == Integer.MIN_VALUE)
             return new StringFloatRep(0, "0", radix, 0);
-        int exponent = (int) Math.ceil((double) msd / log2_radix);
+        int exponent = (int) Math.ceil((double) msd / log2Radix);
         // Guess for the exponent.  Try to get it usually right.
-        int scale_exp = exponent - n;
+        int scaleExp = exponent - n;
         CR scale;
-        if (scale_exp > 0) {
-            scale = CR.valueOf(big_radix.pow(scale_exp)).inverse();
+        if (scaleExp > 0) {
+            scale = CR.valueOf(bigRadix.pow(scaleExp)).inverse();
         } else {
-            scale = CR.valueOf(big_radix.pow(-scale_exp));
+            scale = CR.valueOf(bigRadix.pow(-scaleExp));
         }
-        CR scaled_res = multiply(scale);
-        BigInteger scaled_int = scaled_res.getAppr(0);
-        int sign = scaled_int.signum();
-        String scaled_string = scaled_int.abs().toString(radix);
-        while (scaled_string.length() < n) {
+        CR scaledRes = multiply(scale);
+        BigInteger scaledInt = scaledRes.approxGet(0);
+        int sign = scaledInt.signum();
+        String scaledString = scaledInt.abs().toString(radix);
+        while (scaledString.length() < n) {
             // exponent was too large.  Adjust.
-            scaled_res = scaled_res.multiply(CR.valueOf(big_radix));
+            scaledRes = scaledRes.multiply(CR.valueOf(bigRadix));
             exponent -= 1;
-            scaled_int = scaled_res.getAppr(0);
-            sign = scaled_int.signum();
-            scaled_string = scaled_int.abs().toString(radix);
+            scaledInt = scaledRes.approxGet(0);
+            sign = scaledInt.signum();
+            scaledString = scaledInt.abs().toString(radix);
         }
-        if (scaled_string.length() > n) {
+        if (scaledString.length() > n) {
             // exponent was too small.  Adjust by truncating.
-            exponent += (scaled_string.length() - n);
-            scaled_string = scaled_string.substring(0, n);
+            exponent += (scaledString.length() - n);
+            scaledString = scaledString.substring(0, n);
         }
-        return new StringFloatRep(sign, scaled_string, radix, exponent);
+        return new StringFloatRep(sign, scaledString, radix, exponent);
     }
 
     /**
@@ -731,7 +732,7 @@ public abstract class CR extends Number {
      * constructive real.
      */
     public BigInteger BigIntegerValue() {
-        return getAppr(0);
+        return approxGet(0);
     }
 
     /**
@@ -765,27 +766,27 @@ public abstract class CR extends Number {
      * don't promise correct rounding.)
      */
     public double doubleValue() {
-        int my_msd = iter_msd(-1080 /* slightly > exp. range */);
-        if (Integer.MIN_VALUE == my_msd) return 0.0;
-        int needed_prec = my_msd - 60;
-        double scaled_int = getAppr(needed_prec).doubleValue();
-        boolean may_underflow = (needed_prec < -1000);
-        long scaled_int_rep = Double.doubleToLongBits(scaled_int);
-        long exp_adj = may_underflow ? needed_prec + 96 : needed_prec;
-        long orig_exp = (scaled_int_rep >> 52) & 0x7ff;
-        if (((orig_exp + exp_adj) & ~0x7ff) != 0) {
+        int myMsd = iterMsd(-1080 /* slightly > exp. range */);
+        if (Integer.MIN_VALUE == myMsd) return 0.0;
+        int neededPrec = myMsd - 60;
+        double scaledInt = approxGet(neededPrec).doubleValue();
+        boolean mayUnderflow = (neededPrec < -1000);
+        long scaledIntRep = Double.doubleToLongBits(scaledInt);
+        long expAdj = mayUnderflow ? neededPrec + 96 : neededPrec;
+        long origExp = (scaledIntRep >> 52) & 0x7ff;
+        if (((origExp + expAdj) & ~0x7ff) != 0) {
             // Original unbiased exponent is > 50. Exp_adj > -1050.
             // Thus this can overflow the 11 bit exponent only if the result
             // itself overflows.
-            if (scaled_int < 0.0) {
+            if (scaledInt < 0.0) {
                 return Double.NEGATIVE_INFINITY;
             } else {
                 return Double.POSITIVE_INFINITY;
             }
         }
-        scaled_int_rep += exp_adj << 52;
-        double result = Double.longBitsToDouble(scaled_int_rep);
-        if (may_underflow) {
+        scaledIntRep += expAdj << 52;
+        double result = Double.longBitsToDouble(scaledIntRep);
+        if (mayUnderflow) {
             double two48 = (double) (1L << 48);
             return result / two48 / two48;
         } else {
@@ -808,7 +809,7 @@ public abstract class CR extends Number {
      */
     public CR add(CR x) {
         //noinspection SuspiciousNameCombination
-        return new add_CR(this, x);
+        return new AddCR(this, x);
     }
 
     /**
@@ -818,7 +819,7 @@ public abstract class CR extends Number {
      */
     public CR shiftLeft(int n) {
         checkPrec(n);
-        return new shifted_CR(this, n);
+        return new ShiftedCR(this, n);
     }
 
     /**
@@ -828,7 +829,7 @@ public abstract class CR extends Number {
      */
     public CR shiftRight(int n) {
         checkPrec(n);
-        return new shifted_CR(this, -n);
+        return new ShiftedCR(this, -n);
     }
 
     /**
@@ -838,21 +839,21 @@ public abstract class CR extends Number {
      * of the decimal point, and may thus improve performance.
      */
     public CR assumeInt() {
-        return new assumed_int_CR(this);
+        return new AssumedIntCR(this);
     }
 
     /**
      * The additive inverse of a constructive real
      */
     public CR negate() {
-        return new neg_CR(this);
+        return new NegCR(this);
     }
 
     /**
      * The difference between two constructive reals
      */
     public CR subtract(CR x) {
-        return new add_CR(this, x.negate());
+        return new AddCR(this, x.negate());
     }
 
     /**
@@ -860,7 +861,7 @@ public abstract class CR extends Number {
      */
     public CR multiply(CR x) {
         //noinspection SuspiciousNameCombination
-        return new mult_CR(this, x);
+        return new MultCR(this, x);
     }
 
     /**
@@ -868,14 +869,14 @@ public abstract class CR extends Number {
      * <TT>x.inverse()</tt> is equivalent to <TT>CR.valueOf(1).divide(x)</tt>.
      */
     public CR inverse() {
-        return new inv_CR(this);
+        return new InvCR(this);
     }
 
     /**
      * The quotient of two constructive reals.
      */
     public CR divide(CR x) {
-        return new mult_CR(this, x.inverse());
+        return new MultCR(this, x.inverse());
     }
 
     /**
@@ -885,7 +886,7 @@ public abstract class CR extends Number {
      * a useful alternative to conditionals.
      */
     public CR select(CR x, CR y) {
-        return new select_CR(this, x, y);
+        return new SelectCR(this, x, y);
     }
 
     /**
@@ -915,15 +916,15 @@ public abstract class CR extends Number {
      * The exponential function, that is e**<TT>this</tt>.
      */
     public CR exp() {
-        final int low_prec = -10;
-        BigInteger rough_appr = getAppr(low_prec);
+        final int lowPrec = -10;
+        BigInteger roughAppr = approxGet(lowPrec);
         // Handle negative arguments directly; negating and computing inverse
         // can be very expensive.
-        if (rough_appr.compareTo(big2) > 0 || rough_appr.compareTo(bigm2) < 0) {
-            CR square_root = shiftRight(1).exp();
-            return square_root.multiply(square_root);
+        if (roughAppr.compareTo(big2) > 0 || roughAppr.compareTo(bigm2) < 0) {
+            CR squareRoot = shiftRight(1).exp();
+            return squareRoot.multiply(squareRoot);
         } else {
-            return new prescaled_exp_CR(this);
+            return new PrescaledExpCR(this);
         }
     }
 
@@ -931,7 +932,7 @@ public abstract class CR extends Number {
      * The ratio of a circle's circumference to its diameter.
      */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
-    public static CR PI = new gl_pi_CR();
+    public static CR PI = new GlPiCR();
 
     // Our old PI implementation. Keep this around for now to allow checking.
     // This implementation may also be faster for BigInteger implementations
@@ -940,32 +941,32 @@ public abstract class CR extends Number {
     // sub-quadratic multiplication, but has high constant overhead.) Many other
     // atan-based formulas are possible, but based on superficial
     // experimentation, this is roughly as good as the more complex formulas.
-    public static CR atan_PI = four.multiply(four.multiply(atan_reciprocal(5))
-            .subtract(atan_reciprocal(239)));
+    public static CR atanPI = four.multiply(four.multiply(atanReciprocal(5))
+            .subtract(atanReciprocal(239)));
     // pi/4 = 4*atan(1/5) - atan(1/239)
-    static CR half_pi = PI.shiftRight(1);
+    static CR halfPi = PI.shiftRight(1);
 
     /**
      * The trigonometric cosine function.
      */
     public CR cos() {
-        BigInteger halfpi_multiples = divide(PI).getAppr(-1);
-        BigInteger abs_halfpi_multiples = halfpi_multiples.abs();
-        if (abs_halfpi_multiples.compareTo(big2) >= 0) {
+        BigInteger halfpiMultiples = divide(PI).approxGet(-1);
+        BigInteger absHalfpiMultiples = halfpiMultiples.abs();
+        if (absHalfpiMultiples.compareTo(big2) >= 0) {
             // Subtract multiples of PI
-            BigInteger pi_multiples = scale(halfpi_multiples, -1);
-            CR adjustment = PI.multiply(CR.valueOf(pi_multiples));
-            if (pi_multiples.and(big1).signum() != 0) {
+            BigInteger piMultiples = scale(halfpiMultiples, -1);
+            CR adjustment = PI.multiply(CR.valueOf(piMultiples));
+            if (piMultiples.and(big1).signum() != 0) {
                 return subtract(adjustment).cos().negate();
             } else {
                 return subtract(adjustment).cos();
             }
-        } else if (getAppr(-1).abs().compareTo(big2) >= 0) {
+        } else if (approxGet(-1).abs().compareTo(big2) >= 0) {
             // Scale further with double angle formula
-            CR cos_half = shiftRight(1).cos();
-            return cos_half.multiply(cos_half).shiftLeft(1).subtract(ONE);
+            CR cosHalf = shiftRight(1).cos();
+            return cosHalf.multiply(cosHalf).shiftLeft(1).subtract(ONE);
         } else {
-            return new prescaled_cos_CR(this);
+            return new PrescaledCosCR(this);
         }
     }
 
@@ -973,21 +974,21 @@ public abstract class CR extends Number {
      * The trigonometric sine function.
      */
     public CR sin() {
-        return half_pi.subtract(this).cos();
+        return halfPi.subtract(this).cos();
     }
 
     /**
      * The trigonometric arc (inverse) sine function.
      */
     public CR asin() {
-        BigInteger rough_appr = getAppr(-10);
-        if (rough_appr.compareTo(big750) /* 1/sqrt(2) + a bit */ > 0) {
-            CR new_arg = ONE.subtract(multiply(this)).sqrt();
-            return new_arg.acos();
-        } else if (rough_appr.compareTo(bigm750) < 0) {
+        BigInteger roughAppr = approxGet(-10);
+        if (roughAppr.compareTo(big750) /* 1/sqrt(2) + a bit */ > 0) {
+            CR newArg = ONE.subtract(multiply(this)).sqrt();
+            return newArg.acos();
+        } else if (roughAppr.compareTo(bigm750) < 0) {
             return negate().asin().negate();
         } else {
-            return new prescaled_asin_CR(this);
+            return new PrescaledAsinCR(this);
         }
     }
 
@@ -995,88 +996,85 @@ public abstract class CR extends Number {
      * The trigonometric arc (inverse) cosine function.
      */
     public CR acos() {
-        return half_pi.subtract(asin());
+        return halfPi.subtract(asin());
     }
 
-    static final BigInteger low_ln_limit = big8; /* sixteenths, i.e. 1/2 */
-    static final BigInteger high_ln_limit =
-            BigInteger.valueOf(16 + 8 /* 1.5 */);
-    static final BigInteger scaled_4 =
-            BigInteger.valueOf(4 * 16);
+    static final BigInteger LOW_LN_LIMIT = big8; /* sixteenths, i.e. 1/2 */
+    static final BigInteger HIGH_LN_LIMIT = BigInteger.valueOf(16 + 8 /* 1.5 */);
+    static final BigInteger SCALED_4 = BigInteger.valueOf(4 * 16);
 
     /**
      * The natural (base e) logarithm.
      */
     public CR ln() {
-        final int low_prec = -4;
-        BigInteger rough_appr = getAppr(low_prec); /* In sixteenths */
-        if (rough_appr.compareTo(big0) < 0) {
+        final int lowPrec = -4;
+        BigInteger roughAppr = approxGet(lowPrec); /* In sixteenths */
+        if (roughAppr.compareTo(big0) < 0) {
             throw new ArithmeticException("ln(negative)");
         }
-        if (rough_appr.compareTo(low_ln_limit) <= 0) {
+        if (roughAppr.compareTo(LOW_LN_LIMIT) <= 0) {
             return inverse().ln().negate();
         }
-        if (rough_appr.compareTo(high_ln_limit) >= 0) {
-            if (rough_appr.compareTo(scaled_4) <= 0) {
+        if (roughAppr.compareTo(HIGH_LN_LIMIT) >= 0) {
+            if (roughAppr.compareTo(SCALED_4) <= 0) {
                 CR quarter = sqrt().sqrt().ln();
                 return quarter.shiftLeft(2);
             } else {
-                int extra_bits = rough_appr.bitLength() - 3;
-                CR scaled_result = shiftRight(extra_bits).ln();
-                return scaled_result.add(CR.valueOf(extra_bits).multiply(ln2));
+                int extraBits = roughAppr.bitLength() - 3;
+                CR scaledResult = shiftRight(extraBits).ln();
+                return scaledResult.add(CR.valueOf(extraBits).multiply(ln2));
             }
         }
-        return simple_ln();
+        return simpleLn();
     }
 
     /**
      * The square root of a constructive real.
      */
     public CR sqrt() {
-        return new sqrt_CR(this);
+        return new SqrtCR(this);
     }
 
 }  // end of CR
 
-
-//
-// A specialization of CR for cases in which approximate() calls
-// to increase evaluation precision are somewhat expensive.
-// If we need to (re)evaluate, we speculatively evaluate to slightly
-// higher precision, minimizing reevaluations.
-// Note that this requires any arguments to be evaluated to higher
-// precision than absolutely necessary.  It can thus potentially
-// result in lots of wasted effort, and should be used judiciously.
-// This assumes that the order of magnitude of the number is roughly one.
-//
+/**
+ *  A specialization of CR for cases in which approximate() calls to increase evaluation precision
+ *  are somewhat expensive. If we need to (re)evaluate, we speculatively evaluate to slightly higher
+ *  precision, minimizing reevaluations.
+ *  <p>
+ *  Note that this requires any arguments to be evaluated to higher precision than absolutely
+ *  necessary. It can thus potentially result in lots of wasted effort, and should be used
+ *  judiciously. This assumes that the order of magnitude of the number is roughly one.
+ */
 @SuppressWarnings("WeakerAccess")
-abstract class slow_CR extends CR {
-    static int max_prec = -64;
-    static int prec_incr = 32;
+abstract class SlowCR extends CR {
+    static int maxPrec = -64;
+    static int precIncr = 32;
 
-    public synchronized BigInteger getAppr(int precision) {
+    public synchronized BigInteger approxGet(int precision) {
         checkPrec(precision);
         if (apprValid && precision >= minPrec) {
             return scale(maxAppr, minPrec - precision);
         } else {
             //noinspection PointlessBitwiseExpression
-            int eval_prec = (precision >= max_prec ? max_prec :
-                    (precision - prec_incr + 1) & ~(prec_incr - 1));
-            BigInteger result = approximate(eval_prec);
-            minPrec = eval_prec;
+            int evalPrec = (precision >= maxPrec ? maxPrec :
+                    (precision - precIncr + 1) & ~(precIncr - 1));
+            BigInteger result = approximate(evalPrec);
+            minPrec = evalPrec;
             maxAppr = result;
             apprValid = true;
-            return scale(result, eval_prec - precision);
+            return scale(result, evalPrec - precision);
         }
     }
 }
 
-
-// Representation of an integer constant.  Private.
-class intCR extends CR {
+/**
+ * Representation of an integer constant. Private.
+ */
+class IntCR extends CR {
     BigInteger value;
 
-    intCR(BigInteger n) {
+    IntCR(BigInteger n) {
         value = n;
     }
 
@@ -1085,32 +1083,35 @@ class intCR extends CR {
     }
 }
 
-// Representation of a number that may not have been completely
-// evaluated, but is assumed to be an integer.  Hence we never
-// evaluate beyond the decimal point.
-class assumed_int_CR extends CR {
+/**
+ * Representation of a number that may not have been completely evaluated, but is assumed to be an
+ * integer.  Hence we never evaluate beyond the decimal point.
+ */
+class AssumedIntCR extends CR {
     CR value;
 
-    assumed_int_CR(CR x) {
+    AssumedIntCR(CR x) {
         value = x;
     }
 
     protected BigInteger approximate(int p) {
         if (p >= 0) {
-            return value.getAppr(p);
+            return value.approxGet(p);
         } else {
-            return scale(value.getAppr(0), -p);
+            return scale(value.approxGet(0), -p);
         }
     }
 }
 
-// Representation of the sum of 2 constructive reals.  Private.
+/**
+ * Representation of the sum of 2 constructive reals. Private.
+ */
 @SuppressWarnings("WeakerAccess")
-class add_CR extends CR {
+class AddCR extends CR {
     CR op1;
     CR op2;
 
-    add_CR(CR x, CR y) {
+    AddCR(CR x, CR y) {
         op1 = x;
         op2 = y;
     }
@@ -1119,99 +1120,104 @@ class add_CR extends CR {
         // Args need to be evaluated so that each error is < 1/4 ulp.
         // Rounding error from the cale call is <= 1/2 ulp, so that
         // final error is < 1 ulp.
-        return scale(op1.getAppr(p - 2).add(op2.getAppr(p - 2)), -2);
+        return scale(op1.approxGet(p - 2).add(op2.approxGet(p - 2)), -2);
     }
 }
 
-// Representation of a CR multiplied by 2**n
+/**
+ * Representation of a CR multiplied by 2**n
+ */
 @SuppressWarnings("WeakerAccess")
-class shifted_CR extends CR {
+class ShiftedCR extends CR {
     CR op;
     int count;
 
-    shifted_CR(CR x, int n) {
+    ShiftedCR(CR x, int n) {
         op = x;
         count = n;
     }
 
     protected BigInteger approximate(int p) {
-        return op.getAppr(p - count);
+        return op.approxGet(p - count);
     }
 }
 
-// Representation of the negation of a constructive real.  Private.
+/**
+ * Representation of the negation of a constructive real. Private.
+ */
 @SuppressWarnings("WeakerAccess")
-class neg_CR extends CR {
+class NegCR extends CR {
     CR op;
 
-    neg_CR(CR x) {
+    NegCR(CR x) {
         op = x;
     }
 
     protected BigInteger approximate(int p) {
-        return op.getAppr(p).negate();
+        return op.approxGet(p).negate();
     }
 }
 
-// Representation of:
-//      op1     if selector < 0
-//      op2     if selector >= 0
-// Assumes x = y if s = 0
+/**
+ * Representation of: op1 if selector < 0, op2 if selector >= 0. Assumes x = y if s = 0
+ */
 @SuppressWarnings("WeakerAccess")
-class select_CR extends CR {
+class SelectCR extends CR {
     CR selector;
-    int selector_sign;
+    int selectorSign;
     CR op1;
     CR op2;
 
-    select_CR(CR s, CR x, CR y) {
+    SelectCR(CR s, CR x, CR y) {
         selector = s;
-        selector_sign = selector.getAppr(-20).signum();
+        selectorSign = selector.approxGet(-20).signum();
         op1 = x;
         op2 = y;
     }
 
     protected BigInteger approximate(int p) {
-        if (selector_sign < 0) return op1.getAppr(p);
-        if (selector_sign > 0) return op2.getAppr(p);
-        BigInteger op1_appr = op1.getAppr(p - 1);
-        BigInteger op2_appr = op2.getAppr(p - 1);
-        BigInteger diff = op1_appr.subtract(op2_appr).abs();
+        if (selectorSign < 0) return op1.approxGet(p);
+        if (selectorSign > 0) return op2.approxGet(p);
+        BigInteger op1Appr = op1.approxGet(p - 1);
+        BigInteger op2Appr = op2.approxGet(p - 1);
+        BigInteger diff = op1Appr.subtract(op2Appr).abs();
         if (diff.compareTo(big1) <= 0) {
             // close enough; use either
-            return scale(op1_appr, -1);
+            return scale(op1Appr, -1);
         }
         // op1 and op2 are different; selector != 0;
         // safe to get sign of selector.
         if (selector.signum() < 0) {
-            selector_sign = -1;
-            return scale(op1_appr, -1);
+            selectorSign = -1;
+            return scale(op1Appr, -1);
         } else {
-            selector_sign = 1;
-            return scale(op2_appr, -1);
+            selectorSign = 1;
+            return scale(op2Appr, -1);
         }
     }
 }
 
-// Representation of the product of 2 constructive reals. Private.
+/**
+ * Representation of the product of 2 constructive reals. Private.
+ */
 @SuppressWarnings("WeakerAccess")
-class mult_CR extends CR {
+class MultCR extends CR {
     CR op1;
     CR op2;
 
-    mult_CR(CR x, CR y) {
+    MultCR(CR x, CR y) {
         op1 = x;
         op2 = y;
     }
 
     protected BigInteger approximate(int p) {
-        int half_prec = (p >> 1) - 1;
-        int msd_op1 = op1.msd(half_prec);
-        int msd_op2;
+        int halfPrec = (p >> 1) - 1;
+        int msdOp1 = op1.msd(halfPrec);
+        int msdOp2;
 
-        if (msd_op1 == Integer.MIN_VALUE) {
-            msd_op2 = op2.msd(half_prec);
-            if (msd_op2 == Integer.MIN_VALUE) {
+        if (msdOp1 == Integer.MIN_VALUE) {
+            msdOp2 = op2.msd(halfPrec);
+            if (msdOp2 == Integer.MIN_VALUE) {
                 // Product is small enough that zero will do as an
                 // approximation.
                 return big0;
@@ -1222,40 +1228,42 @@ class mult_CR extends CR {
                 tmp = op1;
                 op1 = op2;
                 op2 = tmp;
-                msd_op1 = msd_op2;
+                msdOp1 = msdOp2;
             }
         }
-        // msd_op1 is valid at this point.
-        int prec2 = p - msd_op1 - 3;    // Precision needed for op2.
+        // msdOp1 is valid at this point.
+        int prec2 = p - msdOp1 - 3;    // Precision needed for op2.
         // The appr. error is multiplied by at most
-        // 2 ** (msd_op1 + 1)
+        // 2 ** (msdOp1 + 1)
         // Thus each approximation contributes 1/4 ulp
         // to the rounding error, and the final rounding adds
         // another 1/2 ulp.
-        BigInteger appr2 = op2.getAppr(prec2);
+        BigInteger appr2 = op2.approxGet(prec2);
         if (appr2.signum() == 0) return big0;
-        msd_op2 = op2.known_msd();
-        int prec1 = p - msd_op2 - 3;    // Precision needed for op1.
-        BigInteger appr1 = op1.getAppr(prec1);
-        int scale_digits = prec1 + prec2 - p;
-        return scale(appr1.multiply(appr2), scale_digits);
+        msdOp2 = op2.knownMsd();
+        int prec1 = p - msdOp2 - 3;    // Precision needed for op1.
+        BigInteger appr1 = op1.approxGet(prec1);
+        int scaleDigits = prec1 + prec2 - p;
+        return scale(appr1.multiply(appr2), scaleDigits);
     }
 }
 
-// Representation of the multiplicative inverse of a constructive
-// real.  Private.  Should use Newton iteration to refine estimates.
+/**
+ * Representation of the multiplicative inverse of a constructive real. Private.
+ * Should use Newton iteration to refine estimates.
+ */
 @SuppressWarnings("WeakerAccess")
-class inv_CR extends CR {
+class InvCR extends CR {
     CR op;
 
-    inv_CR(CR x) {
+    InvCR(CR x) {
         op = x;
     }
 
     protected BigInteger approximate(int p) {
         int msd = op.msd();
-        int inv_msd = 1 - msd;
-        int digits_needed = inv_msd - p + 3;
+        int invMsd = 1 - msd;
+        int digitsNeeded = invMsd - p + 3;
         // Number of SIGNIFICANT digits needed for
         // argument, excl. msd position, which may
         // be fictitious, since msd routine can be
@@ -1269,17 +1277,17 @@ class inv_CR extends CR {
         // One further bit is required, since the
         // final rounding introduces a 0.5 ulp
         // error.
-        int prec_needed = msd - digits_needed;
-        int log_scale_factor = -p - prec_needed;
-        if (log_scale_factor < 0) return big0;
-        BigInteger dividend = big1.shiftLeft(log_scale_factor);
-        BigInteger scaled_divisor = op.getAppr(prec_needed);
-        BigInteger abs_scaled_divisor = scaled_divisor.abs();
-        BigInteger adj_dividend = dividend.add(
-                abs_scaled_divisor.shiftRight(1));
+        int precNeeded = msd - digitsNeeded;
+        int logScaleFactor = -p - precNeeded;
+        if (logScaleFactor < 0) return big0;
+        BigInteger dividend = big1.shiftLeft(logScaleFactor);
+        BigInteger scaledDivisor = op.approxGet(precNeeded);
+        BigInteger absScaledDivisor = scaledDivisor.abs();
+        BigInteger adjDividend = dividend.add(
+                absScaledDivisor.shiftRight(1));
         // Adjustment so that final result is rounded.
-        BigInteger result = adj_dividend.divide(abs_scaled_divisor);
-        if (scaled_divisor.signum() < 0) {
+        BigInteger result = adjDividend.divide(absScaledDivisor);
+        if (scaledDivisor.signum() < 0) {
             return result.negate();
         } else {
             return result;
@@ -1287,160 +1295,160 @@ class inv_CR extends CR {
     }
 }
 
-
-// Representation of the exponential of a constructive real.  Private.
-// Uses a Taylor series expansion.  Assumes |x| < 1/2.
-// Note: this is known to be a bad algorithm for
-// floating point.  Unfortunately, other alternatives
-// appear to require precomputed information.
+/**
+ * Representation of the exponential of a constructive real. Private. Uses a Taylor series expansion.
+ * Assumes |x| < 1/2.
+ * <p>
+ * Note: this is known to be a bad algorithm for floating point. Unfortunately, other alternatives
+ * appear to require precomputed information.
+ */
 @SuppressWarnings("WeakerAccess")
-class prescaled_exp_CR extends CR {
+class PrescaledExpCR extends CR {
     CR op;
 
-    prescaled_exp_CR(CR x) {
+    PrescaledExpCR(CR x) {
         op = x;
     }
 
     protected BigInteger approximate(int p) {
         if (p >= 1) return big0;
-        int iterations_needed = -p / 2 + 2;  // conservative estimate > 0.
+        int iterationsNeeded = -p / 2 + 2;  // conservative estimate > 0.
         //  Claim: each intermediate term is accurate
-        //  to 2*2^calc_precision.
+        //  to 2*2^calcPrecision.
         //  Total rounding error in series computation is
-        //  2*iterations_needed*2^calc_precision,
+        //  2*iterationsNeeded*2^calcPrecision,
         //  exclusive of error in op.
-        int calc_precision = p - boundLog2(2 * iterations_needed)
+        int calcPrecision = p - boundLog2(2 * iterationsNeeded)
                 - 4; // for error in op, truncation.
-        int op_prec = p - 3;
-        BigInteger op_appr = op.getAppr(op_prec);
+        int opPrec = p - 3;
+        BigInteger opAppr = op.approxGet(opPrec);
         // Error in argument results in error of < 3/8 ulp.
         // Sum of term eval. rounding error is < 1/16 ulp.
         // Series truncation error < 1/16 ulp.
         // Final rounding error is <= 1/2 ulp.
         // Thus final error is < 1 ulp.
-        BigInteger scaled_1 = big1.shiftLeft(-calc_precision);
-        BigInteger current_term = scaled_1;
-        BigInteger current_sum = scaled_1;
+        BigInteger scaled1 = big1.shiftLeft(-calcPrecision);
+        BigInteger currentTerm = scaled1;
+        BigInteger currentSum = scaled1;
         int n = 0;
-        BigInteger max_trunc_error =
-                big1.shiftLeft(p - 4 - calc_precision);
-        while (current_term.abs().compareTo(max_trunc_error) >= 0) {
+        BigInteger maxTruncError = big1.shiftLeft(p - 4 - calcPrecision);
+        while (currentTerm.abs().compareTo(maxTruncError) >= 0) {
             if (Thread.interrupted() || pleaseStop) throw new AbortedException();
             n += 1;
-            /* current_term = current_term * op / n */
-            current_term = scale(current_term.multiply(op_appr), op_prec);
-            current_term = current_term.divide(BigInteger.valueOf(n));
-            current_sum = current_sum.add(current_term);
+            /* currentTerm = currentTerm * op / n */
+            currentTerm = scale(currentTerm.multiply(opAppr), opPrec);
+            currentTerm = currentTerm.divide(BigInteger.valueOf(n));
+            currentSum = currentSum.add(currentTerm);
         }
-        return scale(current_sum, calc_precision - p);
+        return scale(currentSum, calcPrecision - p);
     }
 }
 
-// Representation of the cosine of a constructive real.  Private.
-// Uses a Taylor series expansion.  Assumes |x| < 1.
+/**
+ * Representation of the cosine of a constructive real. Private. Uses a Taylor series expansion.
+ * Assumes |x| < 1.
+ */
 @SuppressWarnings("WeakerAccess")
-class prescaled_cos_CR extends slow_CR {
+class PrescaledCosCR extends SlowCR {
     CR op;
 
-    prescaled_cos_CR(CR x) {
+    PrescaledCosCR(CR x) {
         op = x;
     }
 
     protected BigInteger approximate(int p) {
         if (p >= 1) return big0;
-        int iterations_needed = -p / 2 + 4;  // conservative estimate > 0.
+        int iterationsNeeded = -p / 2 + 4;  // conservative estimate > 0.
         //  Claim: each intermediate term is accurate
-        //  to 2*2^calc_precision.
+        //  to 2*2^calcPrecision.
         //  Total rounding error in series computation is
-        //  2*iterations_needed*2^calc_precision,
+        //  2*iterationsNeeded*2^calcPrecision,
         //  exclusive of error in op.
-        int calc_precision = p - boundLog2(2 * iterations_needed)
-                - 4; // for error in op, truncation.
-        int op_prec = p - 2;
-        BigInteger op_appr = op.getAppr(op_prec);
+        int calcPrecision = p - boundLog2(2 * iterationsNeeded) - 4; // for error in op, truncation.
+        int opPrec = p - 2;
+        BigInteger opAppr = op.approxGet(opPrec);
         // Error in argument results in error of < 1/4 ulp.
         // Cumulative arithmetic rounding error is < 1/16 ulp.
         // Series truncation error < 1/16 ulp.
         // Final rounding error is <= 1/2 ulp.
         // Thus final error is < 1 ulp.
-        BigInteger current_term;
+        BigInteger currentTerm;
         int n;
-        BigInteger max_trunc_error =
-                big1.shiftLeft(p - 4 - calc_precision);
+        BigInteger maxTruncError = big1.shiftLeft(p - 4 - calcPrecision);
         n = 0;
-        current_term = big1.shiftLeft(-calc_precision);
-        BigInteger current_sum = current_term;
-        while (current_term.abs().compareTo(max_trunc_error) >= 0) {
+        currentTerm = big1.shiftLeft(-calcPrecision);
+        BigInteger currentSum = currentTerm;
+        while (currentTerm.abs().compareTo(maxTruncError) >= 0) {
             if (Thread.interrupted() || pleaseStop) throw new AbortedException();
             n += 2;
-            /* current_term = - current_term * op * op / n * (n - 1)   */
-            current_term = scale(current_term.multiply(op_appr), op_prec);
-            current_term = scale(current_term.multiply(op_appr), op_prec);
-            BigInteger divisor = BigInteger.valueOf(-n)
-                    .multiply(BigInteger.valueOf(n - 1));
-            current_term = current_term.divide(divisor);
-            current_sum = current_sum.add(current_term);
+            /* currentTerm = - currentTerm * op * op / n * (n - 1)   */
+            currentTerm = scale(currentTerm.multiply(opAppr), opPrec);
+            currentTerm = scale(currentTerm.multiply(opAppr), opPrec);
+            BigInteger divisor = BigInteger.valueOf(-n).multiply(BigInteger.valueOf(n - 1));
+            currentTerm = currentTerm.divide(divisor);
+            currentSum = currentSum.add(currentTerm);
         }
-        return scale(current_sum, calc_precision - p);
+        return scale(currentSum, calcPrecision - p);
     }
 }
 
-// The constructive real atan(1/n), where n is a small integer
-// > base.
-// This gives a simple and moderately fast way to compute PI.
+/**
+ * The constructive real atan(1/n), where n is a small integer > base.
+ * This gives a simple and moderately fast way to compute PI.
+ */
 @SuppressWarnings("WeakerAccess")
-class integral_atan_CR extends slow_CR {
+class IntegralAtanCR extends SlowCR {
     int op;
 
-    integral_atan_CR(int x) {
+    IntegralAtanCR(int x) {
         op = x;
     }
 
     protected BigInteger approximate(int p) {
         if (p >= 1) return big0;
-        int iterations_needed = -p / 2 + 2;  // conservative estimate > 0.
+        int iterationsNeeded = -p / 2 + 2;  // conservative estimate > 0.
         //  Claim: each intermediate term is accurate
-        //  to 2*base^calc_precision.
+        //  to 2*base^calcPrecision.
         //  Total rounding error in series computation is
-        //  2*iterations_needed*base^calc_precision,
+        //  2*iterationsNeeded*base^calcPrecision,
         //  exclusive of error in op.
-        int calc_precision = p - boundLog2(2 * iterations_needed)
+        int calcPrecision = p - boundLog2(2 * iterationsNeeded)
                 - 2; // for error in op, truncation.
         // Error in argument results in error of < 3/8 ulp.
         // Cumulative arithmetic rounding error is < 1/4 ulp.
         // Series truncation error < 1/4 ulp.
         // Final rounding error is <= 1/2 ulp.
         // Thus final error is < 1 ulp.
-        BigInteger scaled_1 = big1.shiftLeft(-calc_precision);
-        BigInteger big_op = BigInteger.valueOf(op);
-        BigInteger big_op_squared = BigInteger.valueOf(op * op);
-        BigInteger op_inverse = scaled_1.divide(big_op);
-        BigInteger current_power = op_inverse;
-        BigInteger current_term = op_inverse;
-        BigInteger current_sum = op_inverse;
-        int current_sign = 1;
+        BigInteger scaled1 = big1.shiftLeft(-calcPrecision);
+        BigInteger bigOp = BigInteger.valueOf(op);
+        BigInteger bigOpSquared = BigInteger.valueOf(op * op);
+        BigInteger opInverse = scaled1.divide(bigOp);
+        BigInteger currentPower = opInverse;
+        BigInteger currentTerm = opInverse;
+        BigInteger currentSum = opInverse;
+        int currentSign = 1;
         int n = 1;
-        BigInteger max_trunc_error =
-                big1.shiftLeft(p - 2 - calc_precision);
-        while (current_term.abs().compareTo(max_trunc_error) >= 0) {
+        BigInteger maxTruncError = big1.shiftLeft(p - 2 - calcPrecision);
+        while (currentTerm.abs().compareTo(maxTruncError) >= 0) {
             if (Thread.interrupted() || pleaseStop) throw new AbortedException();
             n += 2;
-            current_power = current_power.divide(big_op_squared);
-            current_sign = -current_sign;
-            current_term =
-                    current_power.divide(BigInteger.valueOf(current_sign * n));
-            current_sum = current_sum.add(current_term);
+            currentPower = currentPower.divide(bigOpSquared);
+            currentSign = -currentSign;
+            currentTerm = currentPower.divide(BigInteger.valueOf(currentSign * n));
+            currentSum = currentSum.add(currentTerm);
         }
-        return scale(current_sum, calc_precision - p);
+        return scale(currentSum, calcPrecision - p);
     }
 }
 
-// Representation for ln(1 + op)
+/**
+ * Representation for ln(1 + op)
+ */
 @SuppressWarnings("WeakerAccess")
-class prescaled_ln_CR extends slow_CR {
+class PrescaledLnCR extends SlowCR {
     CR op;
 
-    prescaled_ln_CR(CR x) {
+    PrescaledLnCR(CR x) {
         op = x;
     }
 
@@ -1454,43 +1462,43 @@ class prescaled_ln_CR extends slow_CR {
     // appear to require precomputed tabular information.
     protected BigInteger approximate(int p) {
         if (p >= 0) return big0;
-        int iterations_needed = -p;  // conservative estimate > 0.
+        int iterationsNeeded = -p;  // conservative estimate > 0.
         //  Claim: each intermediate term is accurate
-        //  to 2*2^calc_precision.  Total error is
-        //  2*iterations_needed*2^calc_precision
+        //  to 2*2^calcPrecision.  Total error is
+        //  2*iterationsNeeded*2^calcPrecision
         //  exclusive of error in op.
-        int calc_precision = p - boundLog2(2 * iterations_needed)
-                - 4; // for error in op, truncation.
-        int op_prec = p - 3;
-        BigInteger op_appr = op.getAppr(op_prec);
+        int calcPrecision = p - boundLog2(2 * iterationsNeeded) - 4; // for error in op, truncation.
+        int opPrec = p - 3;
+        BigInteger opAppr = op.approxGet(opPrec);
         // Error analysis as for exponential.
-        BigInteger x_nth = scale(op_appr, op_prec - calc_precision);
-        BigInteger current_term = x_nth;  // x**n
-        BigInteger current_sum = current_term;
+        BigInteger xNth = scale(opAppr, opPrec - calcPrecision);
+        BigInteger currentTerm = xNth;  // x**n
+        BigInteger currentSum = currentTerm;
         int n = 1;
-        int current_sign = 1;   // (-1)^(n-1)
-        BigInteger max_trunc_error =
-                big1.shiftLeft(p - 4 - calc_precision);
-        while (current_term.abs().compareTo(max_trunc_error) >= 0) {
+        int currentSign = 1;   // (-1)^(n-1)
+        BigInteger maxTruncError = big1.shiftLeft(p - 4 - calcPrecision);
+        while (currentTerm.abs().compareTo(maxTruncError) >= 0) {
             if (Thread.interrupted() || pleaseStop) throw new AbortedException();
             n += 1;
-            current_sign = -current_sign;
-            x_nth = scale(x_nth.multiply(op_appr), op_prec);
-            current_term = x_nth.divide(BigInteger.valueOf(n * current_sign));
+            currentSign = -currentSign;
+            xNth = scale(xNth.multiply(opAppr), opPrec);
+            currentTerm = xNth.divide(BigInteger.valueOf(n * currentSign));
             // x**n / (n * (-1)**(n-1))
-            current_sum = current_sum.add(current_term);
+            currentSum = currentSum.add(currentTerm);
         }
-        return scale(current_sum, calc_precision - p);
+        return scale(currentSum, calcPrecision - p);
     }
 }
 
-// Representation of the arcsine of a constructive real.  Private.
-// Uses a Taylor series expansion.  Assumes |x| < (1/2)^(1/3).
+/**
+ * Representation of the arcsine of a constructive real. Private. Uses a Taylor series expansion.
+ * Assumes |x| < (1/2)^(1/3).
+ */
 @SuppressWarnings("WeakerAccess")
-class prescaled_asin_CR extends slow_CR {
+class PrescaledAsinCR extends SlowCR {
     CR op;
 
-    prescaled_asin_CR(CR x) {
+    PrescaledAsinCR(CR x) {
         op = x;
     }
 
@@ -1505,174 +1513,170 @@ class prescaled_asin_CR extends slow_CR {
         // Thus the worst case iteration count is fairly high.
         // But it doesn't make much difference.
         if (p >= 2) return big0;  // Never bigger than 4.
-        int iterations_needed = -3 * p / 2 + 4;
+        int iterationsNeeded = -3 * p / 2 + 4;
         // conservative estimate > 0.
         // Follows from assumed bound on x and
         // the fact that only every other Taylor
         // Series term is present.
         //  Claim: each intermediate term is accurate
-        //  to 2*2^calc_precision.
+        //  to 2*2^calcPrecision.
         //  Total rounding error in series computation is
-        //  2*iterations_needed*2^calc_precision,
+        //  2*iterationsNeeded*2^calcPrecision,
         //  exclusive of error in op.
-        int calc_precision = p - boundLog2(2 * iterations_needed)
-                - 4; // for error in op, truncation.
-        int op_prec = p - 3;  // always <= -2
-        BigInteger op_appr = op.getAppr(op_prec);
+        int calcPrecision = p - boundLog2(2 * iterationsNeeded) - 4; // for error in op, truncation.
+        int opPrec = p - 3;  // always <= -2
+        BigInteger opAppr = op.approxGet(opPrec);
         // Error in argument results in error of < 1/4 ulp.
         // (Derivative is bounded by 2 in the specified range and we use
         // 3 extra digits.)
         // Ignoring the argument error, each term has an error of
-        // < 3ulps relative to calc_precision, which is more precise than p.
+        // < 3ulps relative to calcPrecision, which is more precise than p.
         // Cumulative arithmetic rounding error is < 3/16 ulp (relative to p).
         // Series truncation error < 2/16 ulp.  (Each computed term
         // is at most 2/3 of last one, so some of remaining series <
         // 3/2 * current term.)
         // Final rounding error is <= 1/2 ulp.
         // Thus final error is < 1 ulp (relative to p).
-        BigInteger max_last_term =
-                big1.shiftLeft(p - 4 - calc_precision);
+        BigInteger maxLastTerm = big1.shiftLeft(p - 4 - calcPrecision);
         int exp = 1; // Current exponent, = 2n+1 in above expression
-        BigInteger current_term = op_appr.shiftLeft(op_prec - calc_precision);
-        BigInteger current_sum = current_term;
-        BigInteger current_factor = current_term;
+        BigInteger currentTerm = opAppr.shiftLeft(opPrec - calcPrecision);
+        BigInteger currentSum = currentTerm;
+        BigInteger currentFactor = currentTerm;
         // Current scaled Taylor series term
         // before division by the exponent.
-        // Accurate to 3 ulp at calc_precision.
-        while (current_term.abs().compareTo(max_last_term) >= 0) {
+        // Accurate to 3 ulp at calcPrecision.
+        while (currentTerm.abs().compareTo(maxLastTerm) >= 0) {
             if (Thread.interrupted() || pleaseStop) throw new AbortedException();
             exp += 2;
-            // current_factor = current_factor * op * op * (exp-1) * (exp-2) /
+            // currentFactor = currentFactor * op * op * (exp-1) * (exp-2) /
             // (exp-1) * (exp-1), with the two exp-1 factors cancelling,
             // giving
-            // current_factor = current_factor * op * op * (exp-2) / (exp-1)
+            // currentFactor = currentFactor * op * op * (exp-2) / (exp-1)
             // Thus the error any in the previous term is multiplied by
             // op^2, adding an error of < (1/2)^(2/3) < 2/3 the original
             // error.
-            current_factor = current_factor.multiply(BigInteger.valueOf(exp - 2));
-            current_factor = scale(current_factor.multiply(op_appr), op_prec + 2);
+            currentFactor = currentFactor.multiply(BigInteger.valueOf(exp - 2));
+            currentFactor = scale(currentFactor.multiply(opAppr), opPrec + 2);
             // Carry 2 extra bits of precision forward; thus
             // this effectively introduces 1/8 ulp error.
-            current_factor = current_factor.multiply(op_appr);
+            currentFactor = currentFactor.multiply(opAppr);
             BigInteger divisor = BigInteger.valueOf(exp - 1);
-            current_factor = current_factor.divide(divisor);
+            currentFactor = currentFactor.divide(divisor);
             // Another 1/4 ulp error here.
-            current_factor = scale(current_factor, op_prec - 2);
+            currentFactor = scale(currentFactor, opPrec - 2);
             // Remove extra 2 bits.  1/2 ulp rounding error.
-            // Current_factor has original 3 ulp rounding error, which we
+            // currentFactor has original 3 ulp rounding error, which we
             // reduced by 1, plus < 1 ulp new rounding error.
-            current_term = current_factor.divide(BigInteger.valueOf(exp));
+            currentTerm = currentFactor.divide(BigInteger.valueOf(exp));
             // Contributes 1 ulp error to sum plus at most 3 ulp
-            // from current_factor.
-            current_sum = current_sum.add(current_term);
+            // from currentFactor.
+            currentSum = currentSum.add(currentTerm);
         }
-        return scale(current_sum, calc_precision - p);
+        return scale(currentSum, calcPrecision - p);
     }
 }
 
 
 @SuppressWarnings("WeakerAccess")
-class sqrt_CR extends CR {
+class SqrtCR extends CR {
     CR op;
 
-    sqrt_CR(CR x) {
+    SqrtCR(CR x) {
         op = x;
     }
 
     // Explicitly provide an initial approximation.
     // Useful for arithmetic geometric mean algorithms, where we've previously
     // computed a very similar square root.
-    sqrt_CR(CR x, int min_p, BigInteger max_a) {
+    SqrtCR(CR x, int minP, BigInteger maxA) {
         op = x;
-        minPrec = min_p;
-        maxAppr = max_a;
+        minPrec = minP;
+        maxAppr = maxA;
         apprValid = true;
     }
 
-    final int fp_prec = 50;     // Conservative estimate of number of
+    final int fpPrec = 50;     // Conservative estimate of number of
     // significant bits in double precision
     // computation.
-    final int fp_op_prec = 60;
+    final int fpOpPrec = 60;
 
     protected BigInteger approximate(int p) {
-        int max_op_prec_needed = 2 * p - 1;
-        int msd = op.iter_msd(max_op_prec_needed);
-        if (msd <= max_op_prec_needed) return big0;
-        int result_msd = msd / 2;                 // +- 1
-        int result_digits = result_msd - p;     // +- 2
-        if (result_digits > fp_prec) {
+        int maxOpPrecNeeded = 2 * p - 1;
+        int msd = op.iterMsd(maxOpPrecNeeded);
+        if (msd <= maxOpPrecNeeded) return big0;
+        int resultMsd = msd / 2;                 // +- 1
+        int resultDigits = resultMsd - p;     // +- 2
+        if (resultDigits > fpPrec) {
             // Compute less precise approximation and use a Newton iter.
-            int appr_digits = result_digits / 2 + 6;
+            int apprDigits = resultDigits / 2 + 6;
             // This should be conservative.  Is fewer enough?
-            int appr_prec = result_msd - appr_digits;
-            int prod_prec = 2 * appr_prec;
+            int apprPrec = resultMsd - apprDigits;
+            int prodPrec = 2 * apprPrec;
             // First compute the argument to maximal precision, so we don't end up
             // reevaluating it incrementally.
-            BigInteger op_appr = op.getAppr(prod_prec);
-            BigInteger last_appr = getAppr(appr_prec);
-            // Compute (last_appr * last_appr + op_appr) / last_appr / 2
+            BigInteger opAppr = op.approxGet(prodPrec);
+            BigInteger lastAppr = approxGet(apprPrec);
+            // Compute (lastAppr * lastAppr + opAppr) / lastAppr / 2
             // while adjusting the scaling to make everything work
-            BigInteger prod_prec_scaled_numerator =
-                    last_appr.multiply(last_appr).add(op_appr);
-            BigInteger scaled_numerator =
-                    scale(prod_prec_scaled_numerator, appr_prec - p);
-            BigInteger shifted_result = scaled_numerator.divide(last_appr);
-            return shifted_result.add(big1).shiftRight(1);
+            BigInteger prodPrecScaledNumerator = lastAppr.multiply(lastAppr).add(opAppr);
+            BigInteger scaledNumerator = scale(prodPrecScaledNumerator, apprPrec - p);
+            BigInteger shiftedResult = scaledNumerator.divide(lastAppr);
+            return shiftedResult.add(big1).shiftRight(1);
         } else {
             // Use a double precision floating point approximation.
             // Make sure all precisions are even
-            int op_prec = (msd - fp_op_prec) & ~1;
-            int working_prec = op_prec - fp_op_prec;
-            BigInteger scaled_bi_appr = op.getAppr(op_prec)
-                    .shiftLeft(fp_op_prec);
-            double scaled_appr = scaled_bi_appr.doubleValue();
-            if (scaled_appr < 0.0)
+            int opPrec = (msd - fpOpPrec) & ~1;
+            int workingPrec = opPrec - fpOpPrec;
+            BigInteger scaledBiAppr = op.approxGet(opPrec).shiftLeft(fpOpPrec);
+            double scaledAppr = scaledBiAppr.doubleValue();
+            if (scaledAppr < 0.0)
                 throw new ArithmeticException("sqrt(negative)");
-            double scaled_fp_sqrt = Math.sqrt(scaled_appr);
-            BigInteger scaled_sqrt = BigInteger.valueOf((long) scaled_fp_sqrt);
-            int shift_count = working_prec / 2 - p;
-            return shift(scaled_sqrt, shift_count);
+            double scaledFpSqrt = Math.sqrt(scaledAppr);
+            BigInteger scaledSqrt = BigInteger.valueOf((long) scaledFpSqrt);
+            int shiftCount = workingPrec / 2 - p;
+            return shift(scaledSqrt, shiftCount);
         }
     }
 }
 
-// The constant PI, computed using the Gauss-Legendre alternating
-// arithmetic-geometric mean algorithm:
-//      a[0] = 1
-//      b[0] = 1/sqrt(2)
-//      t[0] = 1/4
-//      p[0] = 1
-//
-//      a[n+1] = (a[n] + b[n])/2        (arithmetic mean, between 0.8 and 1)
-//      b[n+1] = sqrt(a[n] * b[n])      (geometric mean, between 0.7 and 1)
-//      t[n+1] = t[n] - (2^n)(a[n]-a[n+1])^2,  (always between 0.2 and 0.25)
-//
-//      pi is then approximated as (a[n+1]+b[n+1])^2 / 4*t[n+1].
-//
+/**
+ * The constant PI, computed using the Gauss-Legendre alternating arithmetic-geometric
+ * mean algorithm:
+ *         a[0] = 1
+ *         b[0] = 1/sqrt(2)
+ *         t[0] = 1/4
+ *         p[0] = 1
+ *
+ *         a[n+1] = (a[n] + b[n])/2        (arithmetic mean, between 0.8 and 1)
+ *         b[n+1] = sqrt(a[n] * b[n])      (geometric mean, between 0.7 and 1)
+ *         t[n+1] = t[n] - (2^n)(a[n]-a[n+1])^2,  (always between 0.2 and 0.25)
+ *
+ *         pi is then approximated as (a[n+1]+b[n+1])^2 / 4*t[n+1].
+ */
 @SuppressWarnings("WeakerAccess")
-class gl_pi_CR extends slow_CR {
+class GlPiCR extends SlowCR {
     // In addition to the best approximation kept by the CR base class, we keep
     // the entire sequence b[n], to the extent we've needed it so far.  Each
     // reevaluation leads to slightly different sqrt arguments, but the
     // previous result can be used to avoid repeating low precision Newton
     // iterations for the sqrt approximation.
-    ArrayList<Integer> b_prec = new ArrayList<>();
-    ArrayList<BigInteger> b_val = new ArrayList<>();
+    ArrayList<Integer> bPrec = new ArrayList<>();
+    ArrayList<BigInteger> bVal = new ArrayList<>();
 
-    gl_pi_CR() {
-        b_prec.add(null);  // Zeroth entry unused.
-        b_val.add(null);
+    GlPiCR() {
+        bPrec.add(null);  // Zeroth entry unused.
+        bVal.add(null);
     }
 
     private static BigInteger TOLERANCE = BigInteger.valueOf(4);
     // sqrt(1/2)
-    private static CR SQRT_HALF = new sqrt_CR(ONE.shiftRight(1));
+    private static CR SQRT_HALF = new SqrtCR(ONE.shiftRight(1));
 
     protected BigInteger approximate(int p) {
         // Get us back into a consistent state if the last computation
-        // was interrupted after pushing onto b_prec.
-        if (b_prec.size() > b_val.size()) {
-            b_prec.remove(b_prec.size() - 1);
+        // was interrupted after pushing onto bPrec.
+        if (bPrec.size() > bVal.size()) {
+            bPrec.remove(bPrec.size() - 1);
         }
         // Rough approximations are easy.
         if (p >= 0) return scale(BigInteger.valueOf(3), -p);
@@ -1680,57 +1684,52 @@ class gl_pi_CR extends slow_CR {
         // contribute no more than 2 ulps to the error in the corresponding
         // term (a[n], b[n], or t[n]).  Thus 2log2(n) bits plus a few for the
         // final calculation and rounding suffice.
-        final int extra_eval_prec =
-                (int) Math.ceil(Math.log(-p) / Math.log(2)) + 10;
-        // All our terms are implicitly scaled by eval_prec.
-        final int eval_prec = p - extra_eval_prec;
-        BigInteger a = BigInteger.ONE.shiftLeft(-eval_prec);
-        BigInteger b = SQRT_HALF.getAppr(eval_prec);
-        BigInteger t = BigInteger.ONE.shiftLeft(-eval_prec - 2);
+        final int extraEvalPrec = (int) Math.ceil(Math.log(-p) / Math.log(2)) + 10;
+        // All our terms are implicitly scaled by evalPrec.
+        final int evalPrec = p - extraEvalPrec;
+        BigInteger a = BigInteger.ONE.shiftLeft(-evalPrec);
+        BigInteger b = SQRT_HALF.approxGet(evalPrec);
+        BigInteger t = BigInteger.ONE.shiftLeft(-evalPrec - 2);
         int n = 0;
         while (a.subtract(b).subtract(TOLERANCE).signum() > 0) {
-            // Current values correspond to n, next_ values to n + 1
-            // b_prec.size() == b_val.size() >= n + 1
-            final BigInteger next_a = a.add(b).shiftRight(1);
-            final BigInteger next_b;
-            final BigInteger a_diff = a.subtract(next_a);
-            final BigInteger b_prod = a.multiply(b).shiftRight(-eval_prec);
+            // Current values correspond to n, next* values to n + 1
+            // bPrec.size() == bVal.size() >= n + 1
+            final BigInteger nextA = a.add(b).shiftRight(1);
+            final BigInteger nextB;
+            final BigInteger aDiff = a.subtract(nextA);
+            final BigInteger bProd = a.multiply(b).shiftRight(-evalPrec);
             // We compute square root approximations using a nested
             // temporary CR computation, to avoid implementing BigInteger
             // square roots separately.
-            final CR b_prod_as_CR = CR.valueOf(b_prod).shiftRight(-eval_prec);
-            if (b_prec.size() == n + 1) {
+            final CR bProdAsCR = CR.valueOf(bProd).shiftRight(-evalPrec);
+            if (bPrec.size() == n + 1) {
                 // Add an n+1st slot.
-                // Take care to make this exception-safe; b_prec and b_val
+                // Take care to make this exception-safe; bPrec and bVal
                 // must remain consistent, even if we are interrupted, or run
-                // out of memory. It's OK to just push on b_prec in that case.
-                final CR next_b_as_CR = b_prod_as_CR.sqrt();
-                next_b = next_b_as_CR.getAppr(eval_prec);
-                final BigInteger scaled_next_b = scale(next_b, -extra_eval_prec);
-                b_prec.add(p);
-                b_val.add(scaled_next_b);
+                // out of memory. It's OK to just push on bPrec in that case.
+                final CR nextBAsCR = bProdAsCR.sqrt();
+                nextB = nextBAsCR.approxGet(evalPrec);
+                final BigInteger scaledNextB = scale(nextB, -extraEvalPrec);
+                bPrec.add(p);
+                bVal.add(scaledNextB);
             } else {
                 // Reuse previous approximation to reduce sqrt iterations,
                 // hopefully to one.
-                final CR next_b_as_CR =
-                        new sqrt_CR(b_prod_as_CR,
-                                b_prec.get(n + 1), b_val.get(n + 1));
-                next_b = next_b_as_CR.getAppr(eval_prec);
+                final CR nextBAsCR = new SqrtCR(bProdAsCR, bPrec.get(n + 1), bVal.get(n + 1));
+                nextB = nextBAsCR.approxGet(evalPrec);
                 // We assume that set() doesn't throw for any reason.
-                b_prec.set(n + 1, p);
-                b_val.set(n + 1, scale(next_b, -extra_eval_prec));
+                bPrec.set(n + 1, p);
+                bVal.set(n + 1, scale(nextB, -extraEvalPrec));
             }
-            // b_prec.size() == b_val.size() >= n + 2
-            final BigInteger next_t =
-                    t.subtract(a_diff.multiply(a_diff)
-                            .shiftLeft(n + eval_prec));  // shift dist. usually neg.
-            a = next_a;
-            b = next_b;
-            t = next_t;
+            // bPrec.size() == bVal.size() >= n + 2
+            final BigInteger nextT = t.subtract(aDiff.multiply(aDiff).shiftLeft(n + evalPrec));  // shift dist. usually neg.
+            a = nextA;
+            b = nextB;
+            t = nextT;
             ++n;
         }
         final BigInteger sum = a.add(b);
         final BigInteger result = sum.multiply(sum).divide(t).shiftRight(2);
-        return scale(result, -extra_eval_prec);
+        return scale(result, -extraEvalPrec);
     }
 }
