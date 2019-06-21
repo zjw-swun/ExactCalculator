@@ -71,24 +71,61 @@ class DragController {
      */
     private var mDisplayHeight: Int = 0
 
+    /**
+     * Starting color for the color change animation of the formula text
+     */
     private var mFormulaStartColor: Int = 0
+    /**
+     * Ending color for the color change animation of the formula text
+     */
     private var mFormulaEndColor: Int = 0
 
+    /**
+     * Starting color for the color change animation of the result text
+     */
     private var mResultStartColor: Int = 0
+    /**
+     * Ending color for the color change animation of the result text
+     */
     private var mResultEndColor: Int = 0
 
-    // The padding at the bottom of the RecyclerView itself.
+    /**
+     * The padding at the bottom of the RecyclerView itself.
+     */
     private var mBottomPaddingHeight: Int = 0
 
+    /**
+     * Set to *true* after all our animators have been initialized.
+     */
     private var mAnimationInitialized: Boolean = false
 
+    /**
+     * Are we running on a device which uses a single line display?
+     */
     private var mOneLine: Boolean = false
+    /**
+     * Are both of the formula and result text views empty.
+     */
     private var mIsDisplayEmpty: Boolean = false
 
+    /**
+     * The [AnimationController] which is animating the calculator display, it is an instance of
+     * [EmptyAnimationController] if the display is empty, [ResultAnimationController] if the
+     * display contains a result, or just an [AnimationController] if there is something in the
+     * formula field (but not necessarily a result).
+     */
     private var mAnimationController: AnimationController? = null
 
+    /**
+     * The [Evaluator] that the [HistoryFragment] is using (this does not seem to be used by us?)
+     */
     private var mEvaluator: Evaluator? = null
 
+    /**
+     * Setter for our [mEvaluator] field.
+     *
+     * @param evaluator the [Evaluator] that the [HistoryFragment] is using
+     */
     fun setEvaluator(evaluator: Evaluator) {
         mEvaluator = evaluator
     }
