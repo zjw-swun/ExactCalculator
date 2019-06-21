@@ -60,56 +60,56 @@ public abstract class UnaryCRFunction {
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction identityFunction =
-        new identity_UnaryCRFunction();
+        new IdentityUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>negate</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction negateFunction =
-        new negate_UnaryCRFunction();
+        new NegateUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>inverse</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction inverseFunction =
-        new inverse_UnaryCRFunction();
+        new InverseUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>abs</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction absFunction =
-        new abs_UnaryCRFunction();
+        new AbsUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>exp</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction expFunction =
-        new exp_UnaryCRFunction();
+        new ExpUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>cos</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction cosFunction =
-        new cos_UnaryCRFunction();
+        new CosUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>sin</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction sinFunction =
-        new sin_UnaryCRFunction();
+        new SinUnaryCRFunction();
 
 /**
 * The function object corresponding to the tangent function.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction tanFunction =
-        new tan_UnaryCRFunction();
+        new TanUnaryCRFunction();
 
 /**
 * The function object corresponding to the inverse sine (arcsine) function.
@@ -118,7 +118,7 @@ public abstract class UnaryCRFunction {
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction asinFunction =
-        new asin_UnaryCRFunction();
+        new AsinUnaryCRFunction();
         // The following also works, but is slower:
         // CR halfPi = CR.PI.divide(CR.valueOf(2));
         // UnaryCRFunction.sinFunction.inverseMonotone(halfPi.negate(),
@@ -131,7 +131,7 @@ public abstract class UnaryCRFunction {
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction acosFunction =
-        new acos_UnaryCRFunction();
+        new AcosUnaryCRFunction();
 
 /**
 * The function object corresponding to the inverse cosine (arctangent) function.
@@ -139,27 +139,27 @@ public abstract class UnaryCRFunction {
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction atanFunction =
-        new atan_UnaryCRFunction();
+        new AtanUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>ln</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction lnFunction =
-        new ln_UnaryCRFunction();
+        new LnUnaryCRFunction();
 
 /**
 * The function object corresponding to the <TT>sqrt</tt> method of CR.
 */
     @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final UnaryCRFunction sqrtFunction =
-        new sqrt_UnaryCRFunction();
+        new SqrtUnaryCRFunction();
 
 /**
 * Compose this function with <TT>f2</tt>.
 */
     public UnaryCRFunction compose(UnaryCRFunction f2) {
-        return new compose_UnaryCRFunction(this, f2);
+        return new ComposeUnaryCRFunction(this, f2);
     }
 
 /**
@@ -170,7 +170,7 @@ public abstract class UnaryCRFunction {
 * The original function may be either increasing or decreasing.
 */
     public UnaryCRFunction inverseMonotone(CR low, CR high) {
-        return new inverseMonotone_UnaryCRFunction(this, low, high);
+        return new InverseMonotoneUnaryCRFunction(this, low, high);
     }
 
 /**
@@ -181,37 +181,37 @@ public abstract class UnaryCRFunction {
 * The result is defined only in the open interval.
 */
     public UnaryCRFunction monotoneDerivative(CR low, CR high) {
-        return new monotoneDerivative_UnaryCRFunction(this, low, high);
+        return new MonotoneDerivativeUnaryCRFunction(this, low, high);
     }
 
 }
 
 // Subclasses of UnaryCRFunction for various built-in functions.
-class sin_UnaryCRFunction extends UnaryCRFunction {
+class SinUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.sin();
     }
 }
 
-class cos_UnaryCRFunction extends UnaryCRFunction {
+class CosUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.cos();
     }
 }
 
-class tan_UnaryCRFunction extends UnaryCRFunction {
+class TanUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.sin().divide(x.cos());
     }
 }
 
-class asin_UnaryCRFunction extends UnaryCRFunction {
+class AsinUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.asin();
     }
 }
 
-class acos_UnaryCRFunction extends UnaryCRFunction {
+class AcosUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.acos();
     }
@@ -221,64 +221,64 @@ class acos_UnaryCRFunction extends UnaryCRFunction {
 // Since we know the tangent of the result, we can get its sine,
 // and then use the asin function.  Note that we don't always
 // want the positive square root when computing the sine.
-class atan_UnaryCRFunction extends UnaryCRFunction {
+class AtanUnaryCRFunction extends UnaryCRFunction {
     CR one = CR.valueOf(1);
     public CR execute(CR x) {
         CR x2 = x.multiply(x);
-        CR abs_sin_atan = x2.divide(one.add(x2)).sqrt();
-        CR sin_atan = x.select(abs_sin_atan.negate(), abs_sin_atan);
-        return sin_atan.asin();
+        CR absSinAtan = x2.divide(one.add(x2)).sqrt();
+        CR sinAtan = x.select(absSinAtan.negate(), absSinAtan);
+        return sinAtan.asin();
     }
 }
 
-class exp_UnaryCRFunction extends UnaryCRFunction {
+class ExpUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.exp();
     }
 }
 
-class ln_UnaryCRFunction extends UnaryCRFunction {
+class LnUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.ln();
     }
 }
 
-class identity_UnaryCRFunction extends UnaryCRFunction {
+class IdentityUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x;
     }
 }
 
-class negate_UnaryCRFunction extends UnaryCRFunction {
+class NegateUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.negate();
     }
 }
 
-class inverse_UnaryCRFunction extends UnaryCRFunction {
+class InverseUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.inverse();
     }
 }
 
-class abs_UnaryCRFunction extends UnaryCRFunction {
+class AbsUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.abs();
     }
 }
 
-class sqrt_UnaryCRFunction extends UnaryCRFunction {
+class SqrtUnaryCRFunction extends UnaryCRFunction {
     public CR execute(CR x) {
         return x.sqrt();
     }
 }
 
 @SuppressWarnings("WeakerAccess")
-class compose_UnaryCRFunction extends UnaryCRFunction {
+class ComposeUnaryCRFunction extends UnaryCRFunction {
     UnaryCRFunction f1;
     UnaryCRFunction f2;
-    compose_UnaryCRFunction(UnaryCRFunction func1,
-                            UnaryCRFunction func2) {
+    ComposeUnaryCRFunction(UnaryCRFunction func1,
+                           UnaryCRFunction func2) {
         f1 = func1; f2 = func2;
     }
     public CR execute(CR x) {
@@ -287,26 +287,26 @@ class compose_UnaryCRFunction extends UnaryCRFunction {
 }
 
 @SuppressWarnings("WeakerAccess")
-class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
+class InverseMonotoneUnaryCRFunction extends UnaryCRFunction {
     // The following variables are final, so that they
-    // can be referenced from the inner class inverseIncreasingCR.
+    // can be referenced from the inner class InverseIncreasingCR.
     // I couldn't find a way to initialize these such that the
     // compiler accepted them as final without turning them into arrays.
     final UnaryCRFunction[] f = new UnaryCRFunction[1];
     // Monotone increasing.
     // If it was monotone decreasing, we
     // negate it.
-    final boolean[] f_negated = new boolean[1];
+    final boolean[] fNegated = new boolean[1];
     final CR[] low = new CR[1];
     final CR[] high = new CR[1];
-    final CR[] f_low = new CR[1];
-    final CR[] f_high = new CR[1];
-    final int[] max_msd = new int[1];
+    final CR[] fLow = new CR[1];
+    final CR[] fHigh = new CR[1];
+    final int[] maxMsd = new int[1];
     // Bound on msd of both f(high) and f(low)
-    final int[] max_arg_prec = new int[1];
-    // base**max_arg_prec is a small fraction
+    final int[] maxArgPrec = new int[1];
+    // base**maxArgPrec is a small fraction
     // of low - high.
-    final int[] deriv_msd = new int[1];
+    final int[] derivMsd = new int[1];
                                 // Rough approx. of msd of first
                                 // derivative.
     final static BigInteger BIG1023 = BigInteger.valueOf(1023);
@@ -317,36 +317,36 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
             // Change to Log.v("UnaryCRFunction", s); for Android use.
         }
     }
-    inverseMonotone_UnaryCRFunction(UnaryCRFunction func, CR l, CR h) {
+    InverseMonotoneUnaryCRFunction(UnaryCRFunction func, CR l, CR h) {
         low[0] = l; high[0] = h;
-        CR tmp_f_low = func.execute(l);
-        CR tmp_f_high = func.execute(h);
+        CR tmpFLow = func.execute(l);
+        CR tmpFHigh = func.execute(h);
         // Since func is monotone and low < high, the following test
         // converges.
-        if (tmp_f_low.compareTo(tmp_f_high) > 0) {
+        if (tmpFLow.compareTo(tmpFHigh) > 0) {
             f[0] = UnaryCRFunction.negateFunction.compose(func);
-            f_negated[0] = true;
-            f_low[0] = tmp_f_low.negate();
-            f_high[0] = tmp_f_high.negate();
+            fNegated[0] = true;
+            fLow[0] = tmpFLow.negate();
+            fHigh[0] = tmpFHigh.negate();
         } else {
             f[0] = func;
             //noinspection ConstantConditions
-            f_negated[0] = false;
-            f_low[0] = tmp_f_low;
-            f_high[0] = tmp_f_high;
+            fNegated[0] = false;
+            fLow[0] = tmpFLow;
+            fHigh[0] = tmpFHigh;
         }
-        max_msd[0] = low[0].abs().max(high[0].abs()).msd();
-        max_arg_prec[0] = high[0].subtract(low[0]).msd() - 4;
-        deriv_msd[0] = f_high[0].subtract(f_low[0])
+        maxMsd[0] = low[0].abs().max(high[0].abs()).msd();
+        maxArgPrec[0] = high[0].subtract(low[0]).msd() - 4;
+        derivMsd[0] = fHigh[0].subtract(fLow[0])
                     .divide(high[0].subtract(low[0])).msd();
     }
-    class inverseIncreasingCR extends CR {
+    class InverseIncreasingCR extends CR {
         final CR arg;
-        inverseIncreasingCR(CR x) {
-            arg = f_negated[0]? x.negate() : x;
+        InverseIncreasingCR(CR x) {
+            arg = fNegated[0]? x.negate() : x;
         }
         // Comparison with a difference of one treated as equality.
-        int sloppy_compare(BigInteger x, BigInteger y) {
+        int sloppyCompare(BigInteger x, BigInteger y) {
             BigInteger difference = x.subtract(y);
             if (difference.compareTo(big1) > 0) {
                 return 1;
@@ -357,92 +357,92 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
             return 0;
         }
         protected BigInteger approximate(int p) {
-            final int extra_arg_prec = 4;
+            final int extraArgPrec = 4;
             final UnaryCRFunction fn = f[0];
-            int small_step_deficit = 0; // Number of ineffective steps not
+            int smallStepDeficit = 0; // Number of ineffective steps not
                                         // yet compensated for by a binary
                                         // search step.
-            int digits_needed = max_msd[0] - p;
-            if (digits_needed < 0) return big0;
-            int working_arg_prec = p - extra_arg_prec;
-            if (working_arg_prec > max_arg_prec[0]) {
-                working_arg_prec = max_arg_prec[0];
+            int digitsNeeded = maxMsd[0] - p;
+            if (digitsNeeded < 0) return big0;
+            int workingArgPrec = p - extraArgPrec;
+            if (workingArgPrec > maxArgPrec[0]) {
+                workingArgPrec = maxArgPrec[0];
             }
-            int working_eval_prec = working_arg_prec + deriv_msd[0] - 20;
+            int workingEvalPrec = workingArgPrec + derivMsd[0] - 20;
                         // initial guess
             // We use a combination of binary search and something like
             // the secant method.  This always converges linearly,
             // and should converge quadratically under favorable assumptions.
-            // F_l and f_h are always the approximate images of l and h.
-            // At any point, arg is between f_l and f_h, or no more than
-            // one outside [f_l, f_h].
-            // L and h are implicitly scaled by working_arg_prec.
+            // fL and fH are always the approximate images of l and h.
+            // At any point, arg is between fL and fH, or no more than
+            // one outside [fL, fH].
+            // L and h are implicitly scaled by workingArgPrec.
             // The scaled values of l and h are strictly between low and high.
-            // If at_left is true, then l is logically at the left
+            // If atLeft is true, then l is logically at the left
             // end of the interval.  We approximate this by setting l to
-            // a point slightly inside the interval, and letting f_l
+            // a point slightly inside the interval, and letting fL
             // approximate the function value at the endpoint.
-            // If at_right is true, r and f_r are set correspondingly.
-            // At the endpoints of the interval, f_l and f_h may correspond
+            // If atRight is true, r and fR are set correspondingly.
+            // At the endpoints of the interval, fL and fH may correspond
             // to the endpoints, even if l and h are slightly inside.
-            // F_l and f_u are scaled by working_eval_prec.
-            // Working_eval_prec may need to be adjusted depending
+            // fL and fH are scaled by workingEvalPrec.
+            // workingEvalPrec may need to be adjusted depending
             // on the derivative of f.
-            boolean at_left, at_right;
-            BigInteger l, f_l;
-            BigInteger h, f_h;
-            BigInteger low_appr = low[0].approxGet(working_arg_prec)
+            boolean atLeft, atRight;
+            BigInteger l, fL;
+            BigInteger h, fH;
+            BigInteger lowAppr = low[0].approxGet(workingArgPrec)
                                         .add(big1);
-            BigInteger high_appr = high[0].approxGet(working_arg_prec)
+            BigInteger highAppr = high[0].approxGet(workingArgPrec)
                                           .subtract(big1);
-            BigInteger arg_appr = arg.approxGet(working_eval_prec);
-            boolean have_good_appr = (apprValid && minPrec < max_msd[0]);
-            if (digits_needed < 30 && !have_good_appr) {
+            BigInteger argAppr = arg.approxGet(workingEvalPrec);
+            boolean haveGoodAppr = (apprValid && minPrec < maxMsd[0]);
+            if (digitsNeeded < 30 && !haveGoodAppr) {
                 trace("Setting interval to entire domain");
-                h = high_appr;
-                f_h = f_high[0].approxGet(working_eval_prec);
-                l = low_appr;
-                f_l = f_low[0].approxGet(working_eval_prec);
+                h = highAppr;
+                fH = fHigh[0].approxGet(workingEvalPrec);
+                l = lowAppr;
+                fL = fLow[0].approxGet(workingEvalPrec);
                 // Check for clear out-of-bounds case.
                 // Close cases may fail in other ways.
-                  if (f_h.compareTo(arg_appr.subtract(big1)) < 0
-                    || f_l.compareTo(arg_appr.add(big1)) > 0) {
+                  if (fH.compareTo(argAppr.subtract(big1)) < 0
+                    || fL.compareTo(argAppr.add(big1)) > 0) {
                     throw new ArithmeticException("inverse(out-of-bounds)");
                   }
-                at_left = true;
-                at_right = true;
-                small_step_deficit = 2;        // Start with bin search steps.
+                atLeft = true;
+                atRight = true;
+                smallStepDeficit = 2;        // Start with bin search steps.
             } else {
-                int rough_prec = p + digits_needed/2;
+                int roughPrec = p + digitsNeeded /2;
 
-                if (have_good_appr &&
-                    (digits_needed < 30 || minPrec < p + 3*digits_needed/4)) {
-                    rough_prec = minPrec;
+                if (haveGoodAppr &&
+                    (digitsNeeded < 30 || minPrec < p + 3* digitsNeeded /4)) {
+                    roughPrec = minPrec;
                 }
-                BigInteger rough_appr = approxGet(rough_prec);
+                BigInteger roughAppr = approxGet(roughPrec);
                 trace("Setting interval based on prev. appr");
-                trace("prev. prec = " + rough_prec + " appr = " + rough_appr);
-                h = rough_appr.add(big1)
-                              .shiftLeft(rough_prec - working_arg_prec);
-                l = rough_appr.subtract(big1)
-                              .shiftLeft(rough_prec - working_arg_prec);
-                if (h.compareTo(high_appr) > 0)  {
-                    h = high_appr;
-                    f_h = f_high[0].approxGet(working_eval_prec);
-                    at_right = true;
+                trace("prev. prec = " + roughPrec + " appr = " + roughAppr);
+                h = roughAppr.add(big1)
+                              .shiftLeft(roughPrec - workingArgPrec);
+                l = roughAppr.subtract(big1)
+                              .shiftLeft(roughPrec - workingArgPrec);
+                if (h.compareTo(highAppr) > 0)  {
+                    h = highAppr;
+                    fH = fHigh[0].approxGet(workingEvalPrec);
+                    atRight = true;
                 } else {
-                    CR h_cr = CR.valueOf(h).shiftLeft(working_arg_prec);
-                    f_h = fn.execute(h_cr).approxGet(working_eval_prec);
-                    at_right = false;
+                    CR hCR = CR.valueOf(h).shiftLeft(workingArgPrec);
+                    fH = fn.execute(hCR).approxGet(workingEvalPrec);
+                    atRight = false;
                 }
-                if (l.compareTo(low_appr) < 0) {
-                    l = low_appr;
-                    f_l = f_low[0].approxGet(working_eval_prec);
-                    at_left = true;
+                if (l.compareTo(lowAppr) < 0) {
+                    l = lowAppr;
+                    fL = fLow[0].approxGet(workingEvalPrec);
+                    atLeft = true;
                 } else {
-                    CR l_cr = CR.valueOf(l).shiftLeft(working_arg_prec);
-                    f_l = fn.execute(l_cr).approxGet(working_eval_prec);
-                    at_left = false;
+                    CR lCR = CR.valueOf(l).shiftLeft(workingArgPrec);
+                    fL = fn.execute(lCR).approxGet(workingEvalPrec);
+                    atLeft = false;
                 }
             }
             BigInteger difference = h.subtract(l);
@@ -450,35 +450,34 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                 if (Thread.interrupted() || pleaseStop)
                     throw new AbortedException();
                 trace("***Iteration: " + i);
-                trace("Arg prec = " + working_arg_prec
-                      + " eval prec = " + working_eval_prec
-                      + " arg appr. = " + arg_appr);
+                trace("Arg prec = " + workingArgPrec
+                      + " eval prec = " + workingEvalPrec
+                      + " arg appr. = " + argAppr);
                 trace("l = " + l); trace("h = " + h);
-                trace("f(l) = " + f_l); trace("f(h) = " + f_h);
+                trace("f(l) = " + fL); trace("f(h) = " + fH);
                 if (difference.compareTo(big6) < 0) {
                     // Answer is less than 1/2 ulp away from h.
-                    return scale(h, -extra_arg_prec);
+                    return scale(h, -extraArgPrec);
                 }
-                BigInteger f_difference = f_h.subtract(f_l);
+                BigInteger fDifference = fH.subtract(fL);
                 // Narrow the interval by dividing at a cleverly
                 // chosen point (guess) in the middle.
                 {
                     BigInteger guess;
-                    boolean binary_step =
-                        (small_step_deficit > 0 || f_difference.signum() == 0);
-                    if (binary_step) {
+                    boolean binaryStep = (smallStepDeficit > 0 || fDifference.signum() == 0);
+                    if (binaryStep) {
                         // Do a binary search step to guarantee linear
                         // convergence.
                         trace("binary step");
                         guess = l.add(h).shiftRight(1);
-                        --small_step_deficit;
+                        --smallStepDeficit;
                     } else {
                       // interpolate.
-                      // f_difference is nonzero here.
+                      // fDifference is nonzero here.
                       trace("interpolating");
-                      BigInteger arg_difference = arg_appr.subtract(f_l);
-                      BigInteger t = arg_difference.multiply(difference);
-                      BigInteger adj = t.divide(f_difference);
+                      BigInteger argDifference = argAppr.subtract(fL);
+                      BigInteger t = argDifference.multiply(difference);
+                      BigInteger adj = t.divide(fDifference);
                           // tentative adjustment to l to compute guess
                       // If we are within 1/1024 of either end, back off.
                       // This greatly improves the odds of bounding
@@ -502,55 +501,53 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                     }
                     int outcome;
                     BigInteger tweak = big2;
-                    BigInteger f_guess;
-                    for(boolean adj_prec = false;; adj_prec = !adj_prec) {
-                        CR guess_cr = CR.valueOf(guess)
-                                        .shiftLeft(working_arg_prec);
-                        trace("Evaluating at " + guess_cr
-                              + " with precision " + working_eval_prec);
-                        CR f_guess_cr = fn.execute(guess_cr);
-                        trace("fn value = " + f_guess_cr);
-                        f_guess = f_guess_cr.approxGet(working_eval_prec);
-                        outcome = sloppy_compare(f_guess, arg_appr);
+                    BigInteger fGuess;
+                    for(boolean adjPrec = false;; adjPrec = !adjPrec) {
+                        CR guessCR = CR.valueOf(guess)
+                                        .shiftLeft(workingArgPrec);
+                        trace("Evaluating at " + guessCR
+                              + " with precision " + workingEvalPrec);
+                        CR fGuessCR = fn.execute(guessCR);
+                        trace("fn value = " + fGuessCR);
+                        fGuess = fGuessCR.approxGet(workingEvalPrec);
+                        outcome = sloppyCompare(fGuess, argAppr);
                         if (outcome != 0) break;
                         // Alternately increase evaluation precision
                         // and adjust guess slightly.
                         // This should be an unlikely case.
-                        if (adj_prec) {
-                            // adjust working_eval_prec to get enough
+                        if (adjPrec) {
+                            // adjust workingEvalPrec to get enough
                             // resolution.
-                            int adjustment = -f_guess.bitLength()/4;
+                            int adjustment = -fGuess.bitLength()/4;
                             if (adjustment > -20) adjustment = - 20;
-                            CR l_cr = CR.valueOf(l)
-                                        .shiftLeft(working_arg_prec);
-                            CR h_cr = CR.valueOf(h)
-                                        .shiftLeft(working_arg_prec);
-                            working_eval_prec += adjustment;
-                            trace("New eval prec = " + working_eval_prec
-                                  + (at_left? "(at left)" : "")
-                                  + (at_right? "(at right)" : ""));
-                            if (at_left) {
-                                f_l = f_low[0].approxGet(working_eval_prec);
+                            CR lCR = CR.valueOf(l).shiftLeft(workingArgPrec);
+                            CR hCR = CR.valueOf(h).shiftLeft(workingArgPrec);
+                            workingEvalPrec += adjustment;
+                            trace("New eval prec = " + workingEvalPrec
+                                  + (atLeft ? "(at left)" : "")
+                                  + (atRight ? "(at right)" : ""));
+                            if (atLeft) {
+                                fL = fLow[0].approxGet(workingEvalPrec);
                             } else {
-                                f_l = fn.execute(l_cr)
-                                        .approxGet(working_eval_prec);
+                                fL = fn.execute(lCR)
+                                        .approxGet(workingEvalPrec);
                             }
-                            if (at_right) {
-                                f_h = f_high[0].approxGet(working_eval_prec);
+                            if (atRight) {
+                                fH = fHigh[0].approxGet(workingEvalPrec);
                             } else {
-                                f_h = fn.execute(h_cr)
-                                        .approxGet(working_eval_prec);
+                                fH = fn.execute(hCR)
+                                        .approxGet(workingEvalPrec);
                             }
-                            arg_appr = arg.approxGet(working_eval_prec);
+                            argAppr = arg.approxGet(workingEvalPrec);
                         } else {
                             // guess might be exactly right; tweak it
                             // slightly.
                             trace("tweaking guess");
-                            BigInteger new_guess = guess.add(tweak);
-                            if (new_guess.compareTo(h) >= 0) {
+                            BigInteger newGuess = guess.add(tweak);
+                            if (newGuess.compareTo(h) >= 0) {
                                 guess = guess.subtract(tweak);
                             } else {
-                                guess = new_guess;
+                                guess = newGuess;
                             }
                             // If we keep hitting the right answer, it's
                             // important to alternate which side we move it
@@ -560,36 +557,36 @@ class inverseMonotone_UnaryCRFunction extends UnaryCRFunction {
                     }
                     if (outcome > 0) {
                         h = guess;
-                        f_h = f_guess;
-                        at_right = false;
+                        fH = fGuess;
+                        atRight = false;
                     } else {
                         l = guess;
-                        f_l = f_guess;
-                        at_left = false;
+                        fL = fGuess;
+                        atLeft = false;
                     }
-                    BigInteger new_difference = h.subtract(l);
-                    if (!binary_step) {
-                        if (new_difference.compareTo(difference
+                    BigInteger newDifference = h.subtract(l);
+                    if (!binaryStep) {
+                        if (newDifference.compareTo(difference
                                                      .shiftRight(1)) >= 0) {
-                            ++small_step_deficit;
+                            ++smallStepDeficit;
                         } else {
-                            --small_step_deficit;
+                            --smallStepDeficit;
                         }
                     }
-                    difference = new_difference;
+                    difference = newDifference;
                 }
             }
         }
     }
     public CR execute(CR x) {
-        return new inverseIncreasingCR(x);
+        return new InverseIncreasingCR(x);
     }
 }
 
 @SuppressWarnings("WeakerAccess")
-class monotoneDerivative_UnaryCRFunction extends UnaryCRFunction {
+class MonotoneDerivativeUnaryCRFunction extends UnaryCRFunction {
     // The following variables are final, so that they
-    // can be referenced from the inner class inverseIncreasingCR.
+    // can be referenced from the inner class InverseIncreasingCR.
     final UnaryCRFunction[] f = new UnaryCRFunction[1];
     // Monotone increasing.
     // If it was monotone decreasing, we
@@ -597,11 +594,11 @@ class monotoneDerivative_UnaryCRFunction extends UnaryCRFunction {
     final CR[] low = new CR[1]; // endpoints and midpoint of interval
     final CR[] mid = new CR[1];
     final CR[] high = new CR[1];
-    final CR[] f_low = new CR[1]; // Corresponding function values.
-    final CR[] f_mid = new CR[1];
-    final CR[] f_high = new CR[1];
-    final int[] difference_msd = new int[1];  // msd of interval len.
-    final int[] deriv2_msd = new int[1];
+    final CR[] fLow = new CR[1]; // Corresponding function values.
+    final CR[] fMid = new CR[1];
+    final CR[] fHigh = new CR[1];
+    final int[] differenceMsd = new int[1];  // msd of interval len.
+    final int[] deriv2Msd = new int[1];
                                 // Rough approx. of msd of second
                                 // derivative.
                                 // This is increased to be an appr. bound
@@ -611,75 +608,72 @@ class monotoneDerivative_UnaryCRFunction extends UnaryCRFunction {
                                 // It may be better to keep a copy per
                                 // derivative value.
 
-    monotoneDerivative_UnaryCRFunction(UnaryCRFunction func, CR l, CR h) {
+    MonotoneDerivativeUnaryCRFunction(UnaryCRFunction func, CR l, CR h) {
         f[0] = func;
         low[0] = l; high[0] = h;
         mid[0] = l.add(h).shiftRight(1);
-        f_low[0] = func.execute(l);
-        f_mid[0] = func.execute(mid[0]);
-        f_high[0] = func.execute(h);
+        fLow[0] = func.execute(l);
+        fMid[0] = func.execute(mid[0]);
+        fHigh[0] = func.execute(h);
         CR difference = h.subtract(l);
         // compute approximate msd of
-        // ((f_high - f_mid) - (f_mid - f_low))/(high - low)
+        // ((fHigh - fMid) - (fMid - fLow))/(high - low)
         // This should be a very rough appr to the second derivative.
         // We add a little slop to err on the high side, since
         // a low estimate will cause extra iterations.
-        CR appr_diff2 = f_high[0].subtract(f_mid[0].shiftLeft(1)).add(f_low[0]);
-        difference_msd[0] = difference.msd();
-        deriv2_msd[0] = appr_diff2.msd() - difference_msd[0] + 4;
+        CR apprDiff2 = fHigh[0].subtract(fMid[0].shiftLeft(1)).add(fLow[0]);
+        differenceMsd[0] = difference.msd();
+        deriv2Msd[0] = apprDiff2.msd() - differenceMsd[0] + 4;
     }
-    class monotoneDerivativeCR extends CR {
+    class MonotoneDerivativeCR extends CR {
         CR arg;
-        CR f_arg;
-        int max_delta_msd;
-        monotoneDerivativeCR(CR x) {
+        CR fArg;
+        int maxDeltaMsd;
+        MonotoneDerivativeCR(CR x) {
             arg = x;
-            f_arg = f[0].execute(x);
+            fArg = f[0].execute(x);
             // The following must converge, since arg must be in the
             // open interval.
-            CR left_diff = arg.subtract(low[0]);
-            int max_delta_left_msd = left_diff.msd();
-            CR right_diff = high[0].subtract(arg);
-            int max_delta_right_msd = right_diff.msd();
-            if (left_diff.signum() < 0 || right_diff.signum() < 0) {
+            CR leftDiff = arg.subtract(low[0]);
+            int maxDeltaLeftMsd = leftDiff.msd();
+            CR rightDiff = high[0].subtract(arg);
+            int maxDeltaRightMsd = rightDiff.msd();
+            if (leftDiff.signum() < 0 || rightDiff.signum() < 0) {
                 throw new ArithmeticException("fn not monotone");
             }
-            max_delta_msd = (max_delta_left_msd < max_delta_right_msd?
-                                max_delta_left_msd
-                                : max_delta_right_msd);
+            maxDeltaMsd = (maxDeltaLeftMsd < maxDeltaRightMsd ?
+                    maxDeltaLeftMsd
+                                : maxDeltaRightMsd);
         }
         protected BigInteger approximate(int p) {
-            final int extra_prec = 4;
-            int log_delta = p - deriv2_msd[0];
+            final int extraPrec = 4;
+            int logDelta = p - deriv2Msd[0];
             // Ensure that we stay within the interval.
-              if (log_delta > max_delta_msd) log_delta = max_delta_msd;
-            log_delta -= extra_prec;
-            CR delta = ONE.shiftLeft(log_delta);
+              if (logDelta > maxDeltaMsd) logDelta = maxDeltaMsd;
+            logDelta -= extraPrec;
+            CR delta = ONE.shiftLeft(logDelta);
 
             CR left = arg.subtract(delta);
             CR right = arg.add(delta);
-            CR f_left = f[0].execute(left);
-            CR f_right = f[0].execute(right);
-            CR left_deriv = f_arg.subtract(f_left).shiftRight(log_delta);
-            CR right_deriv = f_right.subtract(f_arg).shiftRight(log_delta);
-            int eval_prec = p - extra_prec;
-            BigInteger appr_left_deriv = left_deriv.approxGet(eval_prec);
-            BigInteger appr_right_deriv = right_deriv.approxGet(eval_prec);
-            BigInteger deriv_difference =
-                appr_right_deriv.subtract(appr_left_deriv).abs();
-            if (deriv_difference.compareTo(big8) < 0) {
-                return scale(appr_left_deriv, -extra_prec);
+            CR fLeft = f[0].execute(left);
+            CR fRight = f[0].execute(right);
+            CR leftDeriv = fArg.subtract(fLeft).shiftRight(logDelta);
+            CR rightDeriv = fRight.subtract(fArg).shiftRight(logDelta);
+            int evalPrec = p - extraPrec;
+            BigInteger apprLeftDeriv = leftDeriv.approxGet(evalPrec);
+            BigInteger apprRightDeriv = rightDeriv.approxGet(evalPrec);
+            BigInteger derivDifference = apprRightDeriv.subtract(apprLeftDeriv).abs();
+            if (derivDifference.compareTo(big8) < 0) {
+                return scale(apprLeftDeriv, -extraPrec);
             } else {
-                if (Thread.interrupted() || pleaseStop)
-                    throw new AbortedException();
-                deriv2_msd[0] =
-                        eval_prec + deriv_difference.bitLength() + 4/*slop*/;
-                deriv2_msd[0] -= log_delta;
+                if (Thread.interrupted() || pleaseStop) throw new AbortedException();
+                deriv2Msd[0] = evalPrec + derivDifference.bitLength() + 4/*slop*/;
+                deriv2Msd[0] -= logDelta;
                 return approximate(p);
             }
         }
     }
     public CR execute(CR x) {
-        return new monotoneDerivativeCR(x);
+        return new MonotoneDerivativeCR(x);
     }
 }
