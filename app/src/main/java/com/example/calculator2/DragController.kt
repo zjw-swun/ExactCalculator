@@ -21,7 +21,8 @@ import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 
 /**
- * Contains the logic for animating the recyclerview elements on drag.
+ * Contains the logic for animating the recyclerview elements when the [HistoryFragment]
+ * is dragged down onto the screen.
  */
 class DragController {
 
@@ -130,6 +131,21 @@ class DragController {
         mEvaluator = evaluator
     }
 
+    /**
+     * Called from the [HistoryFragment] when it is created (drug down onto the screen) to initialize
+     * the animations we are to control, also called from our [initializeAnimation] method to reset
+     * all initialized values. First we save our parameter [oneLine] in our field [mOneLine], and
+     * our parameter [isDisplayEmpty] in our field [mIsDisplayEmpty]. Then when [mIsDisplayEmpty]
+     * is *true* we initialize our field [mAnimationController] with a new instance of
+     * [EmptyAnimationController], and if [isResult] is *true* we initialize it with a new instance
+     * of [ResultAnimationController]. Otherwise we know that there is something in the formula field
+     * (although there may not be a result) so we initialize [mAnimationController] to a new instance
+     * of [AnimationController].
+     *
+     * @param isResult *true* if the display is in the RESULT state.
+     * @param oneLine *true* if the device needs to use the one line layout.
+     * @param isDisplayEmpty *true* if the calculator display is cleared (no result or formula)
+     */
     fun initializeController(isResult: Boolean, oneLine: Boolean, isDisplayEmpty: Boolean) {
         mOneLine = oneLine
         mIsDisplayEmpty = isDisplayEmpty
@@ -144,18 +160,73 @@ class DragController {
         }
     }
 
+    /**
+     * Setter for our [mDisplayFormula] field.
+     *
+     * @param formula the [CalculatorFormula] `AlignedTextView` the calculator is displaying.
+     */
     fun setDisplayFormula(formula: CalculatorFormula) {
         mDisplayFormula = formula
     }
 
+    /**
+     * Setter for our [mDisplayResult] field.
+     *
+     * @param result the [CalculatorResult] `AlignedTextView` the calculator is displaying.
+     */
     fun setDisplayResult(result: CalculatorResult) {
         mDisplayResult = result
     }
 
+    /**
+     * Setter for our [mToolbar] field.
+     *
+     * @param toolbar the `Toolbar` of the calculator display.
+     */
     fun setToolbar(toolbar: View) {
         mToolbar = toolbar
     }
 
+    /**
+     * Called to animate the [recyclerView] `RecyclerView` to the state it should be in when
+     * [yFraction] of the view is visible. If any of our fields [mDisplayFormula], [mDisplayResult],
+     * [mToolbar], or [mEvaluator] are still *null* we have not yet been initialized so we just
+     * return having done nothing. Otherwise we initialize our variable `vh` to the `ViewHolder`
+     * occupying position 0 in [recyclerView], and if [yFraction] is greater than 0, and `vh` is
+     * not *null* we set the visibility of [recyclerView] to VISIBLE. Then if `vh` is not *null*
+     * and [mIsDisplayEmpty] is *false* (the calculator is displaying something) and the item view
+     * type of `vh` is HISTORY_VIEW_TYPE we want to animate the calculator display contents into
+     * [recyclerView] and to do this we:
+     * - Initialize our variable `formula` to the `formula` field of `vh`, `result` to the `result`
+     * field, `date` to the `date` field and `divider` to the `divider` field.
+     * - If our [mAnimationInitialized] field is *false* (this is the first time we have been called
+     * to animate [recyclerView] onto the screen) we set our field [mBottomPaddingHeight] to the
+     * bottom padding of [recyclerView], call all the appropriate initialization methods of our
+     * [mAnimationController] field and set [mAnimationInitialized] to *true*.
+     * - We then update all the properties that we are animating for the current value of [yFraction]
+     * for each of the views `result`, `formula`, `date` and `divider`.
+     *
+     * On the otherhand is [mIsDisplayEmpty] is *true* (there is no current expression) we still need
+     * to collect information to translate the other `ViewHolder`'s so if [mAnimationInitialized] is
+     * *false* we call the `initializeDisplayHeight` method of [mAnimationController] to have it
+     * initialize itself for the height of the calculator display and set [mAnimationInitialized] to
+     * *true*.
+     *
+     * Having dealt with the possible animation of the calculator display contents, we now need to
+     * move up all the `ViewHolder`'s above the current expression (if there is no current expression,
+     * we're translating all the `ViewHolder`'s). To do this we loop over `i` from the last child
+     * of [recyclerView] to the lowest index of the first ViewHolder to be translated upwards (which
+     * is 1 for both an [ResultAnimationController] and [AnimationController], and 0 for an
+     * [EmptyAnimationController]):
+     * - We initialize our variable `vh2` to the view holder of the child view at index `i` in
+     * [recyclerView]
+     * - Then if `vh2` is not *null* we initialize our variable `view` to the `itemView` field of
+     * `vh2` and update its `translationY` property to the translation determined for [yFraction]
+     * by the `getHistoryElementTranslationY` method of [mAnimationController].
+     *
+     * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+     * @param recyclerView the [RecyclerView] whose animation we are controlling.
+     */
     fun animateViews(yFraction: Float, recyclerView: RecyclerView) {
         if (mDisplayFormula == null
                 || mDisplayResult == null
@@ -242,18 +313,34 @@ class DragController {
     }
 
     /**
-     * Reset all initialized values.
+     * Reset all initialized values, called from the `onStart` override of [HistoryFragment] to
+     * initialize us to the state we should be in when the [HistoryFragment] is first visible to
+     * the user. We set our field [mAnimationInitialized] to *false* then call our method
+     * [initializeController] with our parameters to have it initialize the animations we are to
+     * control to their starting state.
+     *
+     * @param isResult if *true* the calculator is displaying only a result ('=' has been pressed).
+     * @param oneLine if *true* the display is just one line.
+     * @param isDisplayEmpty if *true* the display is cleared of both formula and result.
      */
     fun initializeAnimation(isResult: Boolean, oneLine: Boolean, isDisplayEmpty: Boolean) {
         mAnimationInitialized = false
         initializeController(isResult, oneLine, isDisplayEmpty)
     }
 
+    /**
+     * Interface that each of our classes [AnimationController], [EmptyAnimationController], and
+     * [ResultAnimationController] implement so that our [mAnimationController] field can be used to
+     * call the methods needed for our animations.
+     */
     interface AnimateTextInterface {
 
-        // Return the lowest index of the first ViewHolder to be translated upwards.
-        // If there is no current expression, we translate all the ViewHolder's otherwise,
-        // we start at index 1.
+        /**
+         * Return the lowest index of the first ViewHolder to be translated upwards. If there is no
+         * current expression, we translate all the ViewHolder's starting at 0, otherwise we start
+         * at index 1 (ie. [AnimationController], and [ResultAnimationController] override this to
+         * return 1, and [EmptyAnimationController] overrides it to return 0).
+         */
         val firstTranslatedViewHolderIndex: Int
 
         fun initializeDisplayHeight()
@@ -389,12 +476,11 @@ class DragController {
             mFormulaScale = 1f
         }
 
-        override fun initializeFormulaTranslationY(formula: AlignedTextView,
-                                                   result: CalculatorResult) {
+        override fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult) {
             // Baseline of formula moves by the difference in formula bottom padding and the
             // difference in the result height.
-            mFormulaTranslationY = (mDisplayFormula!!.paddingBottom - formula.paddingBottom + mDisplayResult!!.height - result.height
-                    - mBottomPaddingHeight)
+            mFormulaTranslationY = (mDisplayFormula!!.paddingBottom - formula.paddingBottom
+                    + mDisplayResult!!.height - result.height - mBottomPaddingHeight)
         }
 
         override fun initializeFormulaTranslationX(formula: AlignedTextView) {
@@ -404,7 +490,8 @@ class DragController {
 
         override fun initializeResultTranslationY(result: CalculatorResult) {
             // Baseline of result moves by the difference in result bottom padding.
-            mResultTranslationY = (mDisplayResult!!.paddingBottom.toFloat() - result.paddingBottom.toFloat()
+            mResultTranslationY = (mDisplayResult!!.paddingBottom.toFloat()
+                    - result.paddingBottom.toFloat()
                     - mDisplayResult!!.translationY
                     - mBottomPaddingHeight.toFloat())
         }
@@ -440,8 +527,8 @@ class DragController {
         override fun getDateTranslationY(yFraction: Float): Float {
             // We also want the date to start out above the visible screen with
             // this distance decreasing as it's pulled down.
-            return (-mToolbar!!.height * (1f - yFraction) + mResultTranslationY * yFraction - mResultTranslationY
-                    - mDisplayFormula!!.paddingTop.toFloat()) + mDisplayFormula!!.paddingTop * yFraction
+            return (-mToolbar!!.height * (1f - yFraction) + mResultTranslationY * yFraction
+                    - mResultTranslationY - mDisplayFormula!!.paddingTop.toFloat()) + mDisplayFormula!!.paddingTop * yFraction
         }
     }
 

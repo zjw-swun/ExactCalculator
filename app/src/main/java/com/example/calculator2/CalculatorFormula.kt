@@ -54,7 +54,7 @@ class CalculatorFormula
 
     // The follow three values are used to vary the size of the text based on how many characters
     // need to be displayed, and are set in the dimens.xml files for the different screen sizes.
-    // Unfortunately my pixel test device does not match any of the screen sizes so the default
+    // Unfortunately my Pixel test device does not match any of the screen sizes so the default
     // dimens.xml is used so there is no change of the text size as you add characters. (Bummer!)
     /**
      * The CalculatorFormula_maxTextSize attribute for this [TextView], defaults to the value
