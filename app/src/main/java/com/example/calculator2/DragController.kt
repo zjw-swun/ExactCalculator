@@ -343,48 +343,233 @@ class DragController {
          */
         val firstTranslatedViewHolderIndex: Int
 
+        /**
+         * Implement this if your implementation of this interface needs to do something special to
+         * initialize the [mDisplayHeight] field. It is called from our [animateViews] method iff
+         * [mIsDisplayEmpty] is *true* (the calculator display has been cleared).
+         */
         fun initializeDisplayHeight()
 
+        /**
+         * This is called to initialize the color animation values for the formula view of the view
+         * holder that needs animating ([mFormulaStartColor] and [mFormulaEndColor]) and for the
+         * result view of that same view holder ([mResultStartColor] and [mResultEndColor]). It is
+         * implemented by the [AnimationController] class, and is called from the [animateViews]
+         * method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         fun initializeColorAnimators(formula: AlignedTextView, result: CalculatorResult)
 
+        /**
+         * Implement this to initialize the fields [mFormulaScale] and [mResultScale] which are used
+         * to animate the scaling of the calculator display as it is "moved" into the history view.
+         * It is implemented by the [AnimationController] class which only scales [mFormulaScale],
+         * the [ResultAnimationController] class which scales both text views, and is a no-op in
+         * the [EmptyAnimationController] class. It is called from the [animateViews] method.
+         * method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         fun initializeScales(formula: AlignedTextView, result: CalculatorResult)
 
+        /**
+         * Implement this to initialize the field [mFormulaTranslationX]. It is implemented by the
+         * [AnimationController] class where it moves the right border of the formula by the
+         * difference in formula end padding, by the [ResultAnimationController] class where is does
+         * the same, and is a no-op in the [EmptyAnimationController] class. It is called from the
+         * [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         */
         fun initializeFormulaTranslationX(formula: AlignedTextView)
 
+        /**
+         * Implement this to initialize the field [mFormulaTranslationY]. It is implemented by the
+         * [AnimationController] class where it handles the case when the calculator display is in
+         * the INPUT state, by the [ResultAnimationController] class when the calculator display is
+         * in the RESULT state and the baseline of the formula moves by the difference in formula
+         * bottom padding and the difference in the result height, and is a no-op in the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult)
 
+        /**
+         * Implement this to initialize the field [mFormulaTranslationX]. It is implemented by the
+         * [AnimationController] class where it handles the case when the calculator display is in
+         * the INPUT state, by the [ResultAnimationController] class when the calculator display is
+         * in the RESULT state, and is a no-op in the [EmptyAnimationController] class. It is called
+         * from the [animateViews] method.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         fun initializeResultTranslationX(result: CalculatorResult)
 
+        /**
+         * Implement this to initialize the field [mResultTranslationY]. It is implemented by the
+         * [AnimationController] class where it handles the case when the calculator display is in
+         * the INPUT state, by the [ResultAnimationController] class when the calculator display is
+         * in the RESULT state, and is a no-op in the [EmptyAnimationController] class. It is called
+         * from the [animateViews] method.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         fun initializeResultTranslationY(result: CalculatorResult)
 
+        /**
+         * Implement this to return a X translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and returns 0.0f in the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         fun getResultTranslationX(yFraction: Float): Float
 
+        /**
+         * Implement this to return a Y translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and returns 0.0f in the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         fun getResultTranslationY(yFraction: Float): Float
 
+        /**
+         * Implement this to return a X and Y scale value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state (returns 1.0f), by the [ResultAnimationController]
+         * class when the calculator display is in the RESULT state, and is not overridden by the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the result view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         fun getResultScale(yFraction: Float): Float
 
+        /**
+         * Implement this to return a X and Y scale value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and returns 1.0f in the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the formula view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         fun getFormulaScale(yFraction: Float): Float
 
+        /**
+         * Implement this to return a X translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and is not overridden by the
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         fun getFormulaTranslationX(yFraction: Float): Float
 
+        /**
+         * Implement this to return a Y translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and is not overridden by
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         fun getFormulaTranslationY(yFraction: Float): Float
 
+        /**
+         * Implement this to return a Y translation value for the date view of the view holder
+         * given the fraction [yFraction] of the history pull down that is visible. It is
+         * implemented by the [AnimationController] class where it handles the case when the
+         * calculator display is in the INPUT state, by the [ResultAnimationController] class when
+         * the calculator display is in the RESULT state, and returns 0.0f
+         * [EmptyAnimationController] class. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the date view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         fun getDateTranslationY(yFraction: Float): Float
 
+        /**
+         * Implement this to return a Y translation value for the `itemView` view of a view holder
+         * held by the history [RecyclerView] given the fraction [yFraction] of the history pull
+         * down that is visible. It is implemented by the [AnimationController] class where it handles
+         * the case when the calculator display is in the INPUT state, is not overridden by the
+         * [ResultAnimationController] class, and is implemented by the [EmptyAnimationController]
+         * when the display is completely empty. It is called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the history view holders given the fraction
+         * [yFraction] of the history pulldown that is visible.
+         */
         fun getHistoryElementTranslationY(yFraction: Float): Float
     }
 
-    // The default AnimationController when Display is in INPUT state and DisplayFormula is not
-    // empty. There may or may not be a quick result.
+    /**
+     * The default [AnimationController] when the calculator Display is in the INPUT state and
+     * the formula view is not empty. There may or may not be a quick result.
+     */
     open inner class AnimationController : AnimateTextInterface {
 
+        /**
+         * Returns the lowest index of the first ViewHolder to be translated upwards, 1 in our case
+         * since there is a current expression in index 0 that is identical to the calculator display
+         * contents which is animated separately. Our [animateViews] method uses this value as a
+         * limit for the *for* loop which translates the view holders.
+         */
         override val firstTranslatedViewHolderIndex: Int
             get() = 1
 
+        /**
+         * This is called from the [animateViews] method just in case it is necessary to initialize
+         * the [mDisplayHeight] field, and it is only necessary for the [EmptyAnimationController]
+         * class which overrides this no-op implementation.
+         */
         override fun initializeDisplayHeight() {
             // no-op
         }
 
+        /**
+         * This is called to initialize the color animation values for the formula view of the view
+         * holder that needs animating ([mFormulaStartColor] and [mFormulaEndColor]) and for the
+         * result view of that same view holder ([mResultStartColor] and [mResultEndColor]). We just
+         * set [mFormulaStartColor] to the current text color of [mDisplayFormula], [mFormulaEndColor]
+         * to the current text color of [formula], [mResultStartColor] to the current text color of
+         * [mDisplayFormula], and [mResultEndColor] to the current text color of [result]. It is
+         * called by the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeColorAnimators(formula: AlignedTextView, result: CalculatorResult) {
             mFormulaStartColor = mDisplayFormula!!.currentTextColor
             mFormulaEndColor = formula.currentTextColor
@@ -407,8 +592,8 @@ class DragController {
             } else {
                 // Baseline of formula moves by the difference in formula bottom padding and the
                 // difference in result height.
-                (mDisplayFormula!!.paddingBottom - formula.paddingBottom + mDisplayResult!!.height - result.height
-                        - mBottomPaddingHeight)
+                (mDisplayFormula!!.paddingBottom - formula.paddingBottom
+                        + mDisplayResult!!.height - result.height - mBottomPaddingHeight)
             }
         }
 
@@ -547,8 +732,7 @@ class DragController {
             // no-op
         }
 
-        override fun initializeFormulaTranslationY(formula: AlignedTextView,
-                                                   result: CalculatorResult) {
+        override fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult) {
             // no-op
         }
 
