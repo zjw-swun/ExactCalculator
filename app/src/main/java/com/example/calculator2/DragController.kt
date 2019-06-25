@@ -564,7 +564,7 @@ class DragController {
          * result view of that same view holder ([mResultStartColor] and [mResultEndColor]). We just
          * set [mFormulaStartColor] to the current text color of [mDisplayFormula], [mFormulaEndColor]
          * to the current text color of [formula], [mResultStartColor] to the current text color of
-         * [mDisplayFormula], and [mResultEndColor] to the current text color of [result]. It is
+         * [mDisplayFormula], and [mResultEndColor] to the current text color of [result]. We are
          * called by the [animateViews] method.
          *
          * @param formula the [AlignedTextView] containing the formula to be animated
@@ -578,11 +578,31 @@ class DragController {
             mResultEndColor = result.currentTextColor
         }
 
+        /**
+         * This is called to initialize the fields [mFormulaScale] and [mResultScale] which are used
+         * to animate the scaling of the calculator display as it is "moved" into the history view.
+         * We just initialize [mFormulaScale] to the text size of [mDisplayFormula] divided by the
+         * text size of [formula]. We are called by the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeScales(formula: AlignedTextView, result: CalculatorResult) {
             // Calculate the scale for the text
             mFormulaScale = mDisplayFormula!!.textSize / formula.textSize
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationY]. If [mOneLine] is *true*
+         * (the calculator display has only one line) we initialize [mFormulaTranslationY] by
+         * subtracting the bottom padding of [formula] and [mBottomPaddingHeight] from the
+         * bottom padding of [mDisplayFormula], otherwise we also add the height of [mDisplayResult]
+         * and subtract the height of [result] from the same value. We are called by the
+         * [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeFormulaTranslationY(formula: AlignedTextView,
                                                    result: CalculatorResult) {
             mFormulaTranslationY = if (mOneLine) {
@@ -597,21 +617,53 @@ class DragController {
             }
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationX]. We just set
+         * [mFormulaTranslationX] to the padding end of [mDisplayFormula] minus the padding end
+         * of [formula]. We are called by the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         */
         override fun initializeFormulaTranslationX(formula: AlignedTextView) {
             // Right border of formula moves by the difference in formula end padding.
             mFormulaTranslationX = mDisplayFormula!!.paddingEnd - formula.paddingEnd
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationY].  We just set
+         * [mResultTranslationY] to the padding bottom of [mDisplayFormula] minus the padding
+         * bottom of [result] minus the field [mBottomPaddingHeight]. We are called by the
+         * [animateViews] method.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeResultTranslationY(result: CalculatorResult) {
             // Baseline of result moves by the difference in result bottom padding.
             mResultTranslationY = (mDisplayResult!!.paddingBottom - result.paddingBottom
                     - mBottomPaddingHeight).toFloat()
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationX].  We just set
+         * [mResultTranslationX] to the padding end of [mDisplayFormula] minus the padding end
+         * of [result]. We are called by the [animateViews] method.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeResultTranslationX(result: CalculatorResult) {
             mResultTranslationX = mDisplayResult!!.paddingEnd - result.paddingEnd
         }
 
+        /**
+         * This is called to calculate an X translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mResultTranslationX] times the result of subtracting 1f from [yFraction]. We are
+         * called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationX(yFraction: Float): Float {
             return mResultTranslationX * (yFraction - 1f)
         }
