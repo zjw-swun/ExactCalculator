@@ -400,7 +400,7 @@ class DragController {
         fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult)
 
         /**
-         * Implement this to initialize the field [mFormulaTranslationX]. It is implemented by the
+         * Implement this to initialize the field [mResultTranslationX]. It is implemented by the
          * [AnimationController] class where it handles the case when the calculator display is in
          * the INPUT state, by the [ResultAnimationController] class when the calculator display is
          * in the RESULT state, and is a no-op in the [EmptyAnimationController] class. It is called
@@ -668,51 +668,152 @@ class DragController {
             return mResultTranslationX * (yFraction - 1f)
         }
 
+        /**
+         * This is called to calculate a Y translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mResultTranslationY] times the result of subtracting 1f from [yFraction]. We are
+         * called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationY(yFraction: Float): Float {
             return mResultTranslationY * (yFraction - 1f)
         }
 
+        /**
+         * This is called to calculate a X and Y scale value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We just
+         * return 1f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the result view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         override fun getResultScale(yFraction: Float): Float {
             return 1f
         }
 
+        /**
+         * This is called to calculate a X and Y scale value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mFormulaScale] plus the quantity 1f minus [mFormulaScale] times [yFraction]. We
+         * are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the formula view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         override fun getFormulaScale(yFraction: Float): Float {
             return mFormulaScale + (1f - mFormulaScale) * yFraction
         }
 
+        /**
+         * This is called to calculate a X translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mFormulaTranslationX] times the quantity [yFraction] minus 1f. We are called
+         * from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getFormulaTranslationX(yFraction: Float): Float {
             return mFormulaTranslationX * (yFraction - 1f)
         }
 
+        /**
+         * This is called to calculate a Y translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mFormulaTranslationY] times the quantity [yFraction] minus 1f. We are called
+         * from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getFormulaTranslationY(yFraction: Float): Float {
             // Scale linearly between -FormulaTranslationY and 0.
             return mFormulaTranslationY * (yFraction - 1f)
         }
 
+        /**
+         * This is called to calculate a Y translation value for the date view of the view holder
+         * given the fraction [yFraction] of the history pull down that is visible. We return
+         * minus the height of [mToolbar] times the quantity 1f minus [yFraction] plus the value
+         * returned by the [getFormulaTranslationY] method for [yFraction] minus the height of
+         * [mDisplayFormula] divided by the value returned by the [getFormulaScale] method for
+         * [yFraction] times the quantity 1f minus [yFraction]. We are called from the [animateViews]
+         * method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the date view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getDateTranslationY(yFraction: Float): Float {
             // We also want the date to start out above the visible screen with
             // this distance decreasing as it's pulled down.
             // Account for the scaled formula height.
-            return -mToolbar!!.height * (1f - yFraction) + getFormulaTranslationY(yFraction) - mDisplayFormula!!.height / getFormulaScale(yFraction) * (1f - yFraction)
+            return (-mToolbar!!.height * (1f - yFraction)
+                    + getFormulaTranslationY(yFraction)
+                    - mDisplayFormula!!.height / getFormulaScale(yFraction) * (1f - yFraction))
         }
 
+        /**
+         * This is called to calculate a Y translation value for the `itemView` view of a view holder
+         * held by the history [RecyclerView] given the fraction [yFraction] of the history pull
+         * down that is visible. We just return the value returned by the [getDateTranslationY]
+         * method for [yFraction]. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the history view holders given the fraction
+         * [yFraction] of the history pulldown that is visible.
+         */
         override fun getHistoryElementTranslationY(yFraction: Float): Float {
             return getDateTranslationY(yFraction)
         }
     }
 
-    // The default AnimationController when Display is in RESULT state.
+    /**
+     * The default [AnimationController] when the Display is in the RESULT state.
+     */
     inner class ResultAnimationController : AnimationController(), AnimateTextInterface {
 
+        /**
+         * Returns the lowest index of the first ViewHolder to be translated upwards which in our
+         * case is 1. (The current result in the calculator display is at position 0 which is
+         * animated from the display into the [RecyclerView] separately from the view holder
+         * translation).
+         */
         override val firstTranslatedViewHolderIndex: Int
             get() = 1
 
+        /**
+         * This is called to initialize the fields [mFormulaScale] and [mResultScale] which are used
+         * to animate the scaling of the calculator display as it is "moved" into the history view.
+         * First we initialize our variable `textSize` to the text size of [mDisplayResult] times
+         * the scale X of [mDisplayResult], then we set [mResultScale] to `textSize` times the
+         * text size of [result]. We are called from the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeScales(formula: AlignedTextView, result: CalculatorResult) {
             val textSize = mDisplayResult!!.textSize * mDisplayResult!!.scaleX
             mResultScale = textSize / result.textSize
             mFormulaScale = 1f
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationY]. We set [mFormulaTranslationY]
+         * to the bottom padding of [mDisplayFormula] minus the bottom padding of [formula] plus
+         * the height of [mDisplayResult] minus the height of [result] minus the [mBottomPaddingHeight]
+         * field. We are called from the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult) {
             // Baseline of formula moves by the difference in formula bottom padding and the
             // difference in the result height.
@@ -720,11 +821,24 @@ class DragController {
                     + mDisplayResult!!.height - result.height - mBottomPaddingHeight)
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationX]. We just set is to the
+         * padding end of [mDisplayFormula] minus the padding end of [formula]. We are called from
+         * the [animateViews] method.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         */
         override fun initializeFormulaTranslationX(formula: AlignedTextView) {
             // Right border of formula moves by the difference in formula end padding.
             mFormulaTranslationX = mDisplayFormula!!.paddingEnd - formula.paddingEnd
         }
 
+        /**
+         * This is called to initialize the field [mResultTranslationY]. We set [mResultTranslationY]
+         * to the padding bottom of [mDisplayResult] minus the padding bottom of [result] minus the
+         * translation Y of [mDisplayResult] minus the field [mBottomPaddingHeight]. We are called
+         * from the [animateViews] method.
+         */
         override fun initializeResultTranslationY(result: CalculatorResult) {
             // Baseline of result moves by the difference in result bottom padding.
             mResultTranslationY = (mDisplayResult!!.paddingBottom.toFloat()
@@ -733,99 +847,279 @@ class DragController {
                     - mBottomPaddingHeight.toFloat())
         }
 
+        /**
+         * This is called to initialize the field [mResultTranslationX]. We set [mResultTranslationX]
+         * to the padding end of [mDisplayResult] minus the padding end of [result]. We are called
+         * from the [animateViews] method.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeResultTranslationX(result: CalculatorResult) {
             mResultTranslationX = mDisplayResult!!.paddingEnd - result.paddingEnd
         }
 
+        /**
+         * This is called to calculate a X translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mResultTranslationX] times [yFraction] minus [mResultTranslationX]. We are called
+         * from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationX(yFraction: Float): Float {
             return mResultTranslationX * yFraction - mResultTranslationX
         }
 
+        /**
+         * This is called to calculate a Y translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mResultTranslationY] times [yFraction] minus [mResultTranslationY]. We are called
+         * from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationY(yFraction: Float): Float {
             return mResultTranslationY * yFraction - mResultTranslationY
         }
 
+        /**
+         * This is called to calculate a X translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mFormulaTranslationX] times [yFraction] minus [mFormulaTranslationX]. We are
+         * called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getFormulaTranslationX(yFraction: Float): Float {
             return mFormulaTranslationX * yFraction - mFormulaTranslationX
         }
 
+        /**
+         * This is called to calculate a Y translation value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return the value returned by the [getDateTranslationY] method for [yFraction]. We are
+         * called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the formula view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getFormulaTranslationY(yFraction: Float): Float {
             return getDateTranslationY(yFraction)
         }
 
+        /**
+         * This is called to calculate a X and Y scale value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We
+         * return [mResultScale] minus [mResultScale] times [yFraction] plus [yFraction]. We are
+         * called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the result view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         override fun getResultScale(yFraction: Float): Float {
             return mResultScale - mResultScale * yFraction + yFraction
         }
 
+        /**
+         * This is called to calculate a X and Y scale value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We just
+         * return 1f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the formula view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         override fun getFormulaScale(yFraction: Float): Float {
             return 1f
         }
 
+        /**
+         * This is called to calculate a Y translation value for the date view of the view holder
+         * given the fraction [yFraction] of the history pull down that is visible. We return minus
+         * the height of [mToolbar] times 1f minus [yFraction] plus [mResultTranslationY] times
+         * [yFraction] minus [mResultTranslationY] minus the padding top of [mDisplayFormula] plus
+         * the padding top of [mDisplayFormula] times [yFraction]. We are called from the
+         * [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the date view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getDateTranslationY(yFraction: Float): Float {
             // We also want the date to start out above the visible screen with
             // this distance decreasing as it's pulled down.
-            return (-mToolbar!!.height * (1f - yFraction) + mResultTranslationY * yFraction
-                    - mResultTranslationY - mDisplayFormula!!.paddingTop.toFloat()) + mDisplayFormula!!.paddingTop * yFraction
+            return ((-mToolbar!!.height * (1f - yFraction) + mResultTranslationY * yFraction
+                    - mResultTranslationY - mDisplayFormula!!.paddingTop.toFloat())
+                    + mDisplayFormula!!.paddingTop * yFraction)
         }
     }
 
-    // The default AnimationController when Display is completely empty.
+    /**
+     * The default AnimationController when Display is completely empty.
+     */
     inner class EmptyAnimationController : AnimationController(), AnimateTextInterface {
 
+        /**
+         * Returns the lowest index of the first ViewHolder to be translated upwards, 0 in our case
+         * since there is no a current expression. Our [animateViews] method uses this value as a
+         * limit for the *for* loop which translates the view holders.
+         */
         override val firstTranslatedViewHolderIndex: Int
             get() = 0
 
+        /**
+         * This is called to initialize the [mDisplayHeight] field. We set [mDisplayHeight] to the
+         * height of [mToolbar] plus the height of [mDisplayResult] plus the height of
+         * [mDisplayFormula]. We are called from the [animateViews] method.
+         */
         override fun initializeDisplayHeight() {
-            mDisplayHeight = (mToolbar!!.height + mDisplayResult!!.height
-                    + mDisplayFormula!!.height)
+            mDisplayHeight = (mToolbar!!.height + mDisplayResult!!.height + mDisplayFormula!!.height)
         }
 
+        /**
+         * This is called from the [animateViews] method to initialize the fields [mFormulaScale]
+         * and [mResultScale] which are used to animate the scaling of the calculator display as it
+         * is "moved" into the history view. Since the calculator display is empty in our case it
+         * is just a no-op.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeScales(formula: AlignedTextView, result: CalculatorResult) {
             // no-op
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationY] from the [animateViews]
+         * method. Since the formula view is empty it is a no-op in our case.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeFormulaTranslationY(formula: AlignedTextView, result: CalculatorResult) {
             // no-op
         }
 
+        /**
+         * This is called to initialize the field [mFormulaTranslationX] from the [animateViews]
+         * method. Since the formula view is empty it is a no-op in our case.
+         *
+         * @param formula the [AlignedTextView] containing the formula to be animated
+         */
         override fun initializeFormulaTranslationX(formula: AlignedTextView) {
             // no-op
         }
 
+        /**
+         * This is called to initialize the field [mResultTranslationY] from the [animateViews]
+         * method. Since the result view is empty it is a no-op in our case.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeResultTranslationY(result: CalculatorResult) {
             // no-op
         }
 
+        /**
+         * This is called to initialize the field [mResultTranslationX] from the [animateViews]
+         * method. Since the result view is empty it is a no-op in our case.
+         *
+         * @param result the [CalculatorResult] containing the result to be animated
+         */
         override fun initializeResultTranslationX(result: CalculatorResult) {
             // no-op
         }
 
+        /**
+         * This is called to calculate a X translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We just
+         * return 0f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationX(yFraction: Float): Float {
             return 0f
         }
 
+        /**
+         * This is called to calculate a Y translation value for the result view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We just
+         * return 0f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to X translate the result view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getResultTranslationY(yFraction: Float): Float {
             return 0f
         }
 
+        /**
+         * This is called to calculate a X and Y scale value for the formula view of the calculator
+         * display given the fraction [yFraction] of the history pull down that is visible. We just
+         * return 1f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return amount to scale the formula view as it moves up into the history pulldown given
+         * the fraction of the history pulldown that is visible.
+         */
         override fun getFormulaScale(yFraction: Float): Float {
             return 1f
         }
 
+        /**
+         * This is called to calculate a Y translation value for the date view of the view holder
+         * given the fraction [yFraction] of the history pull down that is visible. We just return
+         * 0f. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the date view given the fraction [yFraction] of
+         * the history pulldown that is visible.
+         */
         override fun getDateTranslationY(yFraction: Float): Float {
             return 0f
         }
 
+        /**
+         * This is called to calculate a Y translation value for the `itemView` view of a view holder
+         * held by the history [RecyclerView] given the fraction [yFraction] of the history pull
+         * down that is visible. We return minus [mDisplayHeight] times the quantity 1f minus
+         * [yFraction] all minus [mBottomPaddingHeight]. We are called from the [animateViews] method.
+         *
+         * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+         * @return value in pixels to Y translate the history view holders given the fraction
+         * [yFraction] of the history pulldown that is visible.
+         */
         override fun getHistoryElementTranslationY(yFraction: Float): Float {
             return -mDisplayHeight * (1f - yFraction) - mBottomPaddingHeight
         }
     }
 
+    /**
+     * Our static constants.
+     */
     companion object {
 
+        /**
+         * The TAG to use for logging (just in case).
+         */
         @Suppress("unused")
         private const val TAG = "DragController"
 
+        /**
+         * The [ArgbEvaluator] we use to perform type interpolation between integer
+         * values that represent ARGB colors.
+         */
         private val mColorEvaluator = ArgbEvaluator()
     }
 }
