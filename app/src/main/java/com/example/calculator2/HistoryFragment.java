@@ -27,6 +27,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toolbar;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 
 import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING;
@@ -123,6 +125,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         // HistoryFragment, this is what we will consider the display state.
         // In rare cases, the display state can change after our adapter is initialized.
         final CalculatorExpr mainExpr = mEvaluator.getExpr(Evaluator.MAIN_INDEX);
+        //noinspection ConstantConditions
         mIsDisplayEmpty = mainExpr == null || mainExpr.isEmpty();
 
         initializeController(isResultLayout, isOneLine, mIsDisplayEmpty);
@@ -237,12 +240,11 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
     }
 
     @Override
-    public boolean shouldCaptureView(View view, int x, int y) {
+    public boolean shouldCaptureView(@NotNull View view, int x, int y) {
         return !mRecyclerView.canScrollVertically(1 /* scrolling down */);
     }
 
-    @Override
-    public int getDisplayHeight() {
+    public int displayHeightFetch() {
         return 0;
     }
 

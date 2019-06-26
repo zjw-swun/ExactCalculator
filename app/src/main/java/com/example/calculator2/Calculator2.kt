@@ -57,6 +57,9 @@ import com.example.calculator2.CalculatorFormula.OnFormulaContextMenuClickListen
 import com.example.calculator2.CalculatorFormula.OnTextSizeChangeListener
 import java.io.*
 import java.text.DecimalFormatSymbols
+import kotlin.math.max
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 @Suppress("MemberVisibilityCanBePrivate", "LocalVariableName")
 class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickListener,
@@ -1648,10 +1651,10 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         val revealCenterX = clearLocation[0] - revealView.left
         val revealCenterY = clearLocation[1] - revealView.top
 
-        val x1_2 = Math.pow((revealView.left - revealCenterX).toDouble(), 2.0)
-        val x2_2 = Math.pow((revealView.right - revealCenterX).toDouble(), 2.0)
-        val y_2 = Math.pow((revealView.top - revealCenterY).toDouble(), 2.0)
-        val revealRadius = Math.max(Math.sqrt(x1_2 + y_2), Math.sqrt(x2_2 + y_2)).toFloat()
+        val x1_2 = (revealView.left - revealCenterX).toDouble().pow(2.0)
+        val x2_2 = (revealView.right - revealCenterX).toDouble().pow(2.0)
+        val y_2 = (revealView.top - revealCenterY).toDouble().pow(2.0)
+        val revealRadius = max(sqrt(x1_2 + y_2), sqrt(x2_2 + y_2)).toFloat()
 
         val revealAnimator = ViewAnimationUtils.createCircularReveal(revealView,
                 revealCenterX, revealCenterY, 0.0f, revealRadius)
@@ -2125,7 +2128,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      *
      * @return the raw measured height of [mDisplayView].
      */
-    override fun getDisplayHeight(): Int {
+    override fun displayHeightFetch(): Int {
         return mDisplayView.measuredHeight
     }
 
