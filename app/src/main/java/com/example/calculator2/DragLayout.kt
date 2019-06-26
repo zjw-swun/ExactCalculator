@@ -38,13 +38,33 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * This is the [ViewGroup] used in our layout file layout/activity_calculator_main.xml to hold both
+ * of our layout/activity_calculator.xml layout for the calculator (id R.id.main_calculator) and the
+ * [FrameLayout] which holds the drug down [HistoryFragment] (id R.id.history_frame, starts out
+ * invisible until the user drags it down or selects it using the option menu).
+ */
 class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, attrs) {
 
-    private var mHistoryFrame: FrameLayout? = null
-    private var mDragHelper: ViewDragHelper? = null
+    /**
+     * The [FrameLayout] which holds the drug down [HistoryFragment] (id R.id.history_frame).
+     */
+    private lateinit var mHistoryFrame: FrameLayout
+    /**
+     * The [ViewDragHelper] we use for its useful operations and state tracking callbacks which
+     * allow the user to drag and reposition views within our [ViewGroup].
+     */
+    private lateinit var mDragHelper: ViewDragHelper
 
-    // No concurrency; allow modifications while iterating.
+    /**
+     * The list of [DragCallback] implementations whose callbacks are to be called when things
+     * happen which they need to be informed about. Currently only [Calculator2] and [HistoryFragment]
+     * add themselves as [DragCallback] implementations.
+     */
     private val mDragCallbacks = CopyOnWriteArrayList<DragCallback>()
+    /**
+     *
+     */
     private var mCloseCallback: CloseCallback? = null
 
     @SuppressLint("UseSparseArrays")
@@ -57,7 +77,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
     val isMoving: Boolean
         get() {
-            val draggingState = mDragHelper!!.viewDragState
+            val draggingState = mDragHelper.viewDragState
             return draggingState == ViewDragHelper.STATE_DRAGGING || draggingState == ViewDragHelper.STATE_SETTLING
         }
 
@@ -85,7 +105,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
             var top = 0
             if (child === mHistoryFrame) {
-                top = if (mDragHelper!!.capturedView === mHistoryFrame && mDragHelper!!.viewDragState != ViewDragHelper.STATE_IDLE) {
+                top = if (mDragHelper.capturedView === mHistoryFrame && mDragHelper.viewDragState != ViewDragHelper.STATE_IDLE) {
                     child.getTop()
                 } else {
                     if (isOpen) 0 else -mVerticalRange
@@ -107,7 +127,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         if (stateLocal is Bundle) {
             val bundle = stateLocal as Bundle?
             isOpen = bundle!!.getBoolean(KEY_IS_OPEN)
-            mHistoryFrame!!.visibility = if (isOpen) View.VISIBLE else View.INVISIBLE
+            mHistoryFrame.visibility = if (isOpen) View.VISIBLE else View.INVISIBLE
             for (c in mDragCallbacks) {
                 c.onInstanceStateRestored(isOpen)
             }
@@ -145,28 +165,28 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         saveLastMotion(event)
-        return mDragHelper!!.shouldInterceptTouchEvent(event)
+        return mDragHelper.shouldInterceptTouchEvent(event)
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Workaround: do not process the error case where multi-touch would cause a crash.
         if (event.actionMasked == MotionEvent.ACTION_MOVE
-                && mDragHelper!!.viewDragState == ViewDragHelper.STATE_DRAGGING
-                && mDragHelper!!.activePointerId != ViewDragHelper.INVALID_POINTER
-                && event.findPointerIndex(mDragHelper!!.activePointerId) == -1) {
-            mDragHelper!!.cancel()
+                && mDragHelper.viewDragState == ViewDragHelper.STATE_DRAGGING
+                && mDragHelper.activePointerId != ViewDragHelper.INVALID_POINTER
+                && event.findPointerIndex(mDragHelper.activePointerId) == -1) {
+            mDragHelper.cancel()
             return false
         }
 
         saveLastMotion(event)
 
-        mDragHelper!!.processTouchEvent(event)
+        mDragHelper.processTouchEvent(event)
         return true
     }
 
     override fun computeScroll() {
-        if (mDragHelper!!.continueSettling(true)) {
+        if (mDragHelper.continueSettling(true)) {
             ViewCompat.postInvalidateOnAnimation(this)
         }
     }
@@ -175,7 +195,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         for (c in mDragCallbacks) {
             c.onStartDraggingOpen()
         }
-        mHistoryFrame!!.visibility = View.VISIBLE
+        mHistoryFrame.visibility = View.VISIBLE
     }
 
     fun isViewUnder(view: View, x: Int, y: Int): Boolean {
@@ -186,9 +206,9 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
     fun setClosed() {
         isOpen = false
-        mHistoryFrame!!.visibility = View.INVISIBLE
+        mHistoryFrame.visibility = View.INVISIBLE
         if (mCloseCallback != null) {
-            mCloseCallback!!.onClose()
+            mCloseCallback?.onClose()
         }
     }
 
@@ -198,13 +218,13 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         }
 
         isOpen = toOpen
-        mHistoryFrame!!.visibility = View.VISIBLE
+        mHistoryFrame.visibility = View.VISIBLE
 
         val animator = ValueAnimator.ofFloat(0f, 1f)
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationStart(animation: Animator) {
-                mDragHelper!!.cancel()
-                mDragHelper!!.smoothSlideViewTo(mHistoryFrame!!, 0, if (isOpen) 0 else -mVerticalRange)
+                mDragHelper.cancel()
+                mDragHelper.smoothSlideViewTo(mHistoryFrame, 0, if (isOpen) 0 else -mVerticalRange)
             }
         })
 
@@ -261,7 +281,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         override fun onViewDragStateChanged(state: Int) {
             // The view stopped moving.
 
-            if (state == ViewDragHelper.STATE_IDLE && mDragHelper!!.capturedView!!.top < -(mVerticalRange / 2)) {
+            if (state == ViewDragHelper.STATE_IDLE && mDragHelper.capturedView!!.top < -(mVerticalRange / 2)) {
                 setClosed()
             }
         }
@@ -313,7 +333,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
             }
 
             // If the view is not visible, then settle it closed, not open.
-            if (mDragHelper!!.settleCapturedViewAt(0, if (settleToOpen && isOpen)
+            if (mDragHelper.settleCapturedViewAt(0, if (settleToOpen && isOpen)
                         0
                     else
                         -mVerticalRange)) {
