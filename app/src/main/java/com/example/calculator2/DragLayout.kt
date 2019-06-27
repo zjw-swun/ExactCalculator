@@ -63,30 +63,77 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
      */
     private val mDragCallbacks = CopyOnWriteArrayList<DragCallback>()
     /**
-     *
+     * [CloseCallback] whose `onClose` callback should be called when the [DragLayout] needs to be
+     * closed for some reason (in our case either because the user has drug it closed (the method
+     * `onViewDragStateChanged` of our [DragHelperCallback] has been called to indicate that the
+     * view has stopped moving and its top is below half of [mVerticalRange]) or the [Calculator2]
+     * method `showHistoryFragment` has determined that the history fragment can not be shown)
      */
     private var mCloseCallback: CloseCallback? = null
 
+    /**
+     * XY coordinates of touch events we have received indexed by the pointer ID of that touch event.
+     */
     @SuppressLint("UseSparseArrays")
     private val mLastMotionPoints = HashMap<Int, PointF>()
+    /**
+     * Hit rectangle in our coordinates of pointer movement that the `tryCaptureView` method of
+     * [ViewDragHelper.Callback] needs to evaluate in order to determine if the user can drag the
+     * [HistoryFragment] down.
+     */
     private val mHitRect = Rect()
 
+    /**
+     * How far can the [HistoryFragment] be drug down.
+     */
     private var mVerticalRange: Int = 0
+
+    /**
+     * Is the [HistoryFragment] drag down open at the moment?
+     */
     var isOpen: Boolean = false
         private set
 
+    /**
+     * Is the user moving the [HistoryFragment] drag down at the moment? Our getter initializes its
+     * variable `draggingState` to the current drag state of the helper [mDragHelper] (our
+     * [ViewDragHelper]). Then if `draggingState` is STATE_DRAGGING or STATE_SETTLING we return
+     * *true* to the caller (if it is STATE_IDLE we return *false*).
+     */
     val isMoving: Boolean
         get() {
             val draggingState = mDragHelper.viewDragState
-            return draggingState == ViewDragHelper.STATE_DRAGGING || draggingState == ViewDragHelper.STATE_SETTLING
+            return (draggingState == ViewDragHelper.STATE_DRAGGING)
+                    || (draggingState == ViewDragHelper.STATE_SETTLING)
         }
 
+    /**
+     * Finalize inflating a view from XML. This is called as the last phase of inflation, after all
+     * child views have been added. We initialize our field [mDragHelper] with the [ViewDragHelper]
+     * created by the [ViewDragHelper.create] method for *this*, with a normal 1.0 sensitivity and
+     * a new instance of [DragHelperCallback] as its callback. We initialize our field [mHistoryFrame]
+     * by finding the view with id R.id.history_frame. Finally we call our super's implementation of
+     * `onFinishInflate`.
+     */
     override fun onFinishInflate() {
         mDragHelper = ViewDragHelper.create(this, 1.0f, DragHelperCallback())
         mHistoryFrame = findViewById(R.id.history_frame)
         super.onFinishInflate()
     }
 
+    /**
+     * Measure the view and its content to determine the measured width and the measured height.
+     * This method is invoked by `measure(int, int)` and should be overridden by subclasses to
+     * provide accurate and efficient measurement of their contents. First we call our super's
+     * implementation of `onMeasure`, then we call the [measureChildren] method to have each of
+     * our children measure themselves, taking into account both the `MeasureSpec` requirements
+     * passed to our view and our padding.
+     *
+     * @param widthMeasureSpec horizontal space requirements as imposed by the parent. The
+     * requirements are encoded with [android.view.View.MeasureSpec].
+     * @param heightMeasureSpec vertical space requirements as imposed by the parent. The
+     * requirements are encoded with [android.view.View.MeasureSpec].
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         measureChildren(widthMeasureSpec, heightMeasureSpec)
@@ -105,7 +152,8 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
             var top = 0
             if (child === mHistoryFrame) {
-                top = if (mDragHelper.capturedView === mHistoryFrame && mDragHelper.viewDragState != ViewDragHelper.STATE_IDLE) {
+                top = if ((mDragHelper.capturedView === mHistoryFrame)
+                        && (mDragHelper.viewDragState != ViewDragHelper.STATE_IDLE)) {
                     child.getTop()
                 } else {
                     if (isOpen) 0 else -mVerticalRange
