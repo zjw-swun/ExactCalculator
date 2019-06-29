@@ -139,6 +139,30 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         measureChildren(widthMeasureSpec, heightMeasureSpec)
     }
 
+    /**
+     * Called from layout when this view should assign a size and position to each of its children.
+     * We initialize our [Int] variable `displayHeight` to 0. Then for each of the `c` [DragCallback]
+     * instances in [mDragCallbacks] we set `displayHeight` to the maximum of `displayHeight` and
+     * the height returned by the `displayHeightFetch` method of `c`. Having done with all the
+     * callbacks we set our field [mVerticalRange] to the height of our view minus `displayHeight`.
+     * We initialize our variable `childCount` to the number of children in our group, then loop over
+     * `i` from 0 until `childCount`:
+     * - Initializing our variable `child` to the view at position `i` in the group.
+     * - Initializing our variable `top` to 0.
+     * - If the current child points to our [mHistoryFrame] we then set `top` to the `top` of `child`
+     * if the `capturedView` of [mDragHelper] is [mHistoryFrame] and the `viewDragState` of
+     * [mDragHelper] is not STATE_IDLE, or else if the [HistoryFragment] drag down is open to 0, if
+     * closed then to minus [mVerticalRange]
+     * - We then call the `layout` method of `child` to assign it to have its left side at 0, its
+     * top at `top`, its right side at the `child`'s `measuredWidth`, and its bottom at `top` plus
+     * the `measuredHeight` of `child`
+     *
+     * @param changed This is a new size or position for this view
+     * @param l Left position, relative to parent
+     * @param t Top position, relative to parent
+     * @param r Right position, relative to parent
+     * @param b Bottom position, relative to parent
+     */
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         var displayHeight = 0
         for (c in mDragCallbacks) {
