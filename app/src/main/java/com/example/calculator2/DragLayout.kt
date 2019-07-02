@@ -246,7 +246,18 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
      * index, and initialize our variable `point` to a [PointF] constructed to contain the X and
      * Y coordiantes of the [event] for pointer index `actionIndex`. We then store `point` under
      * the key `pointerId` in [mLastMotionPoints].
-     * - ACTION_MOVE:
+     * - ACTION_MOVE: We loop over `i` for the number of pointers in [event] down to 0, setting our
+     * variable `pointerId` to the pointer identifier associated with pointer data index `i` in
+     * [event], then setting our variable `point` to the [PointF] whose key is `pointerId`, and
+     * then setting the X coordinate of `point` to the X coordinate of the event for the pointer
+     * index `i`, and the Y coordinate of `point` to the Y coordinate of the event for the pointer
+     * index `i`.
+     * - ACTION_POINTER_UP: (A non-primary pointer has gone up) We set our variable `actionIndex`
+     * to the pointer index associated with the [event], and our variable `pointerId` to the pointer
+     * identifier associated with the pointer data index `actionIndex` in [event]. We then remove
+     * the [PointF] stored under the key `pointerId` in [mLastMotionPoints].
+     * - ACTION_UP or ACTION_CANCEL: (pressed gesture has finished or has been aborted) we clear the
+     * entire contents of [mLastMotionPoints].
      *
      * @param event the [MotionEvent] we are to save.
      */
@@ -276,11 +287,40 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         }
     }
 
+    /**
+     * Implement this method to intercept all touch screen motion events. We call our [saveLastMotion]
+     * method to process [event] and use it to update [mLastMotionPoints] appropriately. Then we
+     * return the value returned by the `shouldInterceptTouchEvent` method of [mDragHelper] for
+     * [event] (it analyses [event] and returns *true* if this view should return *true* from this
+     * method so that we can intercept the rest of the touch event stream).
+     *
+     * @param event The motion event being dispatched down the hierarchy.
+     * @return Return *true* to steal motion events from the children and have them dispatched to
+     * this [ViewGroup] through [onTouchEvent]. The current target will receive an ACTION_CANCEL
+     * event, and no further messages will be delivered here. For as long as you return *false* from
+     * this function, each following event (up to and including the final up) will be delivered
+     * first here and then to the target's [onTouchEvent].
+     */
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         saveLastMotion(event)
         return mDragHelper.shouldInterceptTouchEvent(event)
     }
 
+    /**
+     * Implement this method to handle touch screen motion events. We check first whether [event] is
+     * a case where multi-touch would cause a crash, ie. the masked off action of [event] is
+     * ACTION_MOVE and the current drag state of [mDragHelper] is STATE_DRAGGING, and the active
+     * pointer ID of [mDragHelper] is not INVALID_POINTER, the `findPointerIndex` method of [event]
+     * can not find that active pointer in the event. If all that is *true* we call the `cancel`
+     * method of [mDragHelper] to cancel the drag and return *false* to indicate that we did not
+     * handle the event. Otherwise we call our [saveLastMotion] method to process [event] and use it
+     * to update [mLastMotionPoints] appropriately, call the `processTouchEvent` method of
+     * [mDragHelper] to have it process [event] and return *true* to indicate that we have handled
+     * the event.
+     *
+     * @param event The motion event.
+     * @return *true* if the event was handled, *false* otherwise.
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Workaround: do not process the error case where multi-touch would cause a crash.
@@ -298,12 +338,25 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         return true
     }
 
+    /**
+     * Called by a parent to request that a child update its values for `mScrollX` and `mScrollY` if
+     * necessary. If the `continueSettling` method of [mDragHelper] returns *true* for the defer
+     * callbacks value of *true* (indicating the its drag state is STATE_SETTLING) we call the
+     * `postInvalidateOnAnimation` method of [ViewCompat] to have it cause an invalidate to happen
+     * for *this* [View] on the next animation time step.
+     */
     override fun computeScroll() {
         if (mDragHelper.continueSettling(true)) {
             ViewCompat.postInvalidateOnAnimation(this)
         }
     }
 
+    /**
+     * Called from the `onViewCaptured` override of the [DragHelperCallback] class we construct when
+     * we create the [ViewDragHelper] to initialize [mDragHelper]. We loop over `c` for all of the
+     * [DragCallback] instances in [mDragCallbacks] and call their `onStartDraggingOpen` method.
+     * Then we set the visibility of [mHistoryFrame] to VISIBLE.
+     */
     private fun onStartDragging() {
         for (c in mDragCallbacks) {
             c.onStartDraggingOpen()
@@ -311,6 +364,19 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         mHistoryFrame.visibility = View.VISIBLE
     }
 
+    /**
+     * Determines whether the point ([x],[y]) is within the hit rectangle of [view]. First we fill
+     * [mHitRect] with the hit rectangle of [view] in its parent's coordinates. Then we call the
+     * [offsetDescendantRectToMyCoords] method to offset [mHitRect] from its parent's coordinate
+     * space to our coordinate space (this does nothing on my Pixel test device, but might on a
+     * device which uses different layouts). Finally we return the value that the `contains` method
+     * of [mHitRect] returns when checks whether the point ([x],[y]) is within its bounds.
+     *
+     * @param view the child [View] which needs to know if it is being dragged.
+     * @param x the X coordinate of the event
+     * @param y the Y coordinate of the event
+     * @return *true* if the point ([x],[y]) is within the hit rectangle of [view]
+     */
     fun isViewUnder(view: View, x: Int, y: Int): Boolean {
         view.getHitRect(mHitRect)
         offsetDescendantRectToMyCoords(view.parent as View, mHitRect)
