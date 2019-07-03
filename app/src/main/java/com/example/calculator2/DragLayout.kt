@@ -370,7 +370,7 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
      * [offsetDescendantRectToMyCoords] method to offset [mHitRect] from its parent's coordinate
      * space to our coordinate space (this does nothing on my Pixel test device, but might on a
      * device which uses different layouts). Finally we return the value that the `contains` method
-     * of [mHitRect] returns when checks whether the point ([x],[y]) is within its bounds.
+     * of [mHitRect] returns when it checks whether the point ([x],[y]) is within its bounds.
      *
      * @param view the child [View] which needs to know if it is being dragged.
      * @param x the X coordinate of the event
@@ -383,6 +383,11 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         return mHitRect.contains(x, y)
     }
 
+    /**
+     * Closes this [DragLayout]. We set our [isOpen] property to *false*, and set the visibility of
+     * [mHistoryFrame] to INVISIBLE. If our field [mCloseCallback] is not *null* we call its `onClose`
+     * callback.
+     */
     fun setClosed() {
         isOpen = false
         mHistoryFrame.visibility = View.INVISIBLE
@@ -391,6 +396,24 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         }
     }
 
+    /**
+     * Called from the [HistoryFragment] override of `onCreateAnimator` in order to attach an
+     * [AnimatorListenerAdapter] to the [Animator] that the fragment loads when the fragment is
+     * added/attached/shown or removed/detached/hidden. If our [isOpen] property is the same as
+     * our parameter [toOpen] we return a do nothing [ValueAnimator] that animates from 0f to 1f
+     * with a 0L millisecond duration. Otherwise we set our [isOpen] property to [toOpen], and the
+     * visibility of [mHistoryFrame] to VISIBLE. We then create a [ValueAnimator] `animator` that
+     * animates from 0f to 1f, and add an anonymous [AnimatorListenerAdapter] to it whose
+     * [onAnimationStart] override cancels any [mDragHelper] motion in progress, then calls its
+     * `smoothSlideViewTo` method to animate the [mHistoryFrame] view to a left position of 0, and
+     * a top position of 0 if [isOpen] is *true* or minus [mVerticalRange] if it is *false*. Finally
+     * we return `animator` to the caller.
+     *
+     * @param toOpen *true* if the [HistoryFragment] is being added/attached/shown
+     * @return an [Animator] to which an [AnimatorListenerAdapter] is added iff the current [isOpen]
+     * state is different from the parameter [toOpen] (if it is the same state we just return a do
+     * nothing [Animator] in order to keep the compiler happy).
+     */
     fun createAnimator(toOpen: Boolean): Animator {
         if (isOpen == toOpen) {
             return ValueAnimator.ofFloat(0f, 1f).setDuration(0L)
@@ -410,39 +433,68 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
         return animator
     }
 
+    /**
+     * Setter for our [mCloseCallback] field.
+     *
+     * @param callback the [CloseCallback] that [mCloseCallback] should use
+     */
     fun setCloseCallback(callback: CloseCallback) {
         mCloseCallback = callback
     }
 
+    /**
+     * Adds the [DragCallback] passed in [callback] to our field [mDragCallbacks].
+     *
+     * @param callback the [DragCallback] to add to [mDragCallbacks]
+     */
     fun addDragCallback(callback: DragCallback) {
         mDragCallbacks.add(callback)
     }
 
+    /**
+     * Removes the [DragCallback] passed in [callback] from our field [mDragCallbacks].
+     *
+     * @param callback the [DragCallback] to remove from [mDragCallbacks]
+     */
     fun removeDragCallback(callback: DragCallback) {
         mDragCallbacks.remove(callback)
     }
 
     /**
-     * Callback when the layout is closed.
-     * We use this to pop the HistoryFragment off the backstack.
-     * We can't use a method in DragCallback because we get ConcurrentModificationExceptions on
-     * mDragCallbacks when executePendingTransactions() is called for popping the fragment off the
+     * Callback when the layout is closed. We use this to pop the [HistoryFragment] off the backstack.
+     * We can't use a method in [DragCallback] because we get ConcurrentModificationExceptions on
+     * [mDragCallbacks] when `executePendingTransactions` is called for popping the fragment off the
      * backstack.
      */
     interface CloseCallback {
+        /**
+         * This callback is called when the [DragLayout] is closed.
+         */
         fun onClose()
     }
 
     /**
-     * Callbacks for coordinating with the RecyclerView or HistoryFragment.
+     * Callbacks for coordinating with the `RecyclerView` or [HistoryFragment].
      */
     interface DragCallback {
 
+        /**
+         * Override this to return the measured height of the calculator display.
+         *
+         * @return the current height of the display.
+         */
         fun displayHeightFetch(): Int
-        // Callback when a drag to open begins.
+
+        /**
+         * Callback when a drag to open begins.
+         */
         fun onStartDraggingOpen()
 
-        // Callback in onRestoreInstanceState.
+        /**
+         * Callback which is called from our [onRestoreInstanceState] override.
+         *
+         * @param isOpen the value of our field [isOpen] that was stored by [onSaveInstanceState].
+         */
         fun onInstanceStateRestored(isOpen: Boolean)
 
         /**
@@ -452,19 +504,49 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
          */
         fun whileDragging(yFraction: Float)
 
-        // Whether we should allow the view to be dragged.
+        /**
+         * Whether we should allow the view to be dragged.
+         *
+         * @param view the [View] that the user is attempting to capture.
+         * @param x the X coordinate of the user's motion event
+         * @param y the Y coordinate of the user's motion event
+         * @return *true* if the dragging of the [view] should be allowed.
+         */
         fun shouldCaptureView(view: View, x: Int, y: Int): Boolean
     }
 
+    /**
+     * Our custom [ViewDragHelper.Callback].
+     */
     inner class DragHelperCallback : ViewDragHelper.Callback() {
+        /**
+         * Called when the drag state changes. If the view has stopped moving ([state] is STATE_IDLE)
+         * and the top of the captured view of [mDragHelper] is less than half of our [mVerticalRange]
+         * (the view is less than half open) we call our [setClosed] method to close our [DragLayout].
+         *
+         * @param state The new drag state
+         */
         override fun onViewDragStateChanged(state: Int) {
             // The view stopped moving.
 
-            if (state == ViewDragHelper.STATE_IDLE && mDragHelper.capturedView!!.top < -(mVerticalRange / 2)) {
+            if (state == ViewDragHelper.STATE_IDLE
+                    && mDragHelper.capturedView!!.top < -(mVerticalRange / 2)) {
                 setClosed()
             }
         }
 
+        /**
+         * Called when the captured view's position changes as the result of a drag or settle. We
+         * loop through all the `c` [DragCallback] in [mDragCallbacks] calling their `whileDragging`
+         * callback overrides to inform them of the fraction of our [DragLayout] which is currently
+         * exposed.
+         *
+         * @param changedView View whose position changed
+         * @param left New X coordinate of the left edge of the view
+         * @param top New Y coordinate of the top edge of the view
+         * @param dx Change in X position from the last call
+         * @param dy Change in Y position from the last call
+         */
         override fun onViewPositionChanged(changedView: View, left: Int, top: Int, dx: Int, dy: Int) {
             for (c in mDragCallbacks) {
                 // Top is between [-mVerticalRange, 0].
