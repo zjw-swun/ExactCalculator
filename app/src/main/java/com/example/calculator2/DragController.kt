@@ -17,13 +17,16 @@
 package com.example.calculator2
 
 import android.animation.ArgbEvaluator
+import android.os.Build
 import android.view.View
+import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.RecyclerView
 
 /**
  * Contains the logic for animating the recyclerview elements when the [HistoryFragment]
  * is dragged down onto the screen.
  */
+@RequiresApi(Build.VERSION_CODES.N)
 class DragController {
 
     // References to views from the Calculator Display.

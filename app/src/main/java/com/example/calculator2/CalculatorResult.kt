@@ -46,14 +46,17 @@ import android.widget.OverScroller
 import android.widget.Toast
 
 import androidx.annotation.IntDef
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 
 import kotlin.annotation.Retention
+import kotlin.math.*
 
 /**
  * A text widget that is "infinitely" scrollable to the right, and obtains the text to display via
  * a callback to the program Logic.
  */
+@RequiresApi(Build.VERSION_CODES.N)
 @Suppress("MemberVisibilityCanBePrivate")
 class CalculatorResult(context: Context, attrs: AttributeSet)
     : AlignedTextView(context, attrs), MenuItem.OnMenuItemClickListener, Evaluator.EvaluationListener,
@@ -237,7 +240,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 return getFullText(false)
             }
             // It's reasonable to compute and copy the exact result instead.
-            var fractionLsdOffset = Math.max(0, mLsdOffset)
+            var fractionLsdOffset = max(0, mLsdOffset)
             var rawResult = mEvaluator!!.resultGet(mIndex)!!.toStringTruncated(fractionLsdOffset)
             if (mLsdOffset <= -1) {
                 // Result has trailing decimal point. Remove it.
@@ -408,8 +411,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                         mInitialDownY = y
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val deltaX = Math.abs(x - mInitialDownX)
-                        val deltaY = Math.abs(y - mInitialDownY)
+                        val deltaX = abs(x - mInitialDownX)
+                        val deltaY = abs(y - mInitialDownY)
                         if (deltaX > slop && deltaX > deltaY) {
                             // Prevent the DragLayout from intercepting horizontal scrolls.
                             parent.requestDisallowInterceptTouchEvent(true)
@@ -500,24 +503,24 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         // Calculate extra space we need to reserve, in addition to character count.
         val decimalSeparatorWidth = Layout.getDesiredWidth(context.getString(R.string.dec_point), paint)
         val minusWidth = Layout.getDesiredWidth(context.getString(R.string.op_sub), paint)
-        val minusExtraWidth = Math.max(minusWidth - newCharWidth, 0.0f)
+        val minusExtraWidth = max(minusWidth - newCharWidth, 0.0f)
         val ellipsisWidth = Layout.getDesiredWidth(KeyMaps.ELLIPSIS, paint)
-        val ellipsisExtraWidth = Math.max(ellipsisWidth - newCharWidth, 0.0f)
+        val ellipsisExtraWidth = max(ellipsisWidth - newCharWidth, 0.0f)
         val expWidth = Layout.getDesiredWidth(KeyMaps.translateResult("e"), paint)
-        val expExtraWidth = Math.max(expWidth - newCharWidth, 0.0f)
+        val expExtraWidth = max(expWidth - newCharWidth, 0.0f)
         val type1Extra = 2 * minusExtraWidth + expExtraWidth + decimalSeparatorWidth
         val type2Extra = ellipsisExtraWidth + expExtraWidth + minusExtraWidth
-        val extraWidth = Math.max(type1Extra, type2Extra)
-        val intExtraWidth = Math.ceil(extraWidth.toDouble()).toInt() + 1 /* to cover rounding sins */
+        val extraWidth = max(type1Extra, type2Extra)
+        val intExtraWidth = ceil(extraWidth.toDouble()).toInt() + 1 /* to cover rounding sins */
         val newWidthConstraint = (MeasureSpec.getSize(widthMeasureSpec)
                 - (paddingLeft + paddingRight) - intExtraWidth)
 
         // Calculate other width constants we need to handle grouping separators.
         val groupingSeparatorW = Layout.getDesiredWidth(KeyMaps.translateResult(","), paint)
         // Credits in the absence of any scientific notation:
-        val noExponentCredit = extraWidth - Math.max(ellipsisExtraWidth, minusExtraWidth)
+        val noExponentCredit = extraWidth - max(ellipsisExtraWidth, minusExtraWidth)
         val noEllipsisCredit = extraWidth - minusExtraWidth  // includes noExponentCredit.
-        val decimalCredit = Math.max(newCharWidth - decimalSeparatorWidth, 0.0f)
+        val decimalCredit = max(newCharWidth - decimalSeparatorWidth, 0.0f)
 
         mNoExponentCredit = noExponentCredit / newCharWidth
         synchronized(mWidthLock) {
@@ -651,8 +654,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      */
     private fun expLen(exp: Int): Int {
         if (exp == 0) return 0
-        val absExpDigits = Math.ceil(Math.log10(Math.abs(exp.toDouble()))
-                + 0.0000000001 /* Round whole numbers to next integer */).toInt()
+        val absExpDigits = ceil(log10(abs(exp.toDouble()))
+                + 0.0000000001).toInt()
         return absExpDigits + if (exp >= 0) 1 else 2
     }
 
@@ -668,17 +671,17 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      *
      * @param index Index of expression that was just evaluated. Currently ignored, since we only
      * expect notification for the expression result being displayed.
-     * @param initPrec Initial display precision computed by evaluator. (1 = tenths digit)
-     * @param msd Position of most significant digit.  Offset from left of string.
+     * @param initPrecOffset Initial display precision computed by evaluator. (1 = tenths digit)
+     * @param msdIndex Position of most significant digit.  Offset from left of string.
      * Evaluator.INVALID_MSD if unknown.
-     * @param leastDigPos Position of least significant digit (1 = tenths digit)
+     * @param lsdOffset Position of least significant digit (1 = tenths digit)
      * or Integer.MAX_VALUE.
      * @param truncatedWholePart Result up to but not including decimal point.
      * Currently we only use the length.
      */
-    override fun onEvaluate(index: Long, initPrec: Int, msd: Int, leastDigPos: Int,
+    override fun onEvaluate(index: Long, initPrecOffset: Int, msdIndex: Int, lsdOffset: Int,
                             truncatedWholePart: String) {
-        initPositions(initPrec, msd, leastDigPos, truncatedWholePart)
+        initPositions(initPrecOffset, msdIndex, lsdOffset, truncatedWholePart)
 
         if (mStoreToMemoryRequested) {
             mEvaluator?.copyToMemory(index)
@@ -821,22 +824,21 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         // Allow a tiny amount of slop for associativity/rounding differences in length
         // calculation.  If getPreferredPrec() decided it should fit, we want to make it fit, too.
         // We reserved one extra pixel, so the extra length is OK.
-        val nSeparatorChars = Math.ceil(
-                (separatorChars(truncatedWholePart, truncatedWholePart.length)
+        val nSeparatorChars = ceil((separatorChars(truncatedWholePart, truncatedWholePart.length)
                         - noEllipsisCreditGet() - 0.0001f).toDouble()).toInt()
         mWholePartFits = mWholeLen + nSeparatorChars <= maxCharsLocal
         mLastPos = INVALID
         mLsdOffset = lsdOffset
         mAppendExponent = false
         // Prevent scrolling past initial position, which is calculated to show leading digits.
-        mMinPos = Math.round(initPrecOffset * mCharWidth)
+        mMinPos = (initPrecOffset * mCharWidth).roundToInt()
         mCurrentPos = mMinPos
         if (msdIndexLocal == Evaluator.INVALID_MSD) {
             // Possible zero value
             if (lsdOffset == Integer.MIN_VALUE) {
                 // Definite zero value.
                 mMaxPos = mMinPos
-                mMaxCharOffset = Math.round(mMaxPos / mCharWidth)
+                mMaxCharOffset = (mMaxPos / mCharWidth).roundToInt()
                 isScrollable = false
             } else {
                 // May be very small nonzero value.  Allow user to find out.
@@ -890,9 +892,9 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                     // Very unlikely; just drop exponent.
                     -1
                 } else {
-                    Math.min(newMaxCharOffset, MAX_RIGHT_SCROLL)
+                    min(newMaxCharOffset, MAX_RIGHT_SCROLL)
                 }
-                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth), MAX_RIGHT_SCROLL)
+                mMaxPos = min((mMaxCharOffset * mCharWidth).roundToInt(), MAX_RIGHT_SCROLL)
             } else if (!mWholePartFits && !isScrollable) {
                 // Corner case in which entire number fits, but not with grouping separators.  We
                 // will use an exponent in un-scrolled position, which may hide digits.  Scrolling
@@ -905,14 +907,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                 val chrReq = mMaxCharOffset + expLen(-minCharOffset - 1) - minCharOffset + negative
                 isScrollable = chrReq >= maxCharsLocal
                 if (isScrollable) {
-                    mMaxPos = Math.ceil((mMinPos + mCharWidth).toDouble()).toInt()
+                    mMaxPos = ceil((mMinPos + mCharWidth).toDouble()).toInt()
                     // Single character scroll will remove exponent and show remaining piece.
                 } else {
                     mMaxPos = mMinPos
                     mAppendExponent = true
                 }
             } else {
-                mMaxPos = Math.min(Math.round(mMaxCharOffset * mCharWidth), MAX_RIGHT_SCROLL)
+                mMaxPos = min((mMaxCharOffset * mCharWidth).roundToInt(), MAX_RIGHT_SCROLL)
             }
             if (!isScrollable) {
                 // Position the number consistently with our assumptions to make sure it
@@ -927,12 +929,12 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Part of the `EvaluationListener` interface. Display error message indicated by [resourceId].
+     * Part of the `EvaluationListener` interface. Display error message indicated by [errorId].
      * UI thread only. First we set our field [mStoreToMemoryRequested] to *false* (we do not want
      * to store an error into "memory" even if the user requested us to do so), set our field [mValid]
      * to *false* (to indicate that the result does not hold a valid number), set our long-clickable
      * property flag to *false*, and set our [isScrollable] property to *false*. We initialize our
-     * variable `msg` to the string with resource id [resourceId], and our variable `measuredWidth`
+     * variable `msg` to the string with resource id [errorId], and our variable `measuredWidth`
      * to the width that a layout must be in order to display `msg` using our [TextPaint] with one
      * line per paragraph. If `measuredWidth` is greater than [mWidthConstraint] we need to scale the
      * text of `msg`, so we initialize our variable `scaleFactor` to 0.99 times [mWidthConstraint]
@@ -945,14 +947,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * the `msg` does fit we just set our `text` to `msg`.
      *
      * @param index index of the expression which contains an error. UNUSED
-     * @param resourceId resource ID of the error string we are the display.
+     * @param errorId resource ID of the error string we are the display.
      */
-    override fun onError(index: Long, resourceId: Int) {
+    override fun onError(index: Long, errorId: Int) {
         mStoreToMemoryRequested = false
         mValid = false
         isLongClickable = false
         isScrollable = false
-        val msg = context.getString(resourceId)
+        val msg = context.getString(errorId)
         val measuredWidth = Layout.getDesiredWidth(msg, paint)
         if (measuredWidth > mWidthConstraint) {
             // Multiply by .99 to avoid rounding effects.
@@ -1066,7 +1068,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                     dropDigits = expLen(exponent)
                     if (dropDigits >= result.length - 1) {
                         // Jumpy is better than no mantissa.  Probably impossible anyway.
-                        dropDigits = Math.max(result.length - 2, 0)
+                        dropDigits = max(result.length - 2, 0)
                     }
                 } else {
                     // Type (2) exponent.
@@ -1197,7 +1199,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             text.toString()
         } else {
             KeyMaps.translateResult(getFormattedResult(mLastDisplayedOffset, MAX_COPY_SIZE,
-                    null, true, false, withSeparators))
+                    null, forcePrecision = true,
+                    forceSciNotation = false, insertCommas = withSeparators))
         }
     }
 
@@ -1229,7 +1232,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      */
     override fun maxCharsGet(): Int {
         synchronized(mWidthLock) {
-            return Math.floor((mWidthConstraint / mCharWidth).toDouble()).toInt()
+            return floor((mWidthConstraint / mCharWidth).toDouble()).toInt()
         }
     }
 
@@ -1241,7 +1244,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * @return the character position which occupies pixel position [pos]
      */
     internal fun getCharOffset(pos: Int): Int {
-        return Math.round(pos / mCharWidth)  // Lock not needed.
+        return (pos / mCharWidth).roundToInt()  // Lock not needed.
     }
 
     /**
@@ -1420,7 +1423,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * and `onGetContentRect` do what needs to be done for copy/memory actions performed on our
      * contents, then set our `OnLongClickListener` to a lambda which starts the action mode.
      */
-    @TargetApi(Build.VERSION_CODES.M)
+    @TargetApi(Build.VERSION_CODES.N)
     private fun setupActionMode() {
         mCopyActionModeCallback = object : ActionMode.Callback2() {
 
@@ -1827,7 +1830,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             paint.getTextWidths(allDigits, widths)
             var maxWidth = 0f
             for (x in widths) {
-                maxWidth = Math.max(x, maxWidth)
+                maxWidth = max(x, maxWidth)
             }
             return maxWidth
         }

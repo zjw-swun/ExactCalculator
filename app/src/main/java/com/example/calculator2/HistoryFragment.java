@@ -17,7 +17,11 @@
 package com.example.calculator2;
 
 import android.animation.Animator;
+
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
+
+import android.os.Build;
 import android.os.Bundle;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -33,6 +37,7 @@ import java.util.ArrayList;
 
 import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING;
 
+@RequiresApi(api = Build.VERSION_CODES.N)
 public class HistoryFragment extends Fragment implements DragLayout.DragCallback {
 
     public static final String TAG = "HistoryFragment";
@@ -114,10 +119,10 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         super.onActivityCreated(savedInstanceState);
 
         final Calculator2 activity = (Calculator2) getActivity();
-        mEvaluator = Evaluator.instanceGet(activity);
+        assert activity != null;
+        mEvaluator = Evaluator.Companion.instanceGet(activity);
         mAdapter.setEvaluator(mEvaluator);
 
-        //noinspection ConstantConditions
         final boolean isResultLayout = activity.isResultLayout();
         final boolean isOneLine = activity.isOneLine();
 

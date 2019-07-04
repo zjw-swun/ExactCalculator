@@ -40,7 +40,7 @@ import java.util.*
  * when reading it back in.
  */
 @Suppress("MemberVisibilityCanBePrivate")
-internal class CalculatorExpr {
+class CalculatorExpr {
 
     /**
      * The actual representation as a list of tokens. Constant tokens are always nonempty.

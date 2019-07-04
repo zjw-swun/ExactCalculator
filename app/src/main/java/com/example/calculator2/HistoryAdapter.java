@@ -16,7 +16,10 @@
 
 package com.example.calculator2;
 
+import androidx.annotation.RequiresApi;
 import androidx.recyclerview.widget.RecyclerView;
+
+import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,6 +32,7 @@ import java.util.List;
 /**
  * Adapter for RecyclerView of HistoryItems.
  */
+@RequiresApi(api = Build.VERSION_CODES.N)
 @SuppressWarnings("WeakerAccess")
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 

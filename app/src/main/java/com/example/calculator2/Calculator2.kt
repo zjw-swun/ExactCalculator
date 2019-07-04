@@ -32,6 +32,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.Spanned
@@ -46,6 +47,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.HorizontalScrollView
 import android.widget.TextView
 import android.widget.Toolbar
+import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -61,6 +63,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+@RequiresApi(Build.VERSION_CODES.N)
 @Suppress("MemberVisibilityCanBePrivate", "LocalVariableName")
 class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickListener,
         AlertDialogFragment.OnClickListener, Evaluator.EvaluationListener /* for main result */,
@@ -125,7 +128,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         }
 
         override fun showMessageDialog(@StringRes title: Int, @StringRes message: Int,
-                                       @StringRes positiveButtonLabel: Int, tag: String) {
+                                       @StringRes positiveButtonLabel: Int, tag: String?) {
             AlertDialogFragment.showMessageDialog(this@Calculator2, title, message,
                     positiveButtonLabel, tag)
 
@@ -1396,13 +1399,13 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * method of [mEvaluator] to add the current result to both the cache and database).
      *
      * @param index Index of the expression which has been evaluated (always MAIN_INDEX)
-     * @param initDisplayPrec Initial display precision computed by evaluator. (1 = tenths digit)
-     * @param msd Position of most significant digit. Offset from left of string.
-     * @param leastDigPos Position of least significant digit (1 = tenths digit) or Integer.MAX_VALUE.
-     * @param truncatedWholeNumber the integer part of the result
+     * @param initPrecOffset Initial display precision computed by evaluator. (1 = tenths digit)
+     * @param msdIndex Position of most significant digit. Offset from left of string.
+     * @param lsdOffset Position of least significant digit (1 = tenths digit) or Integer.MAX_VALUE.
+     * @param truncatedWholePart the integer part of the result
      */
-    override fun onEvaluate(index: Long, initDisplayPrec: Int, msd: Int, leastDigPos: Int,
-                            truncatedWholeNumber: String) {
+    override fun onEvaluate(index: Long, initPrecOffset: Int, msdIndex: Int, lsdOffset: Int,
+                            truncatedWholePart: String) {
         if (index != Evaluator.MAIN_INDEX) {
             throw AssertionError("Unexpected evaluation result index\n")
         }
@@ -1410,7 +1413,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         // Invalidate any options that may depend on the current result.
         invalidateOptionsMenu()
 
-        mResultText.onEvaluate(index, initDisplayPrec, msd, leastDigPos, truncatedWholeNumber)
+        mResultText.onEvaluate(index, initPrecOffset, msdIndex, lsdOffset, truncatedWholePart)
         if (mCurrentState != CalculatorState.INPUT) {
             // In EVALUATE, INIT, RESULT, or INIT_FOR_RESULT state.
             onResult(mCurrentState == CalculatorState.EVALUATE /* animate */,
@@ -1743,39 +1746,39 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * Evaluation encountered en error. Display the error. If our parameter [index] is not MAIN_INDEX
      * we throw an AssertionError. Otherwise, when our [CalculatorState] is EVALUATE, we set our
      * [CalculatorState] to ANIMATE, call the *announceForAccessibility* method of [mResultText] to
-     * have it use ask accessibility service to announce the string with resource id [errorResourceId],
+     * have it use ask accessibility service to announce the string with resource id [errorId],
      * then call our [reveal] method to have it perform its circular reveal animation of the display
      * centered about [mCurrentButton] using the calculator_error_color (a red) with an anonymous
      * [AnimatorListenerAdapter] whose *onAnimationEnd* override sets our [CalculatorState] to
      * ERROR, and calls the *onError* method of [mResultText] to have it display the string with
-     * resource id [errorResourceId] as its message. When our [CalculatorState] is INIT or
+     * resource id [errorId] as its message. When our [CalculatorState] is INIT or
      * INIT_FOR_RESULT (very unlikely) we set our [CalculatorState] to ERROR, and call the *onError*
-     * method of [mResultText] to have it display the string with resource id [errorResourceId] as
+     * method of [mResultText] to have it display the string with resource id [errorId] as
      * its message. For all other [CalculatorState] we just call the *clear* method of [mResultText]
      * to have it clear its text.
      *
      * @param index index of the expression causing the error, should always be MAIN_INDEX
-     * @param errorResourceId resource id of the string describing the type of error that occurred
+     * @param errorId resource id of the string describing the type of error that occurred
      */
-    override fun onError(index: Long, errorResourceId: Int) {
+    override fun onError(index: Long, errorId: Int) {
         if (index != Evaluator.MAIN_INDEX) {
             throw AssertionError("Unexpected error source")
         }
         when (mCurrentState) {
             CalculatorState.EVALUATE -> {
                 setState(CalculatorState.ANIMATE)
-                mResultText.announceForAccessibility(resources.getString(errorResourceId))
+                mResultText.announceForAccessibility(resources.getString(errorId))
                 reveal(mCurrentButton, R.color.calculator_error_color,
                         object : AnimatorListenerAdapter() {
                             override fun onAnimationEnd(animation: Animator) {
                                 setState(CalculatorState.ERROR)
-                                mResultText.onError(index, errorResourceId)
+                                mResultText.onError(index, errorId)
                             }
                         })
             }
             CalculatorState.INIT, CalculatorState.INIT_FOR_RESULT -> {  /* very unlikely */
                 setState(CalculatorState.ERROR)
-                mResultText.onError(index, errorResourceId)
+                mResultText.onError(index, errorId)
             }
             else -> mResultText.clear()
         }
