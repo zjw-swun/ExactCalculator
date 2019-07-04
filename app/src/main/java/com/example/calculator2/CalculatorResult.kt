@@ -238,7 +238,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             }
             // It's reasonable to compute and copy the exact result instead.
             var fractionLsdOffset = Math.max(0, mLsdOffset)
-            var rawResult = mEvaluator!!.getResult(mIndex)!!.toStringTruncated(fractionLsdOffset)
+            var rawResult = mEvaluator!!.resultGet(mIndex)!!.toStringTruncated(fractionLsdOffset)
             if (mLsdOffset <= -1) {
                 // Result has trailing decimal point. Remove it.
                 rawResult = rawResult.substring(0, rawResult.length - 1)
@@ -535,7 +535,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * Called from layout when this view should assign a size and position to each of its children.
      * First we call our super's implementation of `onLayout`. Then if [mEvaluator] is not *null*,
      * and [mEvaluationRequest] is not SHOULD_NOT_EVALUATE we:
-     * - Initialize our variable `expr` with the [CalculatorExpr] found by the `getExpr` method
+     * - Initialize our variable `expr` with the [CalculatorExpr] found by the `exprGet` method
      * of [mEvaluator] for the expression index [mIndex].
      * - If the `hasInterestingOps` method of `expr` determines that the expression is worth evaluating
      * We branch on the value of [mEvaluationRequest]:
@@ -555,7 +555,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         super.onLayout(changed, left, top, right, bottom)
 
         if (mEvaluator != null && mEvaluationRequest != SHOULD_NOT_EVALUATE) {
-            val expr = mEvaluator!!.getExpr(mIndex)
+            val expr = mEvaluator!!.exprGet(mIndex)
             if (expr.hasInterestingOps()) {
                 if (mEvaluationRequest == SHOULD_REQUIRE) {
                     mEvaluator!!.requireResult(mIndex, mEvaluationListener, this)
@@ -621,7 +621,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      *
      * @return the faction of a digit width available when there is no ellipsis in the display.
      */
-    override fun getNoEllipsisCredit(): Float {
+    override fun noEllipsisCreditGet(): Float {
         synchronized(mWidthLock) {
             return mNoEllipsisCredit
         }
@@ -634,7 +634,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      *
      * @return fraction of a digit width saved by lack of a decimal point in the display
      */
-    override fun getDecimalCredit(): Float {
+    override fun decimalCreditGet(): Float {
         synchronized(mWidthLock) {
             return mDecimalCredit
         }
@@ -816,14 +816,14 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
                               truncatedWholePart: String) {
 
         var msdIndexLocal = msdIndex
-        val maxCharsLocal = maxChars
+        val maxCharsLocal = maxCharsGet()
         mWholeLen = truncatedWholePart.length
         // Allow a tiny amount of slop for associativity/rounding differences in length
         // calculation.  If getPreferredPrec() decided it should fit, we want to make it fit, too.
         // We reserved one extra pixel, so the extra length is OK.
         val nSeparatorChars = Math.ceil(
                 (separatorChars(truncatedWholePart, truncatedWholePart.length)
-                        - noEllipsisCredit - 0.0001f).toDouble()).toInt()
+                        - noEllipsisCreditGet() - 0.0001f).toDouble()).toInt()
         mWholePartFits = mWholeLen + nSeparatorChars <= maxCharsLocal
         mLastPos = INVALID
         mLsdOffset = lsdOffset
@@ -967,7 +967,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
     }
 
     /**
-     * Format a result returned by Evaluator.getString() into a single line containing ellipses
+     * Format a result returned by Evaluator.stringGet() into a single line containing ellipses
      * (if appropriate) and an exponent (if appropriate).
      *
      * We add two distinct kinds of exponents:
@@ -980,8 +980,8 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * This minimizes jumps as a result of scrolling. Result is NOT internationalized, uses "E" for
      * exponent. Called only from UI thread; We sometimes omit locking for fields.
      *
-     * @param str result returned by Evaluator.getString()
-     * @param precOffset The value that was passed to getString. Identifies the significance of
+     * @param str result returned by Evaluator.stringGet()
+     * @param precOffset The value that was passed to stringGet. Identifies the significance of
      * the rightmost digit. A value of 1 means the rightmost digits corresponds to tenths.
      * @param maxDigs The maximum number of characters in the result
      * @param truncated The in parameter was already truncated, beyond possibly removing the
@@ -1115,10 +1115,10 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
             }
             val len = origLength + nCommaChars
             var deletedChars = 0
-            @Suppress("UNUSED_VARIABLE") val ellipsisCredit = noEllipsisCredit
-            @Suppress("UNUSED_VARIABLE") val decimalCredit = decimalCredit
-            val effectiveLen = len - if (decIndex == -1) 0.0F else getDecimalCredit()
-            val ellipsisAdjustment = if (needEllipsis) mNoExponentCredit else noEllipsisCredit
+            @Suppress("UNUSED_VARIABLE") val ellipsisCredit = noEllipsisCreditGet()
+            @Suppress("UNUSED_VARIABLE") val decimalCredit = decimalCreditGet()
+            val effectiveLen = len - if (decIndex == -1) 0.0F else decimalCreditGet()
+            val ellipsisAdjustment = if (needEllipsis) mNoExponentCredit else noEllipsisCreditGet()
             // As above, we allow for a tiny amount of extra length here, for consistency with
             // getPreferredPrec().
             if (effectiveLen - ellipsisAdjustment > (maxDigs - wholeStart).toFloat() + 0.0001f && !forcePrecision) {
@@ -1169,7 +1169,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
         val truncated = BooleanArray(1)
         val negative = BooleanArray(1)
         val requestedPrecOffset = intArrayOf(precOffset)
-        val rawResult = mEvaluator!!.getString(mIndex, requestedPrecOffset, mMaxCharOffset,
+        val rawResult = mEvaluator!!.stringGet(mIndex, requestedPrecOffset, mMaxCharOffset,
                 maxSize, truncated, negative, this)
         return formatResult(rawResult, requestedPrecOffset[0], maxSize, truncated[0], negative[0],
                 lastDisplayedOffset, forcePrecision, forceSciNotation, insertCommas)
@@ -1227,7 +1227,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      *
      * @return the maximum number of characters that will fit in the result display.
      */
-    override fun getMaxChars(): Int {
+    override fun maxCharsGet(): Int {
         synchronized(mWidthLock) {
             return Math.floor((mWidthConstraint / mCharWidth).toDouble()).toInt()
         }
@@ -1313,7 +1313,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      * *true*.
      */
     fun redisplay() {
-        val maxCharsLocal = maxChars
+        val maxCharsLocal = maxCharsGet()
         if (maxCharsLocal < 4) {
             // Display currently too small to display a reasonable result. Punt to avoid crash.
             return
@@ -1600,7 +1600,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
      */
     private fun createContextMenu(inflater: MenuInflater, menu: Menu): Boolean {
         inflater.inflate(R.menu.menu_result, menu)
-        val displayMemory = mEvaluator!!.memoryIndex != 0L
+        val displayMemory = mEvaluator!!.memoryIndexGet() != 0L
         val memoryAddItem = menu.findItem(R.id.memory_add)
         val memorySubtractItem = menu.findItem(R.id.memory_subtract)
         memoryAddItem.isEnabled = displayMemory
@@ -1834,7 +1834,7 @@ class CalculatorResult(context: Context, attrs: AttributeSet)
 
         /**
          * Return the most significant digit position in the given string or Evaluator.INVALID_MSD.
-         * Unlike Evaluator.getMsdIndexOf, we treat a final 1 as significant. Pure function; callable
+         * Unlike Evaluator.msdIndexOfGet, we treat a final 1 as significant. Pure function; callable
          * from anywhere. We initialize our variable `len` to the length of [s], then we loop over
          * `i` from 0 until `len` setting `c` to character at index `i` in [s] and if `c` is not
          * equal to '-' and not equal to '.' and not equal to '0' we return the index `i` where we

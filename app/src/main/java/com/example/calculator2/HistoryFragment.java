@@ -114,7 +114,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         super.onActivityCreated(savedInstanceState);
 
         final Calculator2 activity = (Calculator2) getActivity();
-        mEvaluator = Evaluator.getInstance(activity);
+        mEvaluator = Evaluator.instanceGet(activity);
         mAdapter.setEvaluator(mEvaluator);
 
         //noinspection ConstantConditions
@@ -124,13 +124,13 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
         // Snapshot display state here. For the rest of the lifecycle of this current
         // HistoryFragment, this is what we will consider the display state.
         // In rare cases, the display state can change after our adapter is initialized.
-        final CalculatorExpr mainExpr = mEvaluator.getExpr(Evaluator.MAIN_INDEX);
+        final CalculatorExpr mainExpr = mEvaluator.exprGet(Evaluator.MAIN_INDEX);
         //noinspection ConstantConditions
         mIsDisplayEmpty = mainExpr == null || mainExpr.isEmpty();
 
         initializeController(isResultLayout, isOneLine, mIsDisplayEmpty);
 
-        final long maxIndex = mEvaluator.getMaxIndex();
+        final long maxIndex = mEvaluator.maxIndexGet();
 
         final ArrayList<HistoryItem> newDataSet = new ArrayList<>();
 
@@ -142,7 +142,7 @@ public class HistoryFragment extends Fragment implements DragLayout.DragCallback
             // element in the list and there will be no "Current Expression."
             mEvaluator.copyMainToHistory();
             newDataSet.add(new HistoryItem(Evaluator.HISTORY_MAIN_INDEX,
-                    System.currentTimeMillis(), mEvaluator.getExprAsSpannable(0)));
+                    System.currentTimeMillis(), mEvaluator.exprAsSpannableGet(0)));
         }
         for (long i = 0; i < maxIndex; ++i) {
             newDataSet.add(null);

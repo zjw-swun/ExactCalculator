@@ -81,7 +81,7 @@ internal class CalculatorExpr {
          * @param index the index of the expression to retrieve
          * @return the expression corresponding to index.
          */
-        fun getExpr(index: Long): CalculatorExpr
+        fun exprGet(index: Long): CalculatorExpr
 
         /**
          * Retrieve the degree mode associated with the expression at [index].
@@ -89,7 +89,7 @@ internal class CalculatorExpr {
          * @param index the index of the expression in question
          * @return the degree mode associated with the expression at index
          */
-        fun getDegreeMode(index: Long): Boolean
+        fun degreeModeGet(index: Long): Boolean
 
         /**
          * Retrieve the stored result for the expression at [index], or return null.
@@ -97,12 +97,12 @@ internal class CalculatorExpr {
          * @param index the index of the expression whose result we want
          * @return the stored result for the expression at [index], or null.
          */
-        fun getResult(index: Long): UnifiedReal?
+        fun resultGet(index: Long): UnifiedReal?
 
         /**
          * Atomically test for an existing result, and set it if there was none.
          * Return the prior result if there was one, or the new one if there was not.
-         * May only be called after getExpr.
+         * May only be called after exprGet.
          *
          * @param index index of the expression that we are interested in.
          * @param result the [UnifiedReal] we are to save at index [index].
@@ -1136,7 +1136,7 @@ internal class CalculatorExpr {
      * - [Constant] we return an [EvalRet] whose next position is [i] plus 1, and whose [UnifiedReal]
      * is a new instance constructed from the [BoundedRational] of __t__
      * - [PreEval] we initialize our variable __index__ to the *mIndex* field of __t__, and our
-     * variable __res__ to the [UnifiedReal] returned by the *getResult* method of the *mExprResolver*
+     * variable __res__ to the [UnifiedReal] returned by the *resultGet* method of the *mExprResolver*
      * field of [ec] for the expression at index __index__. If __res__ is *null* we set it to the
      * [UnifiedReal] returned by our [nestedEval] method for index __index__ and the *mExprResolver*
      * of [ec]. In either case we return an [EvalRet] whose next position is [i] plus 1, and whose
@@ -1229,7 +1229,7 @@ internal class CalculatorExpr {
         }
         if (t is PreEval) {
             val index = t.mIndex
-            var res = ec.mExprResolver.getResult(index)
+            var res = ec.mExprResolver.resultGet(index)
             if (res == null) {
                 // We try to minimize this recursive evaluation case, but currently don't
                 // completely avoid it.
@@ -1705,7 +1705,7 @@ internal class CalculatorExpr {
      * If the index was already present, it is not added. If the argument contained no duplicates,
      * the result will not either. New indices are added to the end of the list. We loop over all the
      * `t` [Token]'s in [mExpr], and if `t` is a [PreEval] we initialize our variable `index` to the
-     * `mIndex` field of `t`. Then if the `getResult` method of [er] returns *null* for index `index`,
+     * `mIndex` field of `t`. Then if the `resultGet` method of [er] returns *null* for index `index`,
      * and [list] does not contain `index`, we add `index` to [list] and loop around for the next
      * [Token].
      *
@@ -1717,7 +1717,7 @@ internal class CalculatorExpr {
         for (t in mExpr) {
             if (t is PreEval) {
                 val index = t.mIndex
-                if (er.getResult(index) == null && !list.contains(index)) {
+                if (er.resultGet(index) == null && !list.contains(index)) {
                     list.add(index)
                 }
             }
@@ -1726,14 +1726,14 @@ internal class CalculatorExpr {
 
     /**
      * Return a list of unevaluated expressions transitively referenced by the current one.
-     * All expressions in the resulting list will have had `er.getExpr()` called on them.
+     * All expressions in the resulting list will have had `er.exprGet()` called on them.
      * The resulting list is ordered such that evaluating expressions in list order
      * should trigger few recursive evaluations. We initialize our variable `list` with a
      * new instance of [ArrayList] that will hold the [Long] expression indices. We initialize
      * our variable `scanned` to 0. We then call our method [addReferencedExprs] to add all of
      * the indices of unevaluated [PreEval] expressions embedded in the expression in our [mExpr]
      * to `list`. We then loop while `scanned` is not equal to the `size` of `list`, calling
-     * the `getExpr` method of [er] to get the expression at the index contained in `list[scanned++]`
+     * the `exprGet` method of [er] to get the expression at the index contained in `list[scanned++]`
      * and then calling its [addReferencedExprs] method to have it add all of the indices of
      * unevaluated [PreEval] expressions embedded in the expression in **its** [mExpr] to `list`.
      * When we have finished filling `list` with all of the expressions needed to evaluate our
@@ -1753,7 +1753,7 @@ internal class CalculatorExpr {
         var scanned = 0  // We've added expressions referenced by [0, scanned) to the list
         addReferencedExprs(list, er)
         while (scanned != list.size) {
-            er.getExpr(list[scanned++]).addReferencedExprs(list, er)
+            er.exprGet(list[scanned++]).addReferencedExprs(list, er)
         }
         list.reverse()
         return list
@@ -1762,7 +1762,7 @@ internal class CalculatorExpr {
     /**
      * Evaluate the expression at the given index to a [UnifiedReal]. Both saves and returns the
      * result. We initialize our variable `nestedExpr` to the [CalculatorExpr] with the index [index]
-     * that is returned by the `getExpr` method of [er]. We initialize our variable `newEc` to a new
+     * that is returned by the `exprGet` method of [er]. We initialize our variable `newEc` to a new
      * instance of [EvalContext] constructed from the degree mode of the expression at index [index],
      * with the length of the expression specified as the length of `nestedExpr` after removing any
      * trailing binary operators, and [er] as the [ExprResolver] it is to use to access sub-expressions.
@@ -1778,8 +1778,8 @@ internal class CalculatorExpr {
      */
     @Throws(SyntaxException::class)
     fun nestedEval(index: Long, er: ExprResolver): UnifiedReal {
-        val nestedExpr = er.getExpr(index)
-        val newEc = EvalContext(er.getDegreeMode(index),
+        val nestedExpr = er.exprGet(index)
+        val newEc = EvalContext(er.degreeModeGet(index),
                 nestedExpr.trailingBinaryOpsStart(), er)
         val newRes = nestedExpr.evalExpr(0, newEc)
         return er.putResultIfAbsent(index, newRes.valueUR)

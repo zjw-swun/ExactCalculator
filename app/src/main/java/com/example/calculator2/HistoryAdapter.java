@@ -151,10 +151,10 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
     private int getEvaluatorIndex(int position) {
         if (mIsDisplayEmpty || mIsResultLayout) {
-            return (int) (mEvaluator.getMaxIndex() - position);
+            return (int) (mEvaluator.maxIndexGet() - position);
         } else {
             // Account for the additional "Current Expression" with the +1.
-            return (int) (mEvaluator.getMaxIndex() - position + 1);
+            return (int) (mEvaluator.maxIndexGet() - position + 1);
         }
     }
 
@@ -183,8 +183,8 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         if (item == null) {
             final int evaluatorIndex = getEvaluatorIndex(position);
             item = new HistoryItem(evaluatorIndex,
-                    mEvaluator.getTimeStamp(evaluatorIndex),
-                    mEvaluator.getExprAsSpannable(evaluatorIndex));
+                    mEvaluator.timeStampGet(evaluatorIndex),
+                    mEvaluator.exprAsSpannableGet(evaluatorIndex));
             mDataSet.set(position, item);
         }
         return item;

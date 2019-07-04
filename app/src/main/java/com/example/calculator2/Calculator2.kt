@@ -139,7 +139,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private val mOnDisplayMemoryOperationsListener = object : OnDisplayMemoryOperationsListener {
         override fun shouldDisplayMemory(): Boolean {
-            return mEvaluator.memoryIndex != 0L
+            return mEvaluator.memoryIndexGet() != 0L
         }
     }
 
@@ -175,7 +175,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             val uri = item.uri
             if (uri != null && mEvaluator.isLastSaved(uri)) {
                 clearIfNotInputState()
-                mEvaluator.appendExpr(mEvaluator.savedIndex)
+                mEvaluator.appendExpr(mEvaluator.savedIndexGet())
                 redisplayAfterFormulaChange()
             } else {
                 addChars(item.coerceToText(this@Calculator2).toString(), false)
@@ -193,9 +193,9 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
          */
         override fun onMemoryRecall() {
             clearIfNotInputState()
-            val memoryIndex = mEvaluator.memoryIndex
+            val memoryIndex = mEvaluator.memoryIndexGet()
             if (memoryIndex != 0L) {
-                mEvaluator.appendExpr(mEvaluator.memoryIndex)
+                mEvaluator.appendExpr(mEvaluator.memoryIndexGet())
                 redisplayAfterFormulaChange()
             }
         }
@@ -490,7 +490,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * will start the evaluation of the expression.
      */
     private fun restoreDisplay() {
-        onModeChanged(mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX))
+        onModeChanged(mEvaluator.degreeModeGet(Evaluator.MAIN_INDEX))
         if (mCurrentState != CalculatorState.RESULT && mCurrentState != CalculatorState.INIT_FOR_RESULT) {
             redisplayFormula()
         }
@@ -586,7 +586,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         mResultText = findViewById(R.id.result)
         mFormulaContainer = findViewById(R.id.formula_container)
 
-        mEvaluator = Evaluator.getInstance(this)
+        mEvaluator = Evaluator.instanceGet(this)
         mEvaluator.setCallback(mEvaluatorCallback)
         mResultText.setEvaluator(mEvaluator, Evaluator.MAIN_INDEX)
         KeyMaps.setActivity(this)
@@ -1103,7 +1103,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun switchToInput(button_id: Int) {
         if (KeyMaps.isBinary(button_id) || KeyMaps.isSuffix(button_id)) {
-            mEvaluator.collapse(mEvaluator.maxIndex /* Most recent history entry */)
+            mEvaluator.collapse(mEvaluator.maxIndexGet() /* Most recent history entry */)
         } else {
             announceClearedForAccessibility()
             mEvaluator.clearMain()
@@ -1151,7 +1151,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     private fun addExplicitKeyToExpr(id: Int) {
         if (mCurrentState == CalculatorState.INPUT && id == R.id.op_sub) {
-            mEvaluator.getExpr(Evaluator.MAIN_INDEX).removeTrailingAdditiveOperators()
+            mEvaluator.exprGet(Evaluator.MAIN_INDEX).removeTrailingAdditiveOperators()
         }
         addKeyToExpr(id)
     }
@@ -1162,7 +1162,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      */
     fun evaluateInstantIfNecessary() {
         if (mCurrentState == CalculatorState.INPUT
-                && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
+                && mEvaluator.exprGet(Evaluator.MAIN_INDEX).hasInterestingOps()) {
             mEvaluator.evaluateAndNotify(Evaluator.MAIN_INDEX, this, mResultText)
         }
     }
@@ -1306,11 +1306,11 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             }
             R.id.toggle_mode -> {
                 cancelIfEvaluating(false)
-                val mode = !mEvaluator.getDegreeMode(Evaluator.MAIN_INDEX)
+                val mode = !mEvaluator.degreeModeGet(Evaluator.MAIN_INDEX)
                 if (mCurrentState == CalculatorState.RESULT
-                        && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
+                        && mEvaluator.exprGet(Evaluator.MAIN_INDEX).hasTrigFuncs()) {
                     // Capture current result evaluated in old mode.
-                    mEvaluator.collapse(mEvaluator.maxIndex)
+                    mEvaluator.collapse(mEvaluator.maxIndexGet())
                     redisplayFormula()
                 }
                 // In input mode, we reinterpret already entered trig functions.
@@ -1351,7 +1351,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * empty or to null if it is not empty.
      */
     fun redisplayFormula() {
-        val formula = mEvaluator.getExpr(Evaluator.MAIN_INDEX).toSpannableStringBuilder(this)
+        val formula = mEvaluator.exprGet(Evaluator.MAIN_INDEX).toSpannableStringBuilder(this)
         if (mUnprocessedChars != null) {
             // Add and highlight characters we couldn't process.
             formula.append(mUnprocessedChars, mUnprocessedColorSpan,
@@ -1546,7 +1546,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
             if (haveUnprocessed()) {
                 setState(CalculatorState.EVALUATE)
                 onError(Evaluator.MAIN_INDEX, R.string.error_syntax)
-            } else if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasInterestingOps()) {
+            } else if (mEvaluator.exprGet(Evaluator.MAIN_INDEX).hasInterestingOps()) {
                 setState(CalculatorState.EVALUATE)
                 mEvaluator.requireResult(Evaluator.MAIN_INDEX, this, mResultText)
             }
@@ -1579,7 +1579,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         } else {
             mEvaluator.delete()
         }
-        if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
+        if (mEvaluator.exprGet(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
             // Resulting formula won't be announced, since it's empty.
             announceClearedForAccessibility()
         }
@@ -1726,7 +1726,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * is completed.
      */
     private fun onClear() {
-        if (mEvaluator.getExpr(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
+        if (mEvaluator.exprGet(Evaluator.MAIN_INDEX).isEmpty && !haveUnprocessed()) {
             return
         }
         cancelIfEvaluating(true)
@@ -2006,7 +2006,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         menu.findItem(R.id.menu_leading).isVisible = visible
 
         // Show the fraction option when displaying a rational result.
-        val mainResult = mEvaluator.getResult(Evaluator.MAIN_INDEX)
+        val mainResult = mEvaluator.resultGet(Evaluator.MAIN_INDEX)
         // mainResult should never be null, but it happens. Check as a workaround to protect
         // against crashes until we find the root cause (b/34763650).
         visible = visible and (mainResult != null && mainResult.exactlyDisplayable())
@@ -2229,7 +2229,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * call our method [displayMessage] to display *result* as a fraction in an [AlertDialogFragment].
      */
     private fun displayFraction() {
-        val result = mEvaluator.getResult(Evaluator.MAIN_INDEX)
+        val result = mEvaluator.resultGet(Evaluator.MAIN_INDEX)
         displayMessage(getString(R.string.menu_fraction),
                 KeyMaps.translateResult(result!!.toNiceString()))
     }
@@ -2358,7 +2358,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
                 } else {
                     val isDigit = KeyMaps.digVal(k) != KeyMaps.NOT_DIGIT
                     if (current == 0 && (isDigit || k == R.id.dec_point)
-                            && mEvaluator.getExpr(Evaluator.MAIN_INDEX).hasTrailingConstant()) {
+                            && mEvaluator.exprGet(Evaluator.MAIN_INDEX).hasTrailingConstant()) {
                         // Refuse to concatenate pasted content to trailing constant.
                         // This makes pasting of calculator results more consistent, whether or
                         // not the old calculator instance is still around.
