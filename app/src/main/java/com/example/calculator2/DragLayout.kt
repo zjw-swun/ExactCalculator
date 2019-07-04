@@ -424,6 +424,14 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
 
         val animator = ValueAnimator.ofFloat(0f, 1f)
         animator.addListener(object : AnimatorListenerAdapter() {
+            /**
+             * Notifies the start of the animation. First we cancel any [mDragHelper] motion in
+             * progress, then we call its `smoothSlideViewTo` method to animate the [mHistoryFrame]
+             * view to a left position of 0, and a top position of 0 if [isOpen] is *true* or minus
+             * [mVerticalRange] if it is *false*.
+             *
+             * @param animation The started animation.
+             */
             override fun onAnimationStart(animation: Animator) {
                 mDragHelper.cancel()
                 mDragHelper.smoothSlideViewTo(mHistoryFrame, 0, if (isOpen) 0 else -mVerticalRange)
@@ -554,10 +562,32 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
             }
         }
 
+        /**
+         * Return the magnitude of a draggable child view's vertical range of motion in pixels. We
+         * just return our field [mVerticalRange].
+         *
+         * @param child Child view to check
+         * @return range of vertical motion in pixels
+         */
         override fun getViewVerticalDragRange(child: View): Int {
             return mVerticalRange
         }
 
+        /**
+         * Called when the user's input indicates that they want to capture the given child view
+         * with the pointer indicated by [pointerId]. The callback should return *true* if the user
+         * is permitted to drag the given view with the indicated pointer. We initialize our
+         * variable `point` to the [PointF] stored under the key [pointerId] in [mLastMotionPoints]
+         * if there is one or return *false* if it is *null*. We initialize our variable `x` to
+         * the X coordinate of `point` and `y` to the Y coordinate of `point`. We then loop over the
+         * `c` [DragCallback] in [mDragCallbacks] calling their `shouldCaptureView` methods for
+         * [view], `x`, and `y` and return *false* if any of them return *false*. If none of them
+         * return *false* we return *true* to the caller allowing the [view] to be captured.
+         *
+         * @param view Child the user is attempting to capture
+         * @param pointerId ID of the pointer attempting the capture
+         * @return *true* if capture should be allowed, *false* otherwise
+         */
         override fun tryCaptureView(view: View, pointerId: Int): Boolean {
             val point = mLastMotionPoints[pointerId] ?: return false
 
@@ -572,10 +602,32 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
             return true
         }
 
+        /**
+         * Restrict the motion of the dragged child view along the vertical axis. The default
+         * implementation does not allow vertical motion; the extending class must override this
+         * method and provide the desired clamping. We return the larger of minus [mVerticalRange]
+         * and the quantity found to be the minimum of [top] and 0.
+         *
+         * @param child Child view being dragged
+         * @param top Attempted motion along the Y axis
+         * @param dy Proposed change in position for top
+         * @return The new clamped position for top
+         */
         override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int {
             return max(min(top, 0), -mVerticalRange)
         }
 
+        /**
+         * Called when a child view is captured for dragging or settling. The ID of the pointer
+         * currently dragging the captured view is supplied. If [activePointerId] is identified
+         * as INVALID_POINTER the capture is programmatic instead of pointer-initiated. First we
+         * call our super's implementation of [onViewCaptured]. Then if our [DragLayout] is not
+         * open we set our [isOpen] property to *true* and call our [onStartDragging] to start
+         * dragging our captured view.
+         *
+         * @param capturedChild Child view that was captured
+         * @param activePointerId Pointer id tracking the child capture
+         */
         override fun onViewCaptured(capturedChild: View, activePointerId: Int) {
             super.onViewCaptured(capturedChild, activePointerId)
 
@@ -585,6 +637,36 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
             }
         }
 
+        /**
+         * Called when the child view is no longer being actively dragged. The fling velocity is
+         * also supplied, if relevant. The velocity values may be clamped to system minimums or
+         * maximums.
+         *
+         * Calling code may decide to fling or otherwise release the view to let it settle into
+         * place. It should do so using `settleCapturedViewAt(int, int)` or
+         * `flingCapturedView(int, int, int, int)`. If the Callback invokes one of these methods,
+         * the [ViewDragHelper] will enter STATE_SETTLING and the view capture will not fully end
+         * until it comes to a complete stop. If neither of these methods is invoked before
+         * [onViewReleased] returns, the view will stop in place and the [ViewDragHelper] will
+         * return to STATE_IDLE}.
+         *
+         * We initialize our variable `settleToOpen` to:
+         * - *true* when [yvel] is greater than [AUTO_OPEN_SPEED_LIMIT] (this gives higher priority
+         * to speed over position).
+         * - *false* when [yvel] is less than minus [AUTO_OPEN_SPEED_LIMIT]
+         * - or *true* the `top` of [releasedChild] is greater than half open.
+         *
+         * If `settleToOpen` is *true* and [isOpen] is *true* we call the `settleCapturedViewAt`
+         * method of [mDragHelper] to have it settle to an open (Y coordinate 0) position, other
+         * wise we have it settle to minus [mVerticalRange] (closed), and if the call to
+         * `settleCapturedViewAt` returns *true* (the animation should continue using calls to
+         * `continueSettling`) we call the [ViewCompat.postInvalidateOnAnimation] method to cause
+         * an invalidate to happen for *this* [DragLayout] on the next animation time step.
+         *
+         * @param releasedChild The captured child view now being released
+         * @param xvel X velocity of the pointer as it left the screen in pixels per second.
+         * @param yvel Y velocity of the pointer as it left the screen in pixels per second.
+         */
         override fun onViewReleased(releasedChild: View, xvel: Float, yvel: Float) {
             val settleToOpen: Boolean = when {
                 yvel > AUTO_OPEN_SPEED_LIMIT -> // Speed has priority over position.
@@ -594,19 +676,34 @@ class DragLayout(context: Context, attrs: AttributeSet) : ViewGroup(context, att
             }
 
             // If the view is not visible, then settle it closed, not open.
-            if (mDragHelper.settleCapturedViewAt(0, if (settleToOpen && isOpen)
-                        0
-                    else
-                        -mVerticalRange)) {
+            if (mDragHelper.settleCapturedViewAt(0,
+                            if (settleToOpen && isOpen) 0 else -mVerticalRange)) {
                 ViewCompat.postInvalidateOnAnimation(this@DragLayout)
             }
         }
     }
 
+    /**
+     * Our static constants.
+     */
     companion object {
-
+        /**
+         * The pixels per second speed limit used to determine whether a release of a fling should
+         * auto open our [DragLayout].
+         */
         private const val AUTO_OPEN_SPEED_LIMIT = 600.0
+        /**
+         * Key under which we store our [isOpen] property in the [Bundle] we return from our
+         * [onSaveInstanceState] override and retrieve again in our [onRestoreInstanceState]
+         * override.
+         */
         private const val KEY_IS_OPEN = "IS_OPEN"
+        /**
+         * Key under which we store the [Parcelable] object containing the state of our super that
+         * its [onSaveInstanceState] override returns in the [Bundle] we return from our
+         * [onSaveInstanceState] override and retrieve again and restore by calling our super's
+         * implementation of [onRestoreInstanceState] in our [onRestoreInstanceState] override.
+         */
         private const val KEY_SUPER_STATE = "SUPER_STATE"
     }
 }
