@@ -103,49 +103,94 @@ import kotlin.math.min
 class Evaluator internal constructor(// Context for database helper.
         private val mContext: Context) : CalculatorExpr.ExprResolver {
 
+    /**
+     * Our [CharMetricsInfo] that can be used when we are really only interested in computing
+     * short representations to be embedded on formulas.
+     */
     private val mDummyCharMetricsInfo = DummyCharMetricsInfo()
-    // To update e.g. "memory" contents, we copy the corresponding expression to a permanent
-    // index, and then remember that index.
-    private var mSavedIndex: Long = 0  // Index of "saved" expression mirroring clipboard. 0 if unused.
-    private var mMemoryIndex: Long = 0  // Index of "memory" expression. 0 if unused.
-
-    // Listener that reports changes to the state (empty/filled) of memory. Protected for testing.
+    /**
+     * Index of "saved" expression mirroring clipboard. 0 if unused.
+     */
+    private var mSavedIndex: Long = 0
+    /**
+     * To update e.g. "memory" contents, we copy the corresponding expression to a permanent index,
+     * and then remember that index. Index of "memory" expression. 0 if unused.
+     */
+    private var mMemoryIndex: Long = 0
+    /**
+     * Listener that reports changes to the state (empty/filled) of memory. Protected for testing.
+     */
     private var mCallback: Callback? = null
 
-    //  A hopefully unique name associated with mSaved.
+    /**
+     * A hopefully unique name associated with the "saved" expression mirroring clipboard, it is
+     * saved to the shared preference file under the key KEY_PREF_SAVED_NAME ("saved_name") by our
+     * [capture] method and restored by the *init* block every time a new instance of [Evaluator]
+     * is constructed.
+     */
     private var mSavedName: String? = null
 
-    // The main expression may have changed since the last evaluation in ways that would affect its
-    // value.
+    /**
+     * The main expression may have changed since the last evaluation in ways that would affect its
+     * value.
+     */
     private var mChangedValue: Boolean = false
 
-    // The main expression contains trig functions.
+    /**
+     * The main expression contains trig functions.
+     */
     private var mHasTrigFuncs: Boolean = false
 
+    /**
+     * Cache of the [ExprInfo] from our [ExpressionDB] which we have had reason to reference since
+     * we were constructed.
+     */
     private val mExprs = ConcurrentHashMap<Long, ExprInfo>()
 
-    // The database holding persistent expressions.
+    /**
+     * The database holding persistent expressions.
+     */
     private val mExprDB: ExpressionDB
 
+    /**
+     * The [ExprInfo] of the current main expression (it is stored under the key MAIN_INDEX in our
+     * [ExprInfo] cache [mExprs]).
+     */
     private var mMainExpr: ExprInfo? = null  //  == mExprs.get(MAIN_INDEX)
 
+    /**
+     * The [SharedPreferences] file which we use to persist some important state information.
+     */
     private val mSharedPrefs: SharedPreferences
 
+    /**
+     * The [Handler] which we use to schedule evaluation timeouts.
+     */
     private val mTimeoutHandler: Handler  // Used to schedule evaluation timeouts.
 
+    /**
+     * This *interface* defines callbacks which users of [Evaluator] instances can implement in
+     * order to be informed of the state of the evaluation we are performing.
+     */
     interface EvaluationListener {
         /**
          * Called if evaluation was explicitly cancelled or evaluation timed out.
+         *
+         * @param index the index of the the expression which was cancelled.
          */
         fun onCancelled(index: Long)
 
         /**
          * Called if evaluation resulted in an error.
+         *
+         * @param index the index of the the expression which was cancelled.
+         * @param errorId the resource ID of the string describing the error.
          */
         fun onError(index: Long, errorId: Int)
 
         /**
          * Called if evaluation completed normally.
+         *
          * @param index index of expression whose evaluation completed
          * @param initPrecOffset the offset used for initial evaluation
          * @param msdIndex index of first non-zero digit in the computed result string
@@ -160,6 +205,8 @@ class Evaluator internal constructor(// Context for database helper.
          * Called in response to a reevaluation request, once more precision is available.
          * Typically the listener wil respond by calling stringGet() to retrieve the new
          * better approximation.
+         *
+         * @param index the index of the the expression which was reevaluated.
          */
         fun onReevaluate(index: Long)   // More precision is now available; please redraw.
     }
@@ -174,15 +221,16 @@ class Evaluator internal constructor(// Context for database helper.
         /**
          * Return the maximum number of (adjusted, digit-width) characters that will fit in the
          * result display.  May be called asynchronously from non-UI thread.
+         *
+         * @return the maximum number of characters that will fit in the result display.
          */
         fun maxCharsGet(): Int
 
         /**
-         * Return the number of additional digit widths required to add digit separators to
-         * the supplied string prefix.
-         * The prefix consists of the first len characters of string s, which is presumed to
-         * represent a whole number. Callable from non-UI thread.
-         * Returns zero if metrics information is not yet available.
+         * Return the number of additional digit widths required to add digit separators to the
+         * supplied string prefix. The prefix consists of the first len characters of string s,
+         * which is presumed to represent a whole number. Callable from non-UI thread. Returns
+         * zero if metrics information is not yet available.
          *
          * @param s the string we are to insert digit separators into.
          * @param len the length of the prefix string in [s] we are to consider.
@@ -209,57 +257,95 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * A CharMetricsInfo that can be used when we are really only interested in computing
+     * A [CharMetricsInfo] that can be used when we are really only interested in computing
      * short representations to be embedded on formulas.
      */
     private inner class DummyCharMetricsInfo : CharMetricsInfo {
+        /**
+         * Return the maximum number of (adjusted, digit-width) characters that will fit in the
+         * result display. We just return the constant SHORT_TARGET_LENGTH (8) plus 10.
+         *
+         * @return the maximum number of characters that will fit in the result display.
+         */
         override fun maxCharsGet(): Int {
             return SHORT_TARGET_LENGTH + 10
         }
 
+        /**
+         * Return the number of additional digit widths required to add digit separators to the
+         * supplied string prefix. The prefix consists of the first len characters of string s,
+         * which is presumed to represent a whole number. We just return 0f.
+         *
+         * @param s the string we are to insert digit separators into.
+         * @param len the length of the prefix string in [s] we are to consider.
+         * @return the number of additional digit widths required to add digit separators to the
+         * supplied string prefix (the first [len] characters of the string [s] is the prefix).
+         */
         override fun separatorChars(s: String, len: Int): Float {
             return 0f
         }
 
+        /**
+         * Return extra width credit for presence of a decimal point, as fraction of a digit width.
+         * We just return 0f.
+         *
+         * @return fraction of a digit width saved by lack of a decimal point in the display
+         */
         override fun decimalCreditGet(): Float {
             return 0f
         }
 
+        /**
+         * Return extra width credit for absence of ellipsis, as fraction of a digit width.
+         * We just return 0f.
+         *
+         * @return the faction of a digit width available when there is no ellipsis in the display.
+         */
         override fun noEllipsisCreditGet(): Float {
             return 0f
         }
     }
 
     /**
-     * An individual CalculatorExpr, together with its evaluation state.
-     * Only the main expression may be changed in-place. The HISTORY_MAIN_INDEX expression is
-     * periodically reset to be a fresh immutable copy of the main expression.
-     * All other expressions are only added and never removed. The expressions themselves are
-     * never modified.
-     * All fields other than mExpr and mVal are touched only by the UI thread.
-     * For MAIN_INDEX, mExpr and mVal may change, but are also only ever touched by the UI thread.
-     * For all other expressions, mExpr does not change once the ExprInfo has been (atomically)
-     * added to mExprs. mVal may be asynchronously set by any thread, but we take care that it
-     * does not change after that. mDegreeMode is handled exactly like mExpr.
+     * An individual [CalculatorExpr], together with its evaluation state. Only the main expression
+     * may be changed in-place. The HISTORY_MAIN_INDEX expression is periodically reset to be a
+     * fresh immutable copy of the main expression. All other expressions are only added and never
+     * removed. The expressions themselves are never modified.
+     *
+     * All fields other than [mExpr] and [mVal] are touched only by the UI thread. For MAIN_INDEX,
+     * [mExpr] and [mVal] may change, but are also only ever touched by the UI thread. For all other
+     * expressions, [mExpr] does not change once the [ExprInfo] has been (atomically) added to
+     * [mExprs]. [mVal] may be asynchronously set by any thread, but we take care that it
+     * does not change after that. [mDegreeMode] is handled exactly like [mExpr].
      */
     inner class ExprInfo(var mExpr: CalculatorExpr  // The expression itself.
                                  , var mDegreeMode: Boolean  // Evaluating in degree, not radian, mode.
     ) {
 
-        // Currently running expression evaluator, if any.  This is either an AsyncEvaluator
-        // (if mResultString == null or it's obsolete), or an AsyncReevaluator.
-        // We arrange that only one evaluator is active at a time, in part by maintaining
-        // two separate ExprInfo structure for the main and history view, so that they can
-        // arrange for independent evaluators.
+        /**
+         * Currently running expression evaluator, if any.  This is either an [AsyncEvaluator]
+         * (if [mResultString] == *null* or it's obsolete), or an [AsyncReevaluator].
+         * We arrange that only one evaluator is active at a time, in part by maintaining
+         * two separate [ExprInfo] structure for the main and history view, so that they can
+         * arrange for independent evaluators.
+         */
         var mEvaluator: AsyncTask<*, *, *>? = null
 
         // The remaining fields are valid only if an evaluation completed successfully.
-        // mVal always points to an AtomicReference, but that may be null.
+
+        /**
+         * [mVal] always points to an [AtomicReference], but that may be null. This is the
+         * [UnifiedReal] that results from evaluating our expression using the `eval` method
+         * of [CalculatorExpr].
+         */
         var mVal: AtomicReference<UnifiedReal> = AtomicReference()
-        // We cache the best known decimal result in mResultString.  Whenever that is
-        // non-null, it is computed to exactly mResultStringOffset, which is always > 0.
-        // Valid only if mResultString is non-null and (for the main expression) !mChangedValue.
-        // ERRONEOUS_RESULT indicates evaluation resulted in an error.
+
+        /**
+         * We cache the best known decimal result in [mResultString]. Whenever that is non-null, it
+         * is computed to exactly [mResultStringOffset], which is always > 0. Valid only if
+         * [mResultString] is non-null and (for the main expression) [mChangedValue] is *false*.
+         * ERRONEOUS_RESULT indicates evaluation resulted in an error.
+         */
         var mResultString: String? = null
         var mResultStringOffset = 0
         // Number of digits to which (possibly incomplete) evaluation has been requested.
@@ -341,7 +427,7 @@ class Evaluator internal constructor(// Context for database helper.
      */
     class InitialResult {
         val errorResourceId: Int    // Error string or INVALID_RES_ID.
-        val `val`: UnifiedReal        // Constructive real value.
+        val unifiedReal: UnifiedReal        // Constructive real value.
         val newResultString: String       // Null iff it can't be computed.
         val newResultStringOffset: Int
         val initDisplayOffset: Int
@@ -350,7 +436,7 @@ class Evaluator internal constructor(// Context for database helper.
 
         internal constructor(v: UnifiedReal, s: String, p: Int, idp: Int) {
             errorResourceId = Calculator2.INVALID_RES_ID
-            `val` = v
+            unifiedReal = v
             newResultString = s
             newResultStringOffset = p
             initDisplayOffset = idp
@@ -358,7 +444,7 @@ class Evaluator internal constructor(// Context for database helper.
 
         internal constructor(errorId: Int) {
             errorResourceId = errorId
-            `val` = UnifiedReal.ZERO
+            unifiedReal = UnifiedReal.ZERO
             newResultString = "BAD"
             newResultStringOffset = 0
             initDisplayOffset = 0
@@ -574,7 +660,7 @@ class Evaluator internal constructor(// Context for database helper.
             // TODO: Could optimize by remembering display size and checking for change.
             var initPrecOffset = result.initDisplayOffset
             mExprInfo.mMsdIndex = msdIndexOfGet(mExprInfo.mResultString!!)
-            val leastDigOffset = lsdOffsetGet(result.`val`, mExprInfo.mResultString,
+            val leastDigOffset = lsdOffsetGet(result.unifiedReal, mExprInfo.mResultString,
                     dotIndex)
             val newInitPrecOffset = preferredPrecGet(mExprInfo.mResultString!!,
                     mExprInfo.mMsdIndex, leastDigOffset, mCharMetricsInfo)
@@ -841,10 +927,8 @@ class Evaluator internal constructor(// Context for database helper.
         val truncatedWholePart = ei.mResultString!!.substring(0, dotIndex)
         val leastDigOffset = lsdOffsetGet(ei.mVal.get(), ei.mResultString, dotIndex)
         val msdIndex = msdIndexGet(index)
-        val preferredPrecOffset = preferredPrecGet(ei.mResultString!!, msdIndex,
-                leastDigOffset, cmi)
-        listener?.onEvaluate(index, preferredPrecOffset, msdIndex, leastDigOffset,
-                truncatedWholePart)
+        val preferredPrecOffset = preferredPrecGet(ei.mResultString!!, msdIndex, leastDigOffset, cmi)
+        listener?.onEvaluate(index, preferredPrecOffset, msdIndex, leastDigOffset, truncatedWholePart)
     }
 
     /**
@@ -991,12 +1075,12 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Restore the evaluator state, including the current expression.
      */
-    fun restoreInstanceState(`in`: DataInput) {
+    fun restoreInstanceState(dataInput: DataInput) {
         mChangedValue = true
         try {
-            mMainExpr!!.mDegreeMode = `in`.readBoolean()
-            mMainExpr!!.mLongTimeout = `in`.readBoolean()
-            mMainExpr!!.mExpr = CalculatorExpr(`in`)
+            mMainExpr!!.mDegreeMode = dataInput.readBoolean()
+            mMainExpr!!.mLongTimeout = dataInput.readBoolean()
+            mMainExpr!!.mExpr = CalculatorExpr(dataInput)
             mHasTrigFuncs = hasTrigFuncs()
         } catch (e: IOException) {
             Log.v("Calculator", "Exception while restoring:\n$e")
@@ -1132,13 +1216,13 @@ class Evaluator internal constructor(// Context for database helper.
      * Add the expression described by the argument to the database.
      * Returns the new row id in the database.
      * Fills in timestamp in ei, if it was not previously set.
-     * If in_history is true, add it with a positive index, so it will appear in the history.
+     * If inHistory is true, add it with a positive index, so it will appear in the history.
      */
-    private fun addToDB(in_history: Boolean, ei: ExprInfo): Long {
+    private fun addToDB(inHistory: Boolean, ei: ExprInfo): Long {
         val serializedExpr = ei.mExpr.toBytes()
         val rd = ExpressionDB.RowData(serializedExpr, ei.mDegreeMode,
                 ei.mLongTimeout, 0)
-        val resultIndex = mExprDB.addRow(!in_history, rd)
+        val resultIndex = mExprDB.addRow(!inHistory, rd)
         if (mExprs[resultIndex] != null) {
             throw AssertionError("result slot already occupied! + Slot = $resultIndex")
         }
@@ -1152,18 +1236,18 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Preserve a copy of the expression at old_index at a new index.
-     * This is useful only of old_index is MAIN_INDEX or HISTORY_MAIN_INDEX.
+     * Preserve a copy of the expression at oldIndex at a new index.
+     * This is useful only of oldIndex is MAIN_INDEX or HISTORY_MAIN_INDEX.
      * This assumes that initial evaluation completed successfully.
-     * @param in_history use a positive index so the result appears in the history.
+     * @param inHistory use a positive index so the result appears in the history.
      * @return the new index
      */
-    fun preserve(old_index: Long, in_history: Boolean): Long {
-        val ei = copy(old_index, true)
+    fun preserve(oldIndex: Long, inHistory: Boolean): Long {
+        val ei = copy(oldIndex, true)
         if (ei.mResultString == null || ei.mResultString == ERRONEOUS_RESULT) {
             throw AssertionError("Preserving unevaluated expression")
         }
-        return addToDB(in_history, ei)
+        return addToDB(inHistory, ei)
     }
 
     /**
@@ -1719,16 +1803,16 @@ class Evaluator internal constructor(// Context for database helper.
 
         /**
          * Return the rightmost nonzero digit position, if any.
-         * @param val UnifiedReal value of result.
+         * @param value UnifiedReal value of result.
          * @param cache Current cached decimal string representation of result.
          * @param decIndex Index of decimal point in cache.
          * @return Position of rightmost nonzero digit relative to decimal point.
          * Integer.MIN_VALUE if we cannot determine.  Integer.MAX_VALUE if there is no lsd,
          * or we cannot determine it.
          */
-        internal fun lsdOffsetGet(`val`: UnifiedReal, cache: String?, decIndex: Int): Int {
-            if (`val`.definitelyZero()) return Integer.MIN_VALUE
-            var result = `val`.digitsRequired()
+        internal fun lsdOffsetGet(value: UnifiedReal, cache: String?, decIndex: Int): Int {
+            if (value.definitelyZero()) return Integer.MIN_VALUE
+            var result = value.digitsRequired()
             if (result == 0) {
                 var i: Int = -1
                 while (decIndex + i > 0 && cache!![decIndex + i] == '0') {
