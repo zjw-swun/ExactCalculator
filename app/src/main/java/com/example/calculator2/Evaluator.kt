@@ -347,30 +347,60 @@ class Evaluator internal constructor(// Context for database helper.
          * ERRONEOUS_RESULT indicates evaluation resulted in an error.
          */
         var mResultString: String? = null
+        /**
+         * Number of significant digits in [mResultString].
+         */
         var mResultStringOffset = 0
-        // Number of digits to which (possibly incomplete) evaluation has been requested.
-        // Only accessed by UI thread.
+        /**
+         * Number of digits to which (possibly incomplete) evaluation has been requested.
+         * Only accessed by UI thread.
+         */
         var mResultStringOffsetReq = 0
-        // Position of most significant digit in current cached result, if determined.  This is just
-        // the index in mResultString holding the msd.
+        /**
+         * Position of most significant digit in current cached result, if determined.  This is just
+         * the index in [mResultString] holding the msd.
+         */
         var mMsdIndex = INVALID_MSD
-        // Long timeout needed for evaluation?
+        /**
+         * Long timeout needed for evaluation?
+         */
         var mLongTimeout = false
+        /**
+         * Time in milliseconds when the expression we are the [Evaluator] for is stored to the
+         * database when the `addRow` method of [ExpressionDB] calls the `toContentValues` method
+         * to convert us to a `ContentValues` instance.
+         */
         var mTimeStamp: Long = 0
 
     }
 
-    private fun setMainExpr(expr: ExprInfo) {
-        mMainExpr = expr
-        mExprs[MAIN_INDEX] = expr
-    }
-
+    /**
+     * Our *init* block. First we call our `setMainExpr` method to initialize our field `mMainExpr`
+     * to a new instance of `ExprInfo` constructed using a new instance  of `CalculatorExpr` and
+     * *false* for its degree mode (ie. radian mode). We initialize our field `mSavedName` to the
+     * string "none", initialize our field `mTimeoutHandler` to a new instance of `Handler` and
+     * initialize our field `mExprDB` to a new instance of `ExpressionDB`.
+     *
+     * We then initialize our field `mSharedPrefs` to the default `SharedPreferences` file for our
+     * application. We use `mSharedPrefs` to retrieve the `Boolean` stored under the key
+     * KEY_PREF_DEGREE_MODE in the database and use it to initialize the `mDegreeMode` field of
+     * `mMainExpr`, defaulting to *false*. We initialize our variable `savedIndex` to the `Long`
+     * value store under the key KEY_PREF_SAVED_INDEX defaulting to 0L, and `memoryIndex` to the
+     * `Long` stored under the key KEY_PREF_MEMORY_INDEX defaulting to 0L. If `savedIndex` is not
+     * equal to 0L and not equal to -1L we call our `setSavedIndexWhenEvaluated` method to set
+     * `mSavedIndex` (not the persistent version) to `savedIndex` when we finish evaluating our
+     * expression. If `memoryIndex` is not equal to 0L and not equal to -1L we call our method
+     * `setMemoryIndexWhenEvaluated` to have us set `mMemoryIndex` to `memoryIndex` (without
+     * updating the persistent version) when we finish evaluating our expression. Finally we
+     * initialize our field `mSavedName` by retrieving the string stored under the key
+     * KEY_PREF_SAVED_NAME defaulting to "none".
+     */
     init {
-        setMainExpr(ExprInfo(CalculatorExpr(), false))
+        setMainExpr(ExprInfo(CalculatorExpr(),false))
         mSavedName = "none"
         mTimeoutHandler = Handler()
-
         mExprDB = ExpressionDB(mContext)
+
         mSharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext)
         mMainExpr!!.mDegreeMode = mSharedPrefs.getBoolean(KEY_PREF_DEGREE_MODE, false)
         val savedIndex = mSharedPrefs.getLong(KEY_PREF_SAVED_INDEX, 0L)
@@ -385,29 +415,46 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Retrieve minimum expression index.
-     * This is the minimum over all expressions, including uncached ones residing only
-     * in the data base. If no expressions with negative indices were preserved, this will
-     * return a small negative predefined constant.
-     * May be called from any thread, but will block until the database is opened.
+     * Sets our field [mMainExpr] to the [ExprInfo] in our parameter [expr] and stores [expr] in our
+     * [mExprs] cache under the key MAIN_INDEX.
+     *
+     * @param expr the [ExprInfo] we are to be the [Evaluator] for.
+     */
+    private fun setMainExpr(expr: ExprInfo) {
+        mMainExpr = expr
+        mExprs[MAIN_INDEX] = expr
+    }
+
+    /**
+     * Retrieve minimum expression index. This is the minimum over all expressions, including
+     * uncached ones residing only in the data base. If no expressions with negative indices were
+     * preserved, this will return a small negative predefined constant. May be called from any
+     * thread, but will block until the database is opened. We just return the value that our field
+     * [mExprDB] returns for its field `mMinIndex`.
+     *
+     * @return the minimum index value in our [ExpressionDB].
      */
     fun minIndexGet(): Long {
         return mExprDB.minIndex
     }
 
     /**
-     * Retrieve maximum expression index.
-     * This is the maximum over all expressions, including uncached ones residing only
-     * in the data base. If no expressions with positive indices were preserved, this will
-     * return 0.
-     * May be called from any thread, but will block until the database is opened.
+     * Retrieve maximum expression index. This is the maximum over all expressions, including
+     * uncached ones residing only in the data base. If no expressions with positive indices were
+     * preserved, this will return 0. May be called from any thread, but will block until the
+     * database is opened. We just return the value that our field [mExprDB] returns for its field
+     * `mMaxIndex`.
+     *
+     * @return the maximum index value in our [ExpressionDB].
      */
     fun maxIndexGet(): Long {
         return mExprDB.maxIndex
     }
 
     /**
-     * Set the Callback for showing dialogs and notifying the UI about memory state changes.
+     * Set the Callback for showing dialogs and notifying the UI about memory state changes. We just
+     * store our parameter [callback] in our [Callback] field [mCallback].
+     *
      * @param callback the Callback we should call
      */
     fun setCallback(callback: Callback) {
@@ -415,7 +462,13 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Does the expression index refer to a transient and mutable expression?
+     * Does the expression at index [index] refer to a transient and mutable expression? Only the
+     * current expression in the calculator display is mutable, and there are two indices which
+     * point to it: MAIN_INDEX is the expression in the calculator display and HISTORY_MAIN_INDEX
+     * is the copy of that expression displayed in the `RecyclerView` of the [HistoryFragment].
+     *
+     * @param index the index of the expression to test.
+     * @return *true* if [index] is MAIN_INDEX or HISTORY_MAIN_INDEX
      */
     private fun isMutableIndex(index: Long): Boolean {
         return index == MAIN_INDEX || index == HISTORY_MAIN_INDEX
@@ -607,8 +660,7 @@ class Evaluator internal constructor(// Context for database helper.
                     }
                 }
                 val lsdOffset = lsdOffsetGet(res, initResult, initResult.indexOf('.'))
-                val initDisplayOffset = preferredPrecGet(initResult, msd, lsdOffset,
-                        mCharMetricsInfo)
+                val initDisplayOffset = preferredPrecGet(initResult, msd, lsdOffset, mCharMetricsInfo)
                 val newPrecOffset = initDisplayOffset + EXTRA_DIGITS
                 if (newPrecOffset > precOffset) {
                     precOffset = newPrecOffset
@@ -1220,8 +1272,7 @@ class Evaluator internal constructor(// Context for database helper.
      */
     private fun addToDB(inHistory: Boolean, ei: ExprInfo): Long {
         val serializedExpr = ei.mExpr.toBytes()
-        val rd = ExpressionDB.RowData(serializedExpr, ei.mDegreeMode,
-                ei.mLongTimeout, 0)
+        val rd = ExpressionDB.RowData(serializedExpr, ei.mDegreeMode, ei.mLongTimeout, 0)
         val resultIndex = mExprDB.addRow(!inHistory, rd)
         if (mExprs[resultIndex] != null) {
             throw AssertionError("result slot already occupied! + Slot = $resultIndex")
