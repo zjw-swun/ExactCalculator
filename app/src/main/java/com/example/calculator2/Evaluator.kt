@@ -475,18 +475,47 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Result of initial asynchronous result computation.
-     * Represents either an error or a result computed to an initial evaluation precision.
+     * Result of initial asynchronous result computation. Represents either an error or a result
+     * computed to an initial evaluation precision.
      */
     class InitialResult {
-        val errorResourceId: Int    // Error string or INVALID_RES_ID.
-        val unifiedReal: UnifiedReal        // Constructive real value.
-        val newResultString: String       // Null iff it can't be computed.
+        /**
+         * Resource ID of an error string or INVALID_RES_ID.
+         */
+        val errorResourceId: Int
+        /**
+         * Constructive real value of this initial result.
+         */
+        val unifiedReal: UnifiedReal
+        /**
+         * Truncated [String] representation of the result. Null iff it can't be computed.
+         */
+        val newResultString: String
+        /**
+         * Precision "offset" of [newResultString]
+         */
         val newResultStringOffset: Int
+        /**
+         * Preferred precision "offset" for the currently displayed result.
+         */
         val initDisplayOffset: Int
+        /**
+         * Flag indicating that we contain an error instead of a numerical result.
+         */
         internal val isError: Boolean
             get() = errorResourceId != Calculator2.INVALID_RES_ID
 
+        /**
+         * Our constructor which is used to return a good preliminary result from the background
+         * [AsyncEvaluator] task. We just store our parameters in their appropriate fields, and set
+         * our field [errorResourceId] to the special value INVALID_RES_ID so that our [isError]
+         * method know our result is a valid one.
+         *
+         * @param v [UnifiedReal] value we will contain.
+         * @param s [String] representation of our value.
+         * @param p Display precision "offset" of our [String] representation.
+         * @param idp Preferred precision "offset" for displaying us as a result.
+         */
         internal constructor(v: UnifiedReal, s: String, p: Int, idp: Int) {
             errorResourceId = Calculator2.INVALID_RES_ID
             unifiedReal = v
@@ -495,6 +524,13 @@ class Evaluator internal constructor(// Context for database helper.
             initDisplayOffset = idp
         }
 
+        /**
+         * The constructor for use when an error occurs during evaluation by [AsyncEvaluator]. We
+         * store our parameter in our field [errorResourceId], and set our other fields to error
+         * values.
+         *
+         * @param errorId the resource ID of an appropriate error message.
+         */
         internal constructor(errorId: Int) {
             errorResourceId = errorId
             unifiedReal = UnifiedReal.ZERO
@@ -504,6 +540,10 @@ class Evaluator internal constructor(// Context for database helper.
         }
     }
 
+    /**
+     * Calls the `showMessageDialog` method of our callback [mCallback] if it is not null in order
+     * to pop up a dialog to inform the user that evaluation has been cancelled.
+     */
     private fun displayCancelledMessage() {
         if (mCallback != null) {
             mCallback!!.showMessageDialog(0, R.string.cancelled, 0, null)
@@ -511,29 +551,43 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     // Timeout handling.
-    // Expressions are evaluated with a sort timeout or a long timeout.
+    // Expressions are evaluated with a short timeout or a long timeout.
     // Each implies different maxima on both computation time and bit length.
     // We recheck bit length separately to avoid wasting time on decimal conversions that are
     // destined to fail.
 
     /**
-     * Return the timeout in milliseconds.
+     * Return the timeout in milliseconds. This is the timeout used to schedule [mTimeoutHandler]
+     * running of `mTimeoutRunnable` to timeout execution by cancelling the [AsyncEvaluator].
+     *
      * @param longTimeout a long timeout is in effect
+     * @return If [longTimeout] is *true* we return 15,000 milliseconds, if *false* we return 2,000.
      */
     private fun timeoutGet(longTimeout: Boolean): Long {
-        return (if (longTimeout) 15000 else 2000).toLong()
+        return (if (longTimeout) 15_000 else 2_000).toLong()
         // Exceeding a few tens of seconds increases the risk of running out of memory
         // and impacting the rest of the system.
     }
 
     /**
-     * Return the maximum number of bits in the result.  Longer results are assumed to time out.
+     * Return the maximum number of bits in the result. Longer results are assumed to time out.
+     *
      * @param longTimeout a long timeout is in effect
+     * @return If [longTimeout] is *true* we return 700,000 bits, if *false* we return 240,000.
      */
     private fun maxResultBitsGet(longTimeout: Boolean): Int {
-        return if (longTimeout) 700000 else 240000
+        return if (longTimeout) 700_000 else 240_000
     }
 
+    /**
+     * Calls the `showMessageDialog` method of our callback [mCallback] if it is not null in order
+     * to pop up a dialog to inform the user that evaluation has timed out, and if [longTimeout] is
+     * *false* the dialog will also display the button "Use longer timeouts" which will allow the
+     * user to increase the maximum amount of time we attempt to evaluate the expression before
+     * "timing out".
+     *
+     * @param longTimeout a long timeout is in effect
+     */
     private fun displayTimeoutMessage(longTimeout: Boolean) {
         if (mCallback != null) {
             mCallback!!.showMessageDialog(R.string.dialog_timeout, R.string.timeout,
@@ -541,6 +595,10 @@ class Evaluator internal constructor(// Context for database helper.
         }
     }
 
+    /**
+     * Setter for the `mLongTimeout` field of our [mMainExpr], it is called when the user decides to
+     * increase the maximum amount of time we attempt to evaluate the expression before "timing out".
+     */
     fun setLongTimeout() {
         mMainExpr!!.mLongTimeout = true
     }
@@ -548,21 +606,37 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Compute initial cache contents and result when we're good and ready.
      * We leave the expression display up, with scrolling disabled, until this computation
-     * completes.  Can result in an error display if something goes wrong.  By default we set a
+     * completes. Can result in an error display if something goes wrong. By default we set a
      * timeout to catch runaway computations.
      */
     @SuppressLint("StaticFieldLeak")
-    internal inner class AsyncEvaluator(private val mIndex: Long  //  Expression index.
-                                        , private val mListener: EvaluationListener?  // Completion callback.
-                                        , private val mCharMetricsInfo: CharMetricsInfo  // Where to get result size information.
-                                        , private val mDm: Boolean  // degrees
-                                        ,
+    internal inner class AsyncEvaluator(private val mIndex: Long, // Expression index.
+                                        private val mListener: EvaluationListener?, // Completion callback.
+                                        private val mCharMetricsInfo: CharMetricsInfo, // Where to get result size information.
+                                        private val mDm: Boolean, // degrees
                                         var mRequired: Boolean // Result was requested by user.
     ) : AsyncTask<Void, Void, InitialResult>() {
-        private var mQuiet: Boolean = false  // Suppress cancellation message.
+        /**
+         * Suppress cancellation message if *true*.
+         */
+        private var mQuiet: Boolean = false
+        /**
+         * The [Runnable] that is scheduled to run when a timeout is reached.
+         */
         private var mTimeoutRunnable: Runnable? = null
-        private val mExprInfo: ExprInfo?  // Current expression.
+        /**
+         * Current expression.
+         */
+        private val mExprInfo: ExprInfo?
 
+        /**
+         * Our *init* block. We set our `mQuiet` field to *true* if our `mRequired` field is *false*
+         * (the user has not requested a result) or if our `mIndex` field is not the MAIN_INDEX
+         * index value (the current calculator display is the MAIN_INDEX). We set our current
+         * expression field `mExprInfo` to the `ExprInfo` stored under key `mIndex` in `mExprs`.
+         * If the `mEvaluator` field of `mExprInfo` is not *null* we throw an AssertionError:
+         * "Evaluation already in progress!".
+         */
         init {
             mQuiet = !mRequired || mIndex != MAIN_INDEX
             mExprInfo = mExprs[mIndex]
@@ -572,6 +646,21 @@ class Evaluator internal constructor(// Context for database helper.
             }
         }
 
+        /**
+         * This is called by the [mTimeoutRunnable] which is scheduled to run in our [onPreExecute]
+         * override, and handles timeouts. First we initialize our variable `running` to *true* if
+         * our `status` property is not FINISHED (if our status is FINISHED our [onPostExecute]
+         * override has finished and since it removes all [mTimeoutRunnable] callbacks early in its
+         * execution this would be odd). Then if `running` is *true* and the `cancel` method returns
+         * *true* indicating that it was able to cancel this [AsyncEvaluator] we:
+         * - We set the `mEvaluator` field of the [ExprInfo] stored under key [mIndex] in [mExprs]
+         * to *null*.
+         * - If our [mRequired] field is *true*, and [mIndex] is the MAIN_INDEX we set the `mExpr`
+         * field of [mMainExpr] to a clone of its current `mExpr` field, call our
+         * `suppressCancelMessage` method to suppress the "cancelled" dialog by setting our [mQuiet]
+         * field to *true*, and then call our [displayTimeoutMessage] method with the `mLongTimeout`
+         * field of [mExprInfo] to display the "timed out" dialog.
+         */
         private fun handleTimeout() {
             // Runs in UI thread.
             val running = status != Status.FINISHED
@@ -587,10 +676,26 @@ class Evaluator internal constructor(// Context for database helper.
             }
         }
 
+        /**
+         * Suppresses the "cancelled" dialog by setting our [mQuiet] field to *true*.
+         */
         fun suppressCancelMessage() {
             mQuiet = true
         }
 
+        /**
+         * Runs on the UI thread before [doInBackground]. We initialize our variable `timeout` to
+         * the value returned by our [timeoutGet] method for the `mLongTimeout` field of [mExprInfo]
+         * if our [mRequired] field is *true* (the user has requested evaluation) or to the value
+         * QUICK_TIMEOUT (1,000 milliseconds) if it is *false*. Then if [mIndex] is not MAIN_INDEX
+         * we set `timeout` to NON_MAIN_TIMEOUT (100,000 milliseconds) since the expression had been
+         * evaluated before with the current timeout so we evaluate it with this ridiculously long
+         * timeout to avoid running down the battery if something does go wrong.
+         *
+         * Next we initialize [mTimeoutRunnable] with a [Runnable] whose lambda calls our method
+         * [handleTimeout], remove all [mTimeoutRunnable] callbacks from [mTimeoutHandler] then
+         * have [mTimeoutHandler] schedule [mTimeoutRunnable] to run after `timeout` milliseconds.
+         */
         override fun onPreExecute() {
             var timeout = if (mRequired) timeoutGet(mExprInfo!!.mLongTimeout) else QUICK_TIMEOUT
             if (mIndex != MAIN_INDEX) {
