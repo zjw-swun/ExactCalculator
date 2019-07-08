@@ -711,7 +711,16 @@ class Evaluator internal constructor(// Context for database helper.
         }
 
         /**
-         * Is a computed result too big for decimal conversion?
+         * Is a computed result too big for decimal conversion? If our field [mRequired] is *true*
+         * (the user has requested a result) we initialize our variable `maxBits` to the value
+         * returned by our [maxResultBitsGet] method for the `mLongTimeout` value of [mExprInfo]
+         * (this is 700_000 if it is *true* or 240_000 if *false*), and if [mRequired] is *false*
+         * we initialize it to QUICK_MAX_RESULT_BITS (150_000). We then return the value returned
+         * by the `approxWholeNumberBitsGreaterThan` method of [res] for `maxBits` (this returns
+         * *true* if the number of bits to the left of the decimal point is greater than `maxBits`).
+         *
+         * @param res the [UnifiedReal] result we are to check for size.
+         * @return *true* is [res] is too big for decimal conversion.
          */
         private fun isTooBig(res: UnifiedReal): Boolean {
             val maxBits = if (mRequired)
@@ -721,6 +730,67 @@ class Evaluator internal constructor(// Context for database helper.
             return res.approxWholeNumberBitsGreaterThan(maxBits)
         }
 
+        /**
+         * Override this method to perform a computation on a background thread. We initialize our
+         * variable `res` by fetching the [UnifiedReal] held by the `mVal` field of [mExprInfo] (if
+         * there is one). If `res` is *null*, we set `res` to the [UnifiedReal] returned by the
+         * `eval` method of the `mExpr` field of [mExprInfo] for the degree mode of [mDm] using
+         * *this* as the [Evaluator] (this is all wrapped in a try block intended to catch
+         * StackOverflowError in which case we return an [InitialResult] reporting "Value may be
+         * infinite or undefined"). If we were cancelled while executing `eval` we throw
+         * AbortedException, otherwise we call our [putResultIfAbsent] method to update the `mVal`
+         * field of the [Evaluator.ExprInfo] stored under index [mIndex] with `res` if it is not
+         * already set (if it was already set `res` is set to the value stored there on return).
+         *
+         * If our method [isTooBig] decides `res` is too big for decimal conversion we return an
+         * [InitialResult] reporting the error "Value may be infinite or undefined". Otherwise we
+         * initialize our variable `precOffset` to INIT_PREC, initialize our variable `initResult`
+         * to the truncated string representation of `res` truncated to `precOffset`, and initialize
+         * our variable `msd` to the most significant digit index of `initResult` that our
+         * [msdIndexOfGet] method returns. If `msd` is the value INVALID_MSD ([Integer.MAX_VALUE],
+         * which indicates that there are not enough digits to prove the numeric value is different
+         * from zero) we so some additional processing in order to try to get a valid `msd`:
+         * - We initialize our variable `leadingZeroBits` to the upper bound on the number of
+         * leading zero bits returned by the `leadingBinaryZeroes` method of `res`.
+         * - If this is less than QUICK_MAX_RESULT_BITS (150_000) we set `precOffset` to 30 plus
+         * `leadingZeroBits` times the log of 2 divided by the log of 10, set `initResult` to the
+         * string representation of `res` truncated to `precOffset`, and set `msd` to the most
+         * significant digit index of `initResult` that our [msdIndexOfGet] method returns (if `msd`
+         * is still INVALID_MSD we throw an AssertionError).
+         * - If `leadingZeroBits` was greater than or equal to QUICK_MAX_RESULT_BITS, we just set
+         * `precOffset` to MAX_MSD_PREC_OFFSET (1_100), set `initResult` to the string representation
+         * of `res` truncated to `precOffset`, and set `msd` to the most significant digit index of
+         * `initResult` that our [msdIndexOfGet] method returns.
+         *
+         * We next initialize our variable `lsdOffset` to the rightmost nonzero digit position that
+         * is returned by our [lsdOffsetGet] method for `res`, `initResult`, and the location of the
+         * first '.' character in `initResult`, we initialize our variable `initDisplayOffset` to the
+         * value returned by our [preferredPrecGet] method returns as the preferred precision
+         * "offset" for the currently displayed result for `initResult` as the current string
+         * approximation, `msd` as the most significant digit, `lsdOffset` as the least significant
+         * digit, and [mCharMetricsInfo] as the [CharMetricsInfo] the is to be used. We intialize
+         * our variable `newPrecOffset` to `initDisplayOffset` plus EXTRA_DIGITS and if this is
+         * greater than `precOffset` we set `precOffset` to `newPrecOffset`, and set `initResult`
+         * to the string representation of `res` truncated to `precOffset`.
+         *
+         * Finally we return an [InitialResult] constructed to hold `res` as its [UnifiedReal] value,
+         * `initResult` as the [String] representation of its value, `precOffset` as the precision
+         * "offset" of our [String] representation, and `initDisplayOffset` as the preferred precision
+         * "offset" for displaying as a result.
+         *
+         * The above is all wrapped in a *try* block with five *catch* blocks:
+         * - [CalculatorExpr.SyntaxException] we return the error [InitialResult] "Bad expression"
+         * - [UnifiedReal.ZeroDivisionException] we return the error [InitialResult] "Can't divide by 0"
+         * - [ArithmeticException] we return the error [InitialResult] "Not a number"
+         * - [CR.PrecisionOverflowException] we return the error [InitialResult] "Infinite?"
+         * - [CR.AbortedException] we return the error [InitialResult] "Aborted"
+         *
+         * @param nothing The parameters of the task (there are none).
+         * @return An [InitialResult] instance constructed to hold either the resource ID of an
+         * error string if an error occurred or the [UnifiedReal] that results from evaluating the
+         * expression in our [mExprInfo], a string representation of this value and precision
+         * "offset" information.
+         */
         override fun doInBackground(vararg nothing: Void): InitialResult {
             try {
                 // mExpr does not change while we are evaluating; thus it's OK to read here.
@@ -744,6 +814,7 @@ class Evaluator internal constructor(// Context for database helper.
                     // Avoid starting a long un-interruptible decimal conversion.
                     return InitialResult(R.string.timeout)
                 }
+
                 var precOffset = INIT_PREC
                 var initResult = res.toStringTruncated(precOffset)
                 var msd = msdIndexOfGet(initResult)
@@ -787,6 +858,52 @@ class Evaluator internal constructor(// Context for database helper.
 
         }
 
+        /**
+         * Runs on the UI thread after [doInBackground]. The specified result is the value returned
+         * by [doInBackground]. First we set the `mEvaluator` field of [mExprInfo] to *null*, and
+         * remove all [mTimeoutRunnable] runnables from the queue of [mTimeoutHandler]. If our
+         * [result] is an [InitialResult] which contains only the resource ID of an error string
+         * (its `isError` method returns *true*) we branch on whether the `errorResourceId` field
+         * of [result] is for a timeout (R.string.timeout):
+         * - It was a timeout: If our [mRequired] field is *true* (user requested a result) and our
+         * [mIndex] field is MAIN_INDEX we call our [displayTimeoutMessage] method with the value
+         * of the `mLongTimeout` of the [ExprInfo] in [mExprs] at index [mIndex] in order to ask
+         * the user if he wants to try a longer timeout value. We then call the `onCancelled` method
+         * of [mListener] to report the cancelled evaluation.
+         * - A different error: if our [mRequired] field is *true* we set the `mResultString` field
+         * of [mExprInfo] to ERRONEOUS_RESULT ("ERR"), then we call the `onError` method of
+         * [mListener] with [mIndex] and the `errorResourceId` field of [result].
+         *
+         * No matter which error we just return now.
+         *
+         * If [result] is not an error we set the `mResultString` field of [mExprInfo] to the
+         * `newResultString` field of [result], and the `mResultStringOffset` field to the
+         * `newResultStringOffset` field of [result]. We initialize our variable `dotIndex` to the
+         * index of the first '.' character in the `mResultString` field of [mExprInfo], and our
+         * variable `truncatedWholePart` to the substring of the `mResultString` field of
+         * [mExprInfo] between index 0 and index `dotIndex`. We initialize our variable
+         * `initPrecOffset` to the `initDisplayOffset` field of [result], then set the `mMsdIndex`
+         * field of [mExprInfo] to the most significant digit index returned by our [msdIndexOfGet]
+         * method for the `mResultString` field of [mExprInfo]. We then initialize our variable
+         * `leastDigOffset` to the index of the rightmost nonzero digit position returned by our
+         * [lsdOffsetGet] method for the [UnifiedReal] in the `unifiedReal` field of [result], the
+         * current cached decimal string representation in the `mResultString` field of [mExprInfo],
+         * and index of decimal point given by `dotIndex`. We then initialize our variable
+         * `newInitPrecOffset` to the preferred precision "offset" for the currently displayed result
+         * returned by our [preferredPrecGet] method for the `mResultString` field of [mExprInfo],
+         * its `mMsdIndex` field, with `leastDigOffset` as the position of the least significant
+         * digit, and [mCharMetricsInfo] as the [CharMetricsInfo] in use. If `newInitPrecOffset` is
+         * less than `initPrecOffset` we set `initPrecOffset` to `newInitPrecOffset` (if not we just
+         * log this anomaly). Finally we call `onEvaluate` override of [mListener] with [mIndex] as
+         * the index of the expression whose evaluation completed, `initPrecOffset` as the offset
+         * used for initial evaluation, the `mMsdIndex` field of [mExprInfo] as the index of the
+         * first non-zero digit in the computed result string, `leastDigOffset` as the offset of the
+         * last digit in the result if result has finite decimal expansion, and `truncatedWholePart`
+         * as the integer part of the result.
+         *
+         * @param result an [InitialResult] instance containing either the resource ID of an error
+         * string, or the result of evaluating our expression.
+         */
         override fun onPostExecute(result: InitialResult) {
             mExprInfo!!.mEvaluator = null
             mTimeoutHandler.removeCallbacks(mTimeoutRunnable)
@@ -817,8 +934,7 @@ class Evaluator internal constructor(// Context for database helper.
             // TODO: Could optimize by remembering display size and checking for change.
             var initPrecOffset = result.initDisplayOffset
             mExprInfo.mMsdIndex = msdIndexOfGet(mExprInfo.mResultString!!)
-            val leastDigOffset = lsdOffsetGet(result.unifiedReal, mExprInfo.mResultString,
-                    dotIndex)
+            val leastDigOffset = lsdOffsetGet(result.unifiedReal, mExprInfo.mResultString, dotIndex)
             val newInitPrecOffset = preferredPrecGet(mExprInfo.mResultString!!,
                     mExprInfo.mMsdIndex, leastDigOffset, mCharMetricsInfo)
             if (newInitPrecOffset < initPrecOffset) {
@@ -832,6 +948,15 @@ class Evaluator internal constructor(// Context for database helper.
                     truncatedWholePart)
         }
 
+        /**
+         * Runs on the UI thread after [cancel] is invoked and [doInBackground] has finished.
+         * First we remove all [mTimeoutRunnable] runnables from the queue of [mTimeoutHandler].
+         * If our [mQuiet] field is *false* we call our [displayCancelledMessage] method to pop
+         * up a cancelled dialog to inform the user. Finally we call the `onCancelled` override
+         * of [mListener] with the index [mIndex].
+         *
+         * @param result The result, if any, computed in [doInBackground], can be null
+         */
         override fun onCancelled(result: InitialResult) {
             // Invoker resets mEvaluator.
             mTimeoutHandler.removeCallbacks(mTimeoutRunnable)
@@ -846,7 +971,8 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Result of asynchronous reevaluation.
      */
-    private class ReevalResult internal constructor(val newResultString: String, val newResultStringOffset: Int)
+    private class ReevalResult internal constructor(val newResultString: String,
+                                                    val newResultStringOffset: Int)
 
     /**
      * Compute new mResultString contents to prec digits to the right of the decimal point.
@@ -856,8 +982,10 @@ class Evaluator internal constructor(// Context for database helper.
      * completed.
      */
     @SuppressLint("StaticFieldLeak")
-    private inner class AsyncReevaluator internal constructor(private val mIndex: Long  // Index of expression to evaluate.
-                                                              , private val mListener: EvaluationListener) : AsyncTask<Int, Void, ReevalResult>() {
+    private inner class AsyncReevaluator internal constructor(private val mIndex: Long, // Index of expression to evaluate.
+                                                              private val mListener: EvaluationListener)
+        : AsyncTask<Int, Void, ReevalResult>() {
+
         private val mExprInfo: ExprInfo? = mExprs[mIndex]
 
         override fun doInBackground(vararg prec: Int?): ReevalResult? {
@@ -1893,7 +2021,7 @@ class Evaluator internal constructor(// Context for database helper.
         // always to better than IEEE double precision at identifying non-zeros. And then some.
         // This is used only when we cannot a priori determine the most significant digit position, as
         // we always can if we have a rational representation.
-        private const val MAX_MSD_PREC_OFFSET = 1100
+        private const val MAX_MSD_PREC_OFFSET = 1_100
 
         // If we can replace an exponent by this many leading zeroes, we do so.  Also used in
         // estimating exponent size for truncating short representation.
@@ -1907,7 +2035,7 @@ class Evaluator internal constructor(// Context for database helper.
         /**
          * Timeout for unrequested, speculative evaluations, in milliseconds.
          */
-        private const val QUICK_TIMEOUT: Long = 1000
+        private const val QUICK_TIMEOUT: Long = 1_000
 
         /**
          * Timeout for non-MAIN expressions. Note that there may be many such evaluations in
@@ -1917,13 +2045,13 @@ class Evaluator internal constructor(// Context for database helper.
          * Since this is only used for expressions that we have previously successfully evaluated,
          * these timeouts should never trigger.
          */
-        private const val NON_MAIN_TIMEOUT: Long = 100000
+        private const val NON_MAIN_TIMEOUT: Long = 100_000
 
         /**
          * Maximum result bit length for unrequested, speculative evaluations.
          * Also used to bound evaluation precision for small non-zero fractions.
          */
-        private const val QUICK_MAX_RESULT_BITS = 150000
+        private const val QUICK_MAX_RESULT_BITS = 150_000
 
         /**
          * Check whether a new higher precision result flips previously computed trailing 9s
