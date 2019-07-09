@@ -986,13 +986,28 @@ class Evaluator internal constructor(// Context for database helper.
                                                               private val mListener: EvaluationListener)
         : AsyncTask<Int, Void, ReevalResult>() {
 
+        /**
+         * [ExprInfo] of the expression we are to reevaluate.
+         */
         private val mExprInfo: ExprInfo? = mExprs[mIndex]
 
+        /**
+         * Override this method to perform a computation on a background thread. The specified
+         * parameters are the parameters passed to [execute] by the caller of this task. Wrapped
+         * in a *try* block intended to catch [ArithmeticException], [CR.PrecisionOverflowException]
+         * or [CR.AbortedException] and return *null* for these exceptions we initialize our
+         * variable `precOffset` to the zeroth entry in our parameter [prec] then return an
+         * [ReevalResult] constructed to hold the result of creating a string representation of
+         * the value of the [UnifiedReal] contained in the `mVal` field of [mExprInfo] truncated to
+         * `precOffset` digits and the offset value of `precOffset`.
+         *
+         * @param prec precision of the result string (digits to the right of the decimal place
+         * @return a [ReevalResult] containing the new result string and its precision.
+         */
         override fun doInBackground(vararg prec: Int?): ReevalResult? {
             return try {
                 val precOffset = prec[0]
-                ReevalResult(mExprInfo!!.mVal.get().toStringTruncated(precOffset!!),
-                        precOffset)
+                ReevalResult(mExprInfo!!.mVal.get().toStringTruncated(precOffset!!), precOffset)
             } catch (e: ArithmeticException) {
                 null
             } catch (e: CR.PrecisionOverflowException) {
@@ -1005,6 +1020,23 @@ class Evaluator internal constructor(// Context for database helper.
 
         }
 
+        /**
+         * Runs on the UI thread after [doInBackground]. [result] is the [ReevalResult] returned by
+         * [doInBackground]. If [result] is *null* we set the `mResultString` field of [mExprInfo]
+         * to the string ERRONEOUS_RESULT ("ERR"), and call the `onError` callback of [mListener]
+         * with our [mIndex] field as the index of the expression and the resource ID for the string
+         * "Not a number". Otherwise we make sure the `newResultStringOffset` field of [result] is
+         * greater or equal ot the `mResultStringOffset` field of [mExprInfo] (throwing an
+         * [AssertionError] if it is not) then set the `mResultString` field of [mExprInfo] to the
+         * result of using our [unflipZeroes] method to correcting any digits which flipped to 0's
+         * during the reevaluation, set the `mResultStringOffset` field of [mExprInfo] to the
+         * `newResultStringOffset` field of [result], and call the `onReevaluate` method of [mListener]
+         * with our expression index [mIndex].
+         *
+         * Finally we set the `mEvaluator` field of [mExprInfo] to *null*.
+         *
+         * @param result The result of the operation computed by [doInBackground].
+         */
         override fun onPostExecute(result: ReevalResult?) {
             if (result == null) {
                 // This should only be possible in the extremely rare case of encountering a
@@ -1024,7 +1056,10 @@ class Evaluator internal constructor(// Context for database helper.
             }
             mExprInfo.mEvaluator = null
         }
-        // On cancellation we do nothing; invoker should have left no trace of us.
+
+        // On cancellation we do nothing; invoker should have left no trace of us,
+        // Therefore we do not implement onCancelled
+
     }
 
     /**
