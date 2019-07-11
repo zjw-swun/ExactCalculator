@@ -1058,20 +1058,40 @@ class Evaluator internal constructor(// Context for database helper.
         }
 
         // On cancellation we do nothing; invoker should have left no trace of us,
-        // Therefore we do not implement onCancelled
+        // Therefore we do not implement onCancelled()
 
     }
 
     /**
-     * If necessary, start an evaluation of the expression at the given index to precOffset.
-     * If we start an evaluation the listener is notified on completion.
-     * Only called if prior evaluation succeeded.
+     * If necessary, start an evaluation of the expression at the given [index] to [precOffset].
+     * If we start an evaluation the listener is notified on completion. Only called if prior
+     * evaluation succeeded. We initialize our variable `ei` with the [Evaluator.ExprInfo] at
+     * index [index] in [mExprs]. If the `mResultString` field of `ei` is not *null* and the
+     * `mResultStringOffset` field of `ei` is greater than or equal to [precOffset], OR the
+     * `mResultStringOffsetReq` field of `ei` is greater than or equal to [precOffset] we return
+     * having done nothing (either the precision of the old result is good enough already, or there
+     * is already an evaluation in progress which will be good enough when it finishes). If the
+     * `mEvaluator` field of `ei` is not *null* we cancel that expression evaluator and set the
+     * field to *null* (in order to ensure we only have one evaluation running at a time). We
+     * initialize our variable `reEval` with a new instance of [AsyncReevaluator] constructed to
+     * evaluate the expression at index [index] with [listener] as its [EvaluationListener]. We set
+     * the `mEvaluator` field  of `ei` to `reEval`, set the `mResultStringOffsetReq` of `ei` to
+     * [precOffset] plus PRECOMPUTE_DIGITS (30 additional digits in order to minimize reevaluation
+     * frequency). If the `mResultString` field of `ei` is not *null* we add the `mResultStringOffsetReq`
+     * field divided by PRECOMPUTE_DIVISOR to the `mResultStringOffsetReq` field (this has the
+     * effect of adding an additional 20% to the request precision when there is an existing result
+     * string). We then call the `execute` method of `reEval` to have it start an asynchronous
+     * reevaluation to the precision given by the `mResultStringOffsetReq` field of `ei`.
+     *
+     * @param index index of the expression we are to evaluate
+     * @param precOffset precision we are to evaluate to.
+     * @param listener [EvaluationListener] whose callbacks should be informed of evaluation result.
      */
     private fun ensureCachePrec(index: Long, precOffset: Int, listener: EvaluationListener) {
         val ei = mExprs[index]
 
-        if (ei!!.mResultString != null && ei.mResultStringOffset >= precOffset || ei.mResultStringOffsetReq >= precOffset)
-            return
+        if (ei!!.mResultString != null && ei.mResultStringOffset >= precOffset
+                || ei.mResultStringOffsetReq >= precOffset) return
         if (ei.mEvaluator != null) {
             // Ensure we only have one evaluation running at a time.
             ei.mEvaluator!!.cancel(true)
@@ -1089,8 +1109,26 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Return most significant digit index for the result of the expression at the given index.
      * Returns an index in the result character array.  Return INVALID_MSD if the current result
-     * is too close to zero to determine the result.
-     * Result is almost consistent through reevaluations: It may increase by one, once.
+     * is too close to zero to determine the result. Result is almost consistent through
+     * reevaluations: It may increase by one, once. We initialize our variable `ei` to the
+     * [Evaluator.ExprInfo] in [mExprs] at index [index]. If the `mMsdIndex` field of `ei` is not
+     * INVALID_MSD we check if the character at `mMsdIndex` in the `mResultString` field of `ei`
+     * is '0' and increment the `mMsdIndex` field of `ei` and '0' character of not return the
+     * `mMsdIndex` field of `ei` to the caller.
+     *
+     * Otherwise the current value of `mMsdIndex` is INVALID_MSD, so we first check to see if this
+     * is because the result is a real 0 so we call the `definitelyZero()` method of the [UnifiedReal]
+     * in the `mVal` field of `ei` and if it returns *true* we return INVALID_MSD to the caller as
+     * there is no most significant digit in an absolute 0.
+     *
+     * We need to search for the most significant digit index at this point so we initialize our
+     * variable `result` to INVALID_MSD, then if the `mResultString` field of `ei` is not *null*
+     * we set the `mMsdIndex` field of `ei` to the value returned by our [msdIndexOfGet] method
+     * when it searches the `mResultString` field of `ei` then we set `result` to that field.
+     * Finally we return `result` to the caller.
+     *
+     * @param index index of the expression whose result we should examine
+     * @return the index of the most significant digit of the result string of the expression.
      */
     private fun msdIndexGet(index: Long): Int {
         val ei = mExprs[index]
@@ -1114,19 +1152,52 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Return result to precOffset[0] digits to the right of the decimal point.
-     * PrecOffset[0] is updated if the original value is out of range.  No exponent or other
-     * indication of precision is added.  The result is returned immediately, based on the current
-     * cache contents, but it may contain blanks for unknown digits.  It may also use
-     * uncertain digits within EXTRA_DIGITS.  If either of those occurred, schedule a reevaluation
-     * and redisplay operation.  Uncertain digits never appear to the left of the decimal point.
-     * PrecOffset[0] may be negative to only retrieve digits to the left of the decimal point.
-     * (precOffset[0] = 0 means we include the decimal point, but nothing to the right.
-     * precOffset[0] = -1 means we drop the decimal point and start at the ones position.  Should
-     * not be invoked before the onEvaluate() callback is received.  This essentially just returns
-     * a substring of the full result; a leading minus sign or leading digits can be dropped.
-     * Result uses US conventions; is NOT internationalized.  Use resultGet() and UnifiedReal
-     * operations to determine whether the result is exact, or whether we dropped trailing digits.
+     * Return result to `precOffset[0]` digits to the right of the decimal point. `precOffset[0]` is
+     * updated if the original value is out of range. No exponent or other indication of precision
+     * is added.  The result is returned immediately, based on the current cache contents, but it
+     * may contain blanks for unknown digits. It may also use uncertain digits within EXTRA_DIGITS.
+     * If either of those occurred, schedule a reevaluation and redisplay operation. Uncertain digits
+     * never appear to the left of the decimal point. `precOffset[0]` may be negative to only retrieve
+     * digits to the left of the decimal point. (`precOffset[0]` = 0 means we include the decimal
+     * point, but nothing to the right. precOffset[0] = -1 means we drop the decimal point and start
+     * at the ones position. Should not be invoked before the `onEvaluate` callback is received. This
+     * essentially just returns a substring of the full result; a leading minus sign or leading
+     * digits can be dropped. Result uses US conventions; is NOT internationalized. Use resultGet()
+     * and UnifiedReal operations to determine whether the result is exact, or whether we dropped
+     * trailing digits.
+     *
+     * We initialize our variable `ei` to the [Evaluator.ExprInfo] in [mExprs] at index [index]. We
+     * initialize our variable `currentPrecOffset` to the value at index 0 in [precOffset]. If the
+     * `mResultString` field of `ei` is *null* we just call our [ensureCachePrec] method to have it
+     * start an [AsyncReevaluator] that will eventually set the `mResultString` to the precision of
+     * `currentPrecOffset` plus EXTRA_DIGITS using [listener] for callbacks then we return the string
+     * " " to the caller. Otherwise we initialize our variable `newPrec` to `currentPrecOffset` plus
+     * EXTRA_DIGITS plus the length of the `mResultString` field of `ei` divided by EXTRA_DIVISOR and
+     * call our [ensureCachePrec] method to have it start an [AsyncReevaluator] that will eventually
+     * set the `mResultString` to the precision of `newPrec` using [listener] for callbacks.
+     *
+     * We now need to compute an appropriate substring of the `mResultString` field padding it if it
+     * is necessary. We initialize our variable `len` to the length of the `mResultString` field of
+     * `ei`, and initialize our variable `myNegative` to *true* if the zeroth character of the
+     * `mResultString` field of `ei` is '-', we then save `myNegative` in index 0 of [negative]. We
+     * initialize our variable `integralDigits` to `len` minus the `mResultStringOffset` field of
+     * `ei` and if `myNegative` is *true* decrement `integralDigits`. We initialize our variable
+     * `minPrecOffset` to the minimum of MIN_DISPLAYED_DIGS minus `integralDigits` and minus 1. We
+     * then set `currentPrecOffset` to the minimum of the maximum of `currentPrecOffset` and
+     * `minPrecOffset`, and [maxPrecOffset]. We then save `currentPrecOffset` in the zeroth index of
+     * [precOffset]. We initialize our variable `extraDigs` to the `mResultStringOffset` field of
+     * `ei` minus `currentPrecOffset` (this is the number of trailing digits to drop). We initialize
+     * our variable `deficit` to 0 (number of digits we're short). Then if `extraDigs` is less than
+     * 0 we set `extraDigs` to 0 and set `deficit` to the minimum of `currentPrecOffset` minus the
+     * `mResultStringOffset` field of `ei` and [maxDigs]. We initialize our variable `endIndex` to
+     * `len` minus `extraDigs`, and if `endIndex` is less than 1 we return the string " ". Otherwise
+     * we initialize our variable `startIndex` to the maximum of `endIndex` plus `deficit` minus
+     * `maxDigs` and 0. We set the zeroth entry in [truncated] to *true* if `startIndex` is greater
+     * than the value that our [msdIndexGet] method returns as the index for the character which is
+     * the most significant digit in the result string of the expression at index [index]. We then
+     * initialize our variable `result` to the substring of the `mResultString` field of `ei` between
+     * `startIndex` and `endIndex`. If `deficit` is greater than 0 we add `deficit` blank characters
+     * to the end of `result`. Finally we return `result` to the caller.
      *
      * @param index Index of expression to approximate
      * @param precOffset Zeroth element indicates desired and actual precision
@@ -1135,6 +1206,7 @@ class Evaluator internal constructor(// Context for database helper.
      * @param truncated Zeroth element is set if leading nonzero digits were dropped
      * @param negative Zeroth element is set if the result is negative.
      * @param listener EvaluationListener to notify when reevaluation is complete.
+     * @return [String] representation of the result to at least `precOffset[0]` digits
      */
     fun stringGet(index: Long, precOffset: IntArray, maxPrecOffset: Int, maxDigs: Int,
                   truncated: BooleanArray, negative: BooleanArray, listener: EvaluationListener): String {
@@ -1148,7 +1220,8 @@ class Evaluator internal constructor(// Context for database helper.
             // timing; Will repair itself in a jiffy.
             return " "
         } else {
-            ensureCachePrec(index, currentPrecOffset + EXTRA_DIGITS + ei.mResultString!!.length / EXTRA_DIVISOR, listener)
+            val newPrec = currentPrecOffset + EXTRA_DIGITS + ei.mResultString!!.length / EXTRA_DIVISOR
+            ensureCachePrec(index, newPrec, listener)
         }
         // Compute an appropriate substring of mResultString.  Pad if necessary.
         val len = ei.mResultString!!.length
@@ -1188,7 +1261,10 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Clear the cache for the main expression.
+     * Clear the cache for the main expression. We set the `mVal` field of [mMainExpr] to *null*
+     * (the [UnifiedReal] that results from evaluating its expression), set its `mResultString`
+     * field to *null*, set its `mResultStringOffsetReq` field to 0, set its `mResultStringOffset`
+     * field to its `mResultStringOffsetReq` (0 recall), and set its `mMsdIndex` field to INVALID_MSD.
      */
     private fun clearMainCache() {
         mMainExpr!!.mVal.set(null)
@@ -1198,7 +1274,9 @@ class Evaluator internal constructor(// Context for database helper.
         mMainExpr!!.mMsdIndex = INVALID_MSD
     }
 
-
+    /**
+     * "Clears" the main expression.
+     */
     fun clearMain() {
         mMainExpr!!.mExpr.clear()
         mHasTrigFuncs = false
