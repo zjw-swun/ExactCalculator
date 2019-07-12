@@ -1275,7 +1275,10 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * "Clears" the main expression.
+     * "Clears" the main expression. First we call the `clear()` method of the [CalculatorExpr] in
+     * the `mExpr` field of [mMainExpr], then we set our [mHasTrigFuncs] field to false, and call
+     * our [clearMainCache] method to clear the cache for the main expression. Finally we set the
+     * `mLongTimeout` field of [mMainExpr] to *false*.
      */
     fun clearMain() {
         mMainExpr!!.mExpr.clear()
@@ -1284,6 +1287,11 @@ class Evaluator internal constructor(// Context for database helper.
         mMainExpr!!.mLongTimeout = false
     }
 
+    /**
+     * This is called by the [AlertDialogFragment] which is launched by the "Clear History" option
+     * of the [HistoryFragment] and clears all stored and cached expressions. First we save the
+     * value of the `mDegreeMode` field of [mMainExpr] in our variable `dm`.
+     */
     fun clearEverything() {
         val dm = mMainExpr!!.mDegreeMode
         cancelAll(true)
