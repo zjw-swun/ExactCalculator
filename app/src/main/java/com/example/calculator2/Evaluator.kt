@@ -608,6 +608,12 @@ class Evaluator internal constructor(// Context for database helper.
      * We leave the expression display up, with scrolling disabled, until this computation
      * completes. Can result in an error display if something goes wrong. By default we set a
      * timeout to catch runaway computations.
+     *
+     * @param mIndex Expression index.
+     * @param mListener Completion callback.
+     * @param mCharMetricsInfo Where to get result size information.
+     * @param mDm degree mode, if *true* trig functions should use degree mode.
+     * @param mRequired If *true* result was requested by user.
      */
     @SuppressLint("StaticFieldLeak")
     internal inner class AsyncEvaluator(private val mIndex: Long, // Expression index.
@@ -1290,7 +1296,14 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * This is called by the [AlertDialogFragment] which is launched by the "Clear History" option
      * of the [HistoryFragment] and clears all stored and cached expressions. First we save the
-     * value of the `mDegreeMode` field of [mMainExpr] in our variable `dm`.
+     * value of the `mDegreeMode` field of [mMainExpr] in our variable `dm`. We call our [cancelAll]
+     * method with *true* for the "quiet" flag to have it call their `cancel` method to cancel all
+     * background tasks associated with all the [Evaluator.ExprInfo] in our [mExprs] cache. We set
+     * the index of the saved expression to 0, and set the index of the memory expression to 0. We
+     * then call the `eraseAll` method of [mExprDB] to have it erase all database entries, clear
+     * [mExprs] of all of its [ExprInfo] entries, and finally call our [setMainExpr] method to have
+     * it set our field [mMainExpr] to a new instance of [ExprInfo] constructed using a new instance
+     * of [CalculatorExpr] and `dm` as its degree mode.
      */
     fun clearEverything() {
         val dm = mMainExpr!!.mDegreeMode
@@ -1303,14 +1316,31 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Start asynchronous evaluation.
-     * Invoke listener on successful completion. If the result is required, invoke
-     * onCancelled() if cancelled.
+     * Start asynchronous evaluation. Invoke listener on successful completion. If the result is
+     * required, invoke `onCancelled()` if cancelled. We initialize our variable `ei` the the
+     * [ExprInfo] at index [index] in [mExprs]. If [index] is the MAIN_INDEX we call our
+     * [clearMainCache] method to clear the cache for the main expression (all the other expressions
+     * are immutable so their cache remains valid forever). We initialize our variable `eval` with
+     * a new instance of [AsyncEvaluator] constructed to evaluate the expression with index [index],
+     * using [listener] as the [EvaluationListener] whose completion callback it should call, [cmi]
+     * as the [CharMetricsInfo] to use to get result size information, the `mDegreeMode` field of
+     * `ei` for the degree mode flag, and [required] to indicate whether the result was requested by
+     * the user pressing the "=" button. We then set the `mEvaluator` field of `ei` to `eval`, and
+     * call the `execute` method of `ei` to have it start the background thread running. Finally if
+     * [index] is MAIN_INDEX we set our [mChangedValue] field to *false* to indicate that the main
+     * expression has not changed since the last evaluation in a way that would affect its value.
+     *
      * @param index index of expression to be evaluated.
+     * @param listener the [EvaluationListener] to invoke on successful completion.
+     * @param cmi the [CharMetricsInfo] to query for information derived from character widths
      * @param required result was explicitly requested by user.
      */
-    private fun evaluateResult(index: Long, listener: EvaluationListener?, cmi: CharMetricsInfo,
-                               required: Boolean) {
+    private fun evaluateResult(
+            index: Long,
+            listener: EvaluationListener?,
+            cmi: CharMetricsInfo,
+            required: Boolean
+    ) {
         val ei = mExprs[index]
         if (index == MAIN_INDEX) {
             clearMainCache()
@@ -1325,10 +1355,38 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Notify listener of a previously completed evaluation.
+     * Notify listener of a previously completed evaluation immediately. We initialize our variable
+     * `dotIndex` with the index of any '.' character in the `mResultString` field of [ei]. We then
+     * initialize our variable `truncatedWholePart` to the substring of the `mResultString` field of
+     * [ei] between 0 and `dotIndex`. We initialize our field `leastDigOffset` to the least the
+     * index of the least significant digit that our [lsdOffsetGet] method finds when searching for
+     * the rightmost nonzero digit position when examining the [UnifiedReal] in the `mVal` field of
+     * `ei` with the `mResultString` field of `ei` as the cached decimal string representation of
+     * the result, and `dotIndex` as the index of the decimal point in that cache. We initialize our
+     * variable `msdIndex` with the index of the most significant digit of the result string of the
+     * expression with index [index] that our [msdIndexGet] method returns. We initialize our variable
+     * `preferredPrecOffset` to the value that our [preferredPrecGet] method returns as the preferred
+     * precision "offset" for the currently displayed result when passed the `mResultString` field of
+     * `ei` as the current approximation as a string, `msdIndex` as the position of most significant
+     * digit in that result, `leastDigOffset` as the position of the least significant digit, and
+     * [cmi] as the [CharMetricsInfo] to query for information derived from character widths. Finally
+     * we call the `onEvaluate` callback of [listener] to notify it of the normal evaluation completion
+     * of the expression with index [index], passing it `preferredPrecOffset` as the offset used for
+     * initial evaluation, `msdIndex` as the index of the first non-zero digit in the computed result
+     * string, `leastDigOffset` as the offset of last digit in result if result has finite decimal
+     * expansion, and `truncatedWholePart` as the integer part of the result.
+     *
+     * @param index index of expression to be evaluated.
+     * @param ei the [ExprInfo] containing the result of the evaluation.
+     * @param listener the [EvaluationListener] to invoke on successful completion.
+     * @param cmi the [CharMetricsInfo] to query for information derived from character widths
      */
-    internal fun notifyImmediately(index: Long, ei: ExprInfo?, listener: EvaluationListener?,
-                                   cmi: CharMetricsInfo) {
+    internal fun notifyImmediately(
+            index: Long,
+            ei: ExprInfo?,
+            listener: EvaluationListener?,
+            cmi: CharMetricsInfo
+    ) {
         val dotIndex = ei!!.mResultString!!.indexOf('.')
         val truncatedWholePart = ei.mResultString!!.substring(0, dotIndex)
         val leastDigOffset = lsdOffsetGet(ei.mVal.get(), ei.mResultString, dotIndex)
@@ -1338,12 +1396,33 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Start optional evaluation of expression and display when ready.
+     * Start optional evaluation of expression and display when ready. Can quietly time out without
+     * a listener callback. No-op if cmi.maxCharsGet() == 0. If the `maxCharsGet` method of [cmi]
+     * returns 0 indicating that no characters will fit in the result display we just return having
+     * done nothing. Otherwise we initialize our variable `ei` with the [ExprInfo] returned by our
+     * [ensureExprIsCached] method after it ensures that the expression with index [index] is cached
+     * in [mExprs]. If the `mResultString` field of `ei` is not *null* and is not equal to
+     * ERRONEOUS_RESULT, and if [index] is MAIN_INDEX our [mChangedValue] field is not *true* we
+     * are already done so we just call our [notifyImmediately] method with MAIN_INDEX as the index
+     * of the expression, [mMainExpr] as the [ExprInfo] containing the result of the evaluation,
+     * [listener] as the [EvaluationListener] to invoke, and [cmi] as the [CharMetricsInfo] to query
+     * for information derived from character widths and then we return. Otherwise we make sure
+     * that the `mEvaluator` field of `ei` is *null* and if it is not we just return since this
+     * request must be redundant. If it was *null* we call our [evaluateResult] method to have it
+     * start the asynchronous evaluation of the expression with index [index], using [listener] as
+     * the [EvaluationListener] to invoke on successful completion, [cmi] as the [CharMetricsInfo]
+     * to query for information derived from character widths, and *false* as the required flag to
+     * indicate the result was not requested by the user.
+     *
      * @param index of expression to be evaluated.
-     * Can quietly time out without a listener callback.
-     * No-op if cmi.maxCharsGet() == 0.
+     * @param listener the [EvaluationListener] to have its completion callback called when done.
+     * @param cmi the [CharMetricsInfo] to query for information derived from character widths
      */
-    fun evaluateAndNotify(index: Long, listener: EvaluationListener?, cmi: CharMetricsInfo) {
+    fun evaluateAndNotify(
+            index: Long,
+            listener: EvaluationListener?,
+            cmi: CharMetricsInfo
+    ) {
         if (cmi.maxCharsGet() == 0) {
             // Probably shouldn't happen. If it does, we didn't promise to do anything anyway.
             return
@@ -1362,12 +1441,19 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Start required evaluation of expression at given index and call back listener when ready.
-     * If index is MAIN_INDEX, we may also directly display a timeout message.
-     * Uses longer timeouts than optional evaluation.
-     * Requires cmi.maxCharsGet() != 0.
+     * Start required evaluation of expression at given index and call back listener when ready. If
+     * index is MAIN_INDEX, we may also directly display a timeout message. Uses longer timeouts
+     * than optional evaluation. Requires cmi.maxCharsGet() != 0.
+     *
+     * @param index of expression to be evaluated.
+     * @param listener the [EvaluationListener] to have its completion callback called when done.
+     * @param cmi the [CharMetricsInfo] to query for information derived from character widths
      */
-    fun requireResult(index: Long, listener: EvaluationListener?, cmi: CharMetricsInfo) {
+    fun requireResult(
+            index: Long,
+            listener: EvaluationListener?,
+            cmi: CharMetricsInfo
+    ) {
         if (cmi.maxCharsGet() == 0) {
             throw AssertionError("requireResult called too early")
         }
