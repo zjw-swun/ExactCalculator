@@ -459,7 +459,7 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
         if (state != null) {
             try {
                 ObjectInputStream(ByteArrayInputStream(state)).use {
-                    `in` -> mEvaluator.restoreInstanceState(`in`)
+                    stream -> mEvaluator.restoreInstanceState(stream)
                 }
             } catch (ignored: Throwable) {
                 // When in doubt, revert to clean state

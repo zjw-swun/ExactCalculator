@@ -100,8 +100,9 @@ import kotlin.math.min
  */
 @Suppress("MemberVisibilityCanBePrivate")
 @RequiresApi(Build.VERSION_CODES.N)
-class Evaluator internal constructor(// Context for database helper.
-        private val mContext: Context) : CalculatorExpr.ExprResolver {
+class Evaluator internal constructor(
+        private val mContext: Context // Context for database helper.
+) : CalculatorExpr.ExprResolver {
 
     /**
      * Our [CharMetricsInfo] that can be used when we are really only interested in computing
@@ -194,12 +195,16 @@ class Evaluator internal constructor(// Context for database helper.
          * @param index index of expression whose evaluation completed
          * @param initPrecOffset the offset used for initial evaluation
          * @param msdIndex index of first non-zero digit in the computed result string
-         * @param lsdOffset offset of last digit in result if result has finite decimal
-         * expansion
+         * @param lsdOffset offset of last digit in result if result has finite decimal expansion
          * @param truncatedWholePart the integer part of the result
          */
-        fun onEvaluate(index: Long, initPrecOffset: Int, msdIndex: Int, lsdOffset: Int,
-                       truncatedWholePart: String)
+        fun onEvaluate(
+                index: Long,
+                initPrecOffset: Int,
+                msdIndex: Int,
+                lsdOffset: Int,
+                truncatedWholePart: String
+        )
 
         /**
          * Called in response to a reevaluation request, once more precision is available.
@@ -237,7 +242,10 @@ class Evaluator internal constructor(// Context for database helper.
          * @return the number of additional digit widths required to add digit separators to the
          * supplied string prefix (the first [len] characters of the string [s] is the prefix).
          */
-        fun separatorChars(s: String, len: Int): Float
+        fun separatorChars(
+                s: String,
+                len: Int
+        ): Float
 
         /**
          * Return extra width credit for presence of a decimal point, as fraction of a digit width.
@@ -281,7 +289,10 @@ class Evaluator internal constructor(// Context for database helper.
          * @return the number of additional digit widths required to add digit separators to the
          * supplied string prefix (the first [len] characters of the string [s] is the prefix).
          */
-        override fun separatorChars(s: String, len: Int): Float {
+        override fun separatorChars(
+                s: String,
+                len: Int
+        ): Float {
             return 0f
         }
 
@@ -318,8 +329,9 @@ class Evaluator internal constructor(// Context for database helper.
      * [mExprs]. [mVal] may be asynchronously set by any thread, but we take care that it
      * does not change after that. [mDegreeMode] is handled exactly like [mExpr].
      */
-    inner class ExprInfo(var mExpr: CalculatorExpr  // The expression itself.
-                                 , var mDegreeMode: Boolean  // Evaluating in degree, not radian, mode.
+    inner class ExprInfo(
+            var mExpr: CalculatorExpr, // The expression itself.
+            var mDegreeMode: Boolean   // Evaluating in degree, not radian, mode.
     ) {
 
         /**
@@ -516,7 +528,12 @@ class Evaluator internal constructor(// Context for database helper.
          * @param p Display precision "offset" of our [String] representation.
          * @param idp Preferred precision "offset" for displaying us as a result.
          */
-        internal constructor(v: UnifiedReal, s: String, p: Int, idp: Int) {
+        internal constructor(
+                v: UnifiedReal,
+                s: String,
+                p: Int,
+                idp: Int
+        ) {
             errorResourceId = Calculator2.INVALID_RES_ID
             unifiedReal = v
             newResultString = s
@@ -616,11 +633,12 @@ class Evaluator internal constructor(// Context for database helper.
      * @param mRequired If *true* result was requested by user.
      */
     @SuppressLint("StaticFieldLeak")
-    internal inner class AsyncEvaluator(private val mIndex: Long, // Expression index.
-                                        private val mListener: EvaluationListener?, // Completion callback.
-                                        private val mCharMetricsInfo: CharMetricsInfo, // Where to get result size information.
-                                        private val mDm: Boolean, // degrees
-                                        var mRequired: Boolean // Result was requested by user.
+    internal inner class AsyncEvaluator(
+            private val mIndex: Long, // Expression index.
+            private val mListener: EvaluationListener?, // Completion callback.
+            private val mCharMetricsInfo: CharMetricsInfo, // Where to get result size information.
+            private val mDm: Boolean, // degrees
+            var mRequired: Boolean // Result was requested by user.
     ) : AsyncTask<Void, Void, InitialResult>() {
         /**
          * Suppress cancellation message if *true*.
@@ -977,8 +995,10 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Result of asynchronous reevaluation.
      */
-    private class ReevalResult internal constructor(val newResultString: String,
-                                                    val newResultStringOffset: Int)
+    private class ReevalResult internal constructor(
+            val newResultString: String,
+            val newResultStringOffset: Int
+    )
 
     /**
      * Compute new mResultString contents to prec digits to the right of the decimal point.
@@ -988,9 +1008,10 @@ class Evaluator internal constructor(// Context for database helper.
      * completed.
      */
     @SuppressLint("StaticFieldLeak")
-    private inner class AsyncReevaluator internal constructor(private val mIndex: Long, // Index of expression to evaluate.
-                                                              private val mListener: EvaluationListener)
-        : AsyncTask<Int, Void, ReevalResult>() {
+    private inner class AsyncReevaluator internal constructor(
+            private val mIndex: Long, // Index of expression to evaluate.
+            private val mListener: EvaluationListener
+    ) : AsyncTask<Int, Void, ReevalResult>() {
 
         /**
          * [ExprInfo] of the expression we are to reevaluate.
@@ -1093,7 +1114,11 @@ class Evaluator internal constructor(// Context for database helper.
      * @param precOffset precision we are to evaluate to.
      * @param listener [EvaluationListener] whose callbacks should be informed of evaluation result.
      */
-    private fun ensureCachePrec(index: Long, precOffset: Int, listener: EvaluationListener) {
+    private fun ensureCachePrec(
+            index: Long,
+            precOffset: Int,
+            listener: EvaluationListener
+    ) {
         val ei = mExprs[index]
 
         if (ei!!.mResultString != null && ei.mResultStringOffset >= precOffset
@@ -1214,8 +1239,15 @@ class Evaluator internal constructor(// Context for database helper.
      * @param listener EvaluationListener to notify when reevaluation is complete.
      * @return [String] representation of the result to at least `precOffset[0]` digits
      */
-    fun stringGet(index: Long, precOffset: IntArray, maxPrecOffset: Int, maxDigs: Int,
-                  truncated: BooleanArray, negative: BooleanArray, listener: EvaluationListener): String {
+    fun stringGet(
+            index: Long,
+            precOffset: IntArray,
+            maxPrecOffset: Int,
+            maxDigs: Int,
+            truncated: BooleanArray,
+            negative: BooleanArray,
+            listener: EvaluationListener
+    ): String {
         val ei = mExprs[index]
         var currentPrecOffset = precOffset[0]
         // Make sure we eventually get a complete answer
@@ -1443,9 +1475,36 @@ class Evaluator internal constructor(// Context for database helper.
     /**
      * Start required evaluation of expression at given index and call back listener when ready. If
      * index is MAIN_INDEX, we may also directly display a timeout message. Uses longer timeouts
-     * than optional evaluation. Requires cmi.maxCharsGet() != 0.
+     * than optional evaluation. Requires cmi.maxCharsGet() != 0. If the `maxCharsGet` method of
+     * [cmi] returns 0 (no room for any characters in the display) we throw an AssertionError
+     * "requireResult called too early". Otherwise we initialize our variable `ei` with the
+     * [ExprInfo] that our [ensureExprIsCached] method returns after it ensures that the expression
+     * at index [index] is cached in [mExprs]. We branch on whether the `mResultString` field of `ei`
+     * is *null* or [index] is MAIN_INDEX and our [mChangedValue] is *true*:
+     * - We do not have a cached string or we are the main expression which has changed:
+     *     - If [index] is HISTORY_MAIN_INDEX, we pretend we timed out by calling the `onCancelled`
+     *     method of [listener] for [index] since we don't want to compute a result for it that was
+     *     not already computed for the main expression.
+     *     - If the `mEvaluator` field of `ei` is an [AsyncEvaluator] and its `mRequired` field is
+     *     *true* this is a duplicate request so we jus ignore it
+     *     - Otherwise we want to restart the evaluator so we call our `cancel` method to cancel
+     *     `ei` quietly, then call our [evaluateResult] method to have it start the asynchronous
+     *     evaluation of the expression with index [index], using [listener] for its the
+     *     [EvaluationListener] to notify about successful completion, and [cmi] as the
+     *     [CharMetricsInfo] to query for information derived from character widths
+     * - When the `mResultString` field of `ei` is ERRONEOUS_RESULT we just re-evaluate to generate
+     * a new notification by calling our `cancel` method to cancel `ei` quietly, then calling our
+     * [evaluateResult] method to have it start the asynchronous evaluation of the expression with
+     * index [index], using [listener] for its the [EvaluationListener] to notify about successful
+     * completion, and [cmi] as the [CharMetricsInfo] to query for information derived from character
+     * widths.
+     * - For all other values of the `mResultString` field of `ei` we just call our [notifyImmediately]
+     * method to have it immediately notify [listener] of the completed evaluation of the expression
+     * with index [index], using `ei` as the [ExprInfo] containing the result of the evaluation,
+     * calling the [EvaluationListener] callback of [listener], and using [cmi] as the [CharMetricsInfo]
+     * to query for information derived from character widths.
      *
-     * @param index of expression to be evaluated.
+     * @param index Index of expression to be evaluated.
      * @param listener the [EvaluationListener] to have its completion callback called when done.
      * @param cmi the [CharMetricsInfo] to query for information derived from character widths
      */
@@ -1458,31 +1517,41 @@ class Evaluator internal constructor(// Context for database helper.
             throw AssertionError("requireResult called too early")
         }
         val ei = ensureExprIsCached(index)
-        if (ei.mResultString == null || index == MAIN_INDEX && mChangedValue) {
-            if (index == HISTORY_MAIN_INDEX) {
-                // We don't want to compute a result for HISTORY_MAIN_INDEX that was
-                // not already computed for the main expression. Pretend we timed out.
-                // The error case doesn't get here.
-                listener?.onCancelled(index)
-            } else
-                if (ei.mEvaluator is AsyncEvaluator && (ei.mEvaluator as AsyncEvaluator).mRequired) {
-                    // Duplicate request; ignore.
-                } else {
-                    // (Re)start evaluator in requested mode, i.e. with longer timeout.
-                    cancel(ei, true)
-                    evaluateResult(index, listener, cmi, true)
+        when {
+            ei.mResultString == null || index == MAIN_INDEX && mChangedValue ->
+                when {
+                    index == HISTORY_MAIN_INDEX ->
+                        // We don't want to compute a result for HISTORY_MAIN_INDEX that was
+                        // not already computed for the main expression. Pretend we timed out.
+                        // The error case doesn't get here.
+                        listener?.onCancelled(index)
+                    ei.mEvaluator is AsyncEvaluator && (ei.mEvaluator as AsyncEvaluator).mRequired -> {
+                        // Duplicate request; ignore.
+                    }
+                    else -> {
+                        // (Re)start evaluator in requested mode, i.e. with longer timeout.
+                        cancel(ei, true)
+                        evaluateResult(index, listener, cmi, true)
+                    }
                 }
-        } else if (ei.mResultString == ERRONEOUS_RESULT) {
-            // Just re-evaluate to generate a new notification.
-            cancel(ei, true)
-            evaluateResult(index, listener, cmi, true)
-        } else {
-            notifyImmediately(index, ei, listener, cmi)
+            ei.mResultString == ERRONEOUS_RESULT -> {
+                // Just re-evaluate to generate a new notification.
+                cancel(ei, true)
+                evaluateResult(index, listener, cmi, true)
+            }
+            else -> notifyImmediately(index, ei, listener, cmi)
         }
     }
 
     /**
-     * Whether this expression has explicitly been evaluated (User pressed "=")
+     * Whether this expression has explicitly been evaluated (User pressed "="). We initialize our
+     * variable `ei` with the [ExprInfo] that our [ensureExprIsCached] method returns after it ensures
+     * that the expression at index [index] is cached in [mExprs]. Then we return *true* if the
+     * `mResultString` field of `ei` is not *null*.
+     *
+     * @param index The index of the expression we are to query.
+     * @return *true* if the `mResultString` field of the [Evaluator.ExprInfo] of the expression
+     * with index [index] is not *null*
      */
     fun hasResult(index: Long): Boolean {
         val ei = ensureExprIsCached(index)
@@ -1490,7 +1559,13 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Is a reevaluation still in progress?
+     * Is a reevaluation still in progress? We initialize our variable `ei` with the [ExprInfo] that
+     * our [ensureExprIsCached] method returns after it ensures that the expression at index [index]
+     * is cached in [mExprs]. Then we return *true* if the `mEvaluator` field of `ei` is not *null*.
+     *
+     * @param index The index of the expression we are to query.
+     * @return *true* if the `mEvaluator` field of the [Evaluator.ExprInfo] of the expression
+     * with index [index] is not *null*
      */
     fun evaluationInProgress(index: Long): Boolean {
         val ei = mExprs[index]
@@ -1498,11 +1573,30 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Cancel any current background task associated with the given ExprInfo.
+     * Cancel any current background task associated with the given [ExprInfo]. If the `mEvaluator`
+     * field of [expr] is *null* we just return *false*. If it is not *null* we check if our [quiet]
+     * parameter is *true* and the `mEvaluator` field of [expr] is a [AsyncEvaluator] instance and
+     * if so we call the `suppressCancelMessage` of the `mEvaluator` field of [expr] which sets itd
+     * `mQuiet` field to *true* to suppress the "cancelled" dialog. Then if the [UnifiedReal] in the
+     * `mVal` field of [expr] is not *null* we call the `cancel` method of the `mEvaluator` field of
+     * [expr] to cancel the background task (interrupting it if necessary), set the field
+     * `mResultStringOffsetReq` of [expr] to its `mResultStringOffset` field, and set its `mEvaluator`
+     * field to *null* (then fall through to return *false*). If the `mVal` field of [expr] is *null*
+     * we call the `cancel` method of the `mEvaluator` field of [expr] to cancel the background task
+     * (interrupting it if necessary). If [expr] is the same as [mMainExpr] we have a problem as
+     * the expression is modifiable, and the [AsyncTask] is reading it, so we need to clone the
+     * [CalculatorExpr] in the `mExpr` field of [mMainExpr] and set that field to that clone, then
+     * set our [mChangedValue] field to *true* (to indicate that we didn't do the expected evaluation).
+     * In either case we set the `mEvaluator` field of [expr] to *null* and return *true*.
+     *
+     * @param expr The [ExprInfo] whose background task we should cancel.
      * @param quiet suppress cancellation message
-     * @return true if we cancelled an initial evaluation
+     * @return *true* if we cancelled an initial evaluation
      */
-    private fun cancel(expr: ExprInfo, quiet: Boolean): Boolean {
+    private fun cancel(
+            expr: ExprInfo,
+            quiet: Boolean
+    ): Boolean {
         if (expr.mEvaluator != null) {
             if (quiet && expr.mEvaluator is AsyncEvaluator) {
                 (expr.mEvaluator as AsyncEvaluator).suppressCancelMessage()
@@ -1533,15 +1627,32 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Cancel any current background task associated with the given ExprInfo.
+     * Cancel any current background task associated with the [ExprInfo] with index [index]. We
+     * initialize our variable `ei` with the [ExprInfo] in our [mExprs] cache at index [index],
+     * then return the result of calling our overloaded method `cancel(ExprInfo,Boolean)` with *it*
+     * and our parameter [quiet] (Elvis'ing to return *false* if `ei` was *null*).
+     *
+     * @param index index of the expression whose background task we are to cancel
      * @param quiet suppress cancellation message
-     * @return true if we cancelled an initial evaluation
+     * @return *true* if we cancelled an initial evaluation
      */
-    fun cancel(index: Long, quiet: Boolean): Boolean {
+    fun cancel(
+            index: Long,
+            quiet: Boolean
+    ): Boolean {
         val ei = mExprs[index]
         return ei?.let { cancel(it, quiet) } ?: false
     }
 
+    /**
+     * Cancel all background tasks associated with the [ExprInfo] objects in [mExprs] suppressing
+     * the cancellation message if our [quiet] parameter is *true*. We loop over `expr` for all
+     * of the [Evaluator.ExprInfo] in our [mExprs] cache calling our [cancel] method to cancel any
+     * current background task associated with `expr`, and suppressing the cancellation message if
+     * our [quiet] parameter is *true*.
+     *
+     * @param quiet suppress cancellation message
+     */
     fun cancelAll(quiet: Boolean) {
         // TODO: May want to keep active evaluators in a HashSet to avoid traversing
         // all expressions we've looked at.
@@ -1552,7 +1663,10 @@ class Evaluator internal constructor(// Context for database helper.
 
     /**
      * Quietly cancel all evaluations associated with expressions other than the main one.
-     * These are currently the evaluations associated with the history fragment.
+     * These are currently the evaluations associated with the history fragment. We loop over
+     * `expr` for all of the [Evaluator.ExprInfo] in our [mExprs] cache calling our [cancel] method
+     * to cancel any current background task associated with `expr` if `expr` is not the same as
+     * [mMainExpr] suppressing the cancellation message.
      */
     fun cancelNonMain() {
         // TODO: May want to keep active evaluators in a HashSet to avoid traversing
@@ -1565,7 +1679,15 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Restore the evaluator state, including the current expression.
+     * Restore the evaluator state, including the current expression. First we set our [mChangedValue]
+     * field to *true*, then wrapped in a *try* block intended to catch and log [IOException] we set
+     * the `mDegreeMode` field of [mMainExpr] to the [Boolean] read from our parameter [dataInput],
+     * its `mLongTimeout` field to the [Boolean] read from our parameter [dataInput], and its
+     * `mExpr` field to a [CalculatorExpr] instance constructed by reading from our parameter
+     * [dataInput]. We then set our [mHasTrigFuncs] to the [Boolean] returned by our [hasTrigFuncs]
+     * method.
+     *
+     * @param dataInput the [DataInput] we are to read our state from.
      */
     fun restoreInstanceState(dataInput: DataInput) {
         mChangedValue = true
@@ -1581,28 +1703,34 @@ class Evaluator internal constructor(// Context for database helper.
     }
 
     /**
-     * Save the evaluator state, including the expression and any saved value.
+     * Save the evaluator state, including the expression and any saved value. Wrapped in a *try*
+     * block intended to catch and log [IOException] we write the [Boolean] in the `mDegreeMode`
+     * field of [mMainExpr] to our parameter [dataOutput], followed by its `mLongTimeout` field.
+     * We then call the `write` method of the `mExpr` field of [mMainExpr] to have that
+     * [CalculatorExpr] write itself to our parameter [dataOutput].
+     *
+     * @param dataOutput the [DataOutput] we are to write our state to.
      */
-    fun saveInstanceState(out: DataOutput) {
+    fun saveInstanceState(dataOutput: DataOutput) {
         try {
-            out.writeBoolean(mMainExpr!!.mDegreeMode)
-            out.writeBoolean(mMainExpr!!.mLongTimeout)
-            mMainExpr!!.mExpr.write(out)
+            dataOutput.writeBoolean(mMainExpr!!.mDegreeMode)
+            dataOutput.writeBoolean(mMainExpr!!.mLongTimeout)
+            mMainExpr!!.mExpr.write(dataOutput)
         } catch (e: IOException) {
             Log.v("Calculator", "Exception while saving state:\n$e")
         }
 
     }
 
-
     /**
      * Append a button press to the main expression.
+     *
      * @param id Button identifier for the character or operator to be added.
-     * @return false if we rejected the insertion due to obvious syntax issues, and the expression
-     * is unchanged; true otherwise
+     * @return *false* if we rejected the insertion due to obvious syntax issues, and the expression
+     * is unchanged; *true* otherwise
      */
     fun append(id: Int): Boolean {
-        return if (id == R.id.fun_10pow) {
+        return if (id == R.id.fun_10pow) { // toggled by the INV button
             add10pow()  // Handled as macro expansion.
             true
         } else {
