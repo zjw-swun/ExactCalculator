@@ -1723,7 +1723,17 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Append a button press to the main expression.
+     * Append a button press to the main expression. If the key id [id] is R.id.fun_10pow (10^X) we
+     * call our [add10pow] to add the three keys this expands to: ('1', '0', and '^') to the main
+     * expression [mMainExpr], then return *true*. Otherwise we set our field [mChangedValue] to
+     * its current value or'ed with *true* if the [KeyMaps.isBinary] method returns *false* for [id]
+     * (which indicates that the key is not a binary operator). Then if the `add` method of the
+     * `mExpr` field of [mMainExpr] returns *true* to indicate it was able to add the [id] key to the
+     * expression, we set [mHasTrigFuncs] to *true* if it is currently *false* and the method
+     * [KeyMaps.isTrigFunc] returns *true* to indicate that the [id] key is a trig function then
+     * return *true* to the caller. If the `add` method of the `mExpr` field of [mMainExpr] returns
+     * *false* to indicate it was not able to add the [id] key to the expression we return *false*
+     * to reject the insertion.
      *
      * @param id Button identifier for the character or operator to be added.
      * @return *false* if we rejected the insertion due to obvious syntax issues, and the expression
@@ -1747,7 +1757,13 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Delete last token from main expression.
+     * Delete last token from main expression. We set our [mChangedValue] field to *true* the mark
+     * the expression as having changed. We then call the `delete` method of the `mExpr` field of
+     * [mMainExpr] to delete the last character added if any. If the `isEmpty` method of the `mExpr`
+     * field of [mMainExpr] returns *true* to indicate that the [CalculatorExpr] now contains no
+     * elements we set the `mLongTimeout` field of [mMainExpr] to *false*. Finally we set our
+     * [mHasTrigFuncs] to the value that our [hasTrigFuncs] method returns as the value of our
+     * [mHasTrigFuncs] field (*true* if the main expression contains trig functions).
      */
     fun delete() {
         mChangedValue = true
@@ -1759,7 +1775,12 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Set degree mode for main expression.
+     * Set degree mode for main expression. We set our [mChangedValue] to *true*, then save our
+     * parameter [degreeMode] in the `mDegreeMode` field of [mMainExpr]. Finally we use our field
+     * [mSharedPrefs] to create a new `Editor` for our preference file, which we use to store
+     * [degreeMode] as a [Boolean] under the key KEY_PREF_DEGREE_MODE, and then commit the edit.
+     *
+     * @param degreeMode *true* to use degrees for trig functions, *false* to use radians.
      */
     fun setDegreeMode(degreeMode: Boolean) {
         mChangedValue = true
@@ -1771,11 +1792,31 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Return an ExprInfo for a copy of the expression with the given index.
-     * We remove trailing binary operators in the copy.
-     * mTimeStamp is not copied.
+     * Return an [ExprInfo] for a copy of the expression with the given index. We remove trailing
+     * binary operators in the copy. The `mTimeStamp` field is not copied. We initialize our variable
+     * `fromEi` to the [ExprInfo] at index [index] in [mExprs]. We then initialize our variable `ei`
+     * to a new instance of [ExprInfo] constructed from a clone of the [CalculatorExpr] in the `mExpr`
+     * field of `fromEi` and the `mDegreeMode` field of `fromEi`. While the `hasTrailingBinary` method
+     * of the `mExpr` field of `ei` returns *true* we call the `delete` method of the `mExpr` field
+     * of `ei` to delete that trailing binary operator from the [CalculatorExpr]. If our [copyValue]
+     * parameter is *true* we set the `mVal` field of `ei` to an [AtomicReference] constructed from
+     * the `mVal` field of `fromEi`, set the `mResultString` field of `ei` to the `mResultString`
+     * field of `fromEi`, set the `mResultStringOffsetReq` field of `ei` to the `mResultStringOffsetReq`
+     * field of `fromEi`, set the `mResultStringOffset` field of `ei` to the `mResultStringOffset`
+     * field of `fromEi`, and set the `mMsdIndex` field of `ei` to the `mMsdIndex` field of `fromEi`.
+     * Whether [copyValue] is *true* or *false* we set the `mLongTimeout` field of `ei` to the
+     * `mLongTimeout` field of `fromEi` and return `ei` to the caller.
+     *
+     * @param index the index of the the expression which we should copy from.
+     * @param copyValue if *true* the results of the last evaluation of the expression are copied
+     * also (we are always called with *true* at the moment).
+     * @return An [ExprInfo] constructed to be a deep copy clone of the [ExprInfo] at index [index]
+     * in [mExprs]
      */
-    private fun copy(index: Long, copyValue: Boolean): ExprInfo {
+    private fun copy(
+            index: Long,
+            copyValue: Boolean
+    ): ExprInfo {
         val fromEi = mExprs[index]
 
         val ei = ExprInfo(fromEi!!.mExpr.clone() as CalculatorExpr, fromEi.mDegreeMode)
@@ -1794,27 +1835,61 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Return an ExprInfo corresponding to the sum of the expressions at the
-     * two indices.
-     * index1 should correspond to an immutable expression, and should thus NOT
-     * be MAIN_INDEX. Index2 may be MAIN_INDEX. Both expressions are presumed
-     * to have been evaluated.  The result is unevaluated.
-     * Can return null if evaluation resulted in an error (a very unlikely case).
+     * Return an [ExprInfo] corresponding to the sum of the expressions at the two indices. [index1]
+     * should correspond to an immutable expression, and should thus NOT be MAIN_INDEX. [index2] may
+     * be MAIN_INDEX. Both expressions are presumed to have been evaluated.  The result is unevaluated.
+     * Can return *null* if evaluation resulted in an error (a very unlikely case). We just return the
+     * [ExprInfo] returned by our [generalizedSum] method that it constructs for our parameters [index1]
+     * and [index2] and the resource ID for the addition button R.id.op_add.
+     *
+     * @param index1 Index of the first addend [ExprInfo] in our [mExprs] cache, should be an immutable
+     * expression (ie. not MAIN_INDEX).
+     * @param index2 Index of the second addend [ExprInfo] in our [mExprs] cache, can be any expression.
+     * @return an [ExprInfo] constructed by adding an R.id.op_add ("+" addition) operator between the
+     * [CalculatorExpr] of the [ExprInfo] of our two parameters.
      */
-    private fun sum(index1: Long, index2: Long): ExprInfo? {
+    private fun sum(
+            index1: Long,
+            index2: Long
+    ): ExprInfo? {
         return generalizedSum(index1, index2, R.id.op_add)
     }
 
     /**
-     * Return an ExprInfo corresponding to the subtraction of the value at the subtrahend index
-     * from value at the minuend index (minuend - subtrahend = result). Both are presumed to have
-     * been previously evaluated. The result is unevaluated. Can return null.
+     * Return an [ExprInfo] corresponding to the subtraction of the value at the [subtrahendIndex]
+     * index from value at the [minuendIndex] index (minuend - subtrahend = result). Both are presumed
+     * to have been previously evaluated. The result is unevaluated. Can return null. We just return
+     * the [ExprInfo] returned by our [generalizedSum] method that it constructs for our parameters
+     * [minuendIndex] and [subtrahendIndex] and the resource ID for the subtraction button R.id.op_sub.
+     *
+     * @param minuendIndex Index of the minuend [ExprInfo] in our [mExprs] cache
+     * @param subtrahendIndex Index of the subtrahend [ExprInfo] in our [mExprs] cache
+     * @return an [ExprInfo] constructed by adding an R.id.op_sub ("-" subtraction) operator between
+     * the [CalculatorExpr] of the [ExprInfo] of our two parameters.
      */
-    private fun difference(minuendIndex: Long, subtrahendIndex: Long): ExprInfo? {
+    private fun difference(
+            minuendIndex: Long,
+            subtrahendIndex: Long
+    ): ExprInfo? {
         return generalizedSum(minuendIndex, subtrahendIndex, R.id.op_sub)
     }
 
-    private fun generalizedSum(index1: Long, index2: Long, op: Int): ExprInfo? {
+    /**
+     * Return an [ExprInfo] corresponding to
+     *
+     * @param index1 Index of the first [ExprInfo] in our [mExprs] cache, should be an immutable
+     * expression (ie. not MAIN_INDEX).
+     * @param index2 Index of the second [ExprInfo] in our [mExprs] cache, can be any expression.
+     * @param op The resource ID of the operator button to place between the two [CalculatorExpr]
+     * of the [ExprInfo] referenced by our parameters [index1] and [index2].
+     * @return an [ExprInfo] constructed by adding an [op] operator between the [CalculatorExpr]
+     * of the [ExprInfo] of our parameters [index1] and [index2].
+     */
+    private fun generalizedSum(
+            index1: Long,
+            index2: Long,
+            op: Int
+    ): ExprInfo? {
         // TODO: Consider not collapsing expr2, to save database space.
         // Note that this is a bit tricky, since our expressions can contain unbalanced lparens.
         val result = CalculatorExpr()
