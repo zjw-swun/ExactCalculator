@@ -1846,7 +1846,7 @@ class Evaluator internal constructor(
      * expression (ie. not MAIN_INDEX).
      * @param index2 Index of the second addend [ExprInfo] in our [mExprs] cache, can be any expression.
      * @return an [ExprInfo] constructed by adding an R.id.op_add ("+" addition) operator between the
-     * [CalculatorExpr] of the [ExprInfo] of our two parameters.
+     * [CalculatorExpr] of the [ExprInfo] instances corresponding to our two parameters.
      */
     private fun sum(
             index1: Long,
@@ -1875,7 +1875,19 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Return an [ExprInfo] corresponding to
+     * Return an [ExprInfo] whose [CalculatorExpr] is constructed by joining the [CalculatorExpr] of
+     * the two [ExprInfo] parameters stored under [index1] and [index2] in the [mExprs] cache by the
+     * binary operator whose button resource ID is [op]. First we initialize our variable `result`
+     * with a new instance of [CalculatorExpr]. We intialize our variable `collapsed1` with the
+     * [CalculatorExpr] returned by our [collapsedExprGet] method for the [ExprInfo] in the [mExprs]
+     * cache stored under index [index1], and our variable `collapsed2` with the [CalculatorExpr] it
+     * returns for the [ExprInfo] in the [mExprs] cache stored under index [index2]. If `collapsed1`
+     * or `collapsed2` is *null* we return *null* to the caller. We append `collapsed1` to `result`
+     * add `op` to it, and then append `collapsed2` to it. We initialize our variable `resultEi` to
+     * a new instance of [ExprInfo] constructed from `result` with *false* for the degree mode flag.
+     * We set the `mLongTimeout` field of `resultEi` to the logical or of the `mLongTimeout` field
+     * of the [ExprInfo] stored under index [index1] in [mExprs] and [ExprInfo] stored under index
+     * [index2], then we return `resultEi` to the caller.
      *
      * @param index1 Index of the first [ExprInfo] in our [mExprs] cache, should be an immutable
      * expression (ie. not MAIN_INDEX).
@@ -1908,12 +1920,31 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Add the expression described by the argument to the database.
-     * Returns the new row id in the database.
-     * Fills in timestamp in ei, if it was not previously set.
-     * If inHistory is true, add it with a positive index, so it will appear in the history.
+     * Add the expression described by the argument to the database. Returns the new row id in the
+     * database. Fills in timestamp in [ei], if it was not previously set. If [inHistory] is *true*,
+     * add it with a positive index, so it will appear in the history. We initialize our variable
+     * `serializedExpr` to the [ByteArray] created from the `mExpr` [CalculatorExpr] field of [ei]
+     * by its `toBytes` method. We initialize our variable `rd` to an [ExpressionDB.RowData] instance
+     * constructed from `serializedExpr`, the `mDegreeMode` field of [ei], the `mLongTimeout` field
+     * of [ei] and a timestamp of 0. We then initialize our variable `resultIndex` to the database
+     * index that the `addRow` method of [mExprDB] returns after adding `rd` to the database outside
+     * of the existing range (the row will be added with a negative index if [inHistory] is *false*
+     * and will not appear in the history). If the [ExprInfo] stored at index `resultIndex` in our
+     * [mExprs] cache is not *null* we throw an [AssertionError] ("result slot already occupied!...")
+     * otherwise we set the `mTimeStamp` field of [ei] to the `mTimeStamp` field of `rd`. Then if
+     * `resultIndex` is MAIN_INDEX we throw an [AssertionError] ("Should not store main expression").
+     * Otherwise we store [ei] in our [mExprs] cache under index `resultIndex` and return `resultIndex`
+     * to the caller.
+     *
+     * @param inHistory if *true* add the [ExprInfo] in [ei] to the database with a positive index,
+     * so it will appear in the history
+     * @param ei the [ExprInfo] to add to the database.
+     * @return the index of the [ExprInfo] in our [mExprs] cache.
      */
-    private fun addToDB(inHistory: Boolean, ei: ExprInfo): Long {
+    private fun addToDB(
+            inHistory: Boolean,
+            ei: ExprInfo
+    ): Long {
         val serializedExpr = ei.mExpr.toBytes()
         val rd = ExpressionDB.RowData(serializedExpr, ei.mDegreeMode, ei.mLongTimeout, 0)
         val resultIndex = mExprDB.addRow(!inHistory, rd)
@@ -1930,13 +1961,24 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Preserve a copy of the expression at oldIndex at a new index.
-     * This is useful only of oldIndex is MAIN_INDEX or HISTORY_MAIN_INDEX.
-     * This assumes that initial evaluation completed successfully.
+     * Preserve a copy of the expression at [oldIndex] at a new index. This is useful only if
+     * [oldIndex] is MAIN_INDEX or HISTORY_MAIN_INDEX. This assumes that initial evaluation
+     * completed successfully. We initialize our variable `ei` to the [ExprInfo] that our [copy]
+     * method creates by making a deep copy of the [ExprInfo] at index [oldIndex] in our [mExprs]
+     * cache (passing *true* for its `copyValue` parameter so that the results of its last
+     * evaluation are copied too). If the `mResultString` field of `ei` is *null* or equal to
+     * ERRONEOUS_RESULT we throw an [AssertionError] ("Preserving unevaluated expression").
+     * Otherwise we return the index that our [addToDB] method returns after it adds `ei` to our
+     * database (and to our history if our [inHistory] parameter is *true*).
+     *
+     * @param oldIndex index of the expression in our [mExprs] cache of [ExprInfo].
      * @param inHistory use a positive index so the result appears in the history.
      * @return the new index
      */
-    fun preserve(oldIndex: Long, inHistory: Boolean): Long {
+    fun preserve(
+            oldIndex: Long,
+            inHistory: Boolean
+    ): Long {
         val ei = copy(oldIndex, true)
         if (ei.mResultString == null || ei.mResultString == ERRONEOUS_RESULT) {
             throw AssertionError("Preserving unevaluated expression")
@@ -1945,8 +1987,12 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Preserve a copy of the current main expression as the most recent history entry,
-     * assuming it is already in the database, but may have been lost from the cache.
+     * Preserve a copy of the current main expression as the most recent history entry, assuming it
+     * is already in the database, but may have been lost from the cache. We initialize our variable
+     * `resultIndex` to the maximum index value in our database that is returned by our [maxIndexGet]
+     * method (this is the index of the last expression added to the database which appears in the
+     * history). Then we call our [ensureExprIsCached] method with `resultIndex` to have it make sure
+     * that the [ExprInfo] with index `resultIndex` is in our [mExprs] cache.
      */
     fun represerve() {
         val resultIndex = maxIndexGet()
