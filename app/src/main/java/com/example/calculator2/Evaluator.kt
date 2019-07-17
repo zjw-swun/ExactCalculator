@@ -2004,9 +2004,13 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Discard previous expression in HISTORY_MAIN_INDEX and replace it by a fresh copy
-     * of the main expression. Note that the HISTORY_MAIN_INDEX expression is not preserved
-     * in the database or anywhere else; it is always reconstructed when needed.
+     * Discard previous expression in HISTORY_MAIN_INDEX and replace it by a fresh copy of the main
+     * expression. Note that the HISTORY_MAIN_INDEX expression is not preserved in the database or
+     * anywhere else; it is always reconstructed when needed. First we call our method `cancel` to
+     * cancel any background task associated with the [ExprInfo] with index HISTORY_MAIN_INDEX with
+     * the quiet flag *true* to suppress the cancel dialog. Then we initialize our variable `ei` to
+     * the deep copy of the [ExprInfo] with index MAIN_INDEX copying the results of its evaluation
+     * as well. Then we store `ei` in our [mExprs] cache under index HISTORY_MAIN_INDEX.
      */
     fun copyMainToHistory() {
         cancel(HISTORY_MAIN_INDEX, true /* quiet */)
@@ -2015,14 +2019,37 @@ class Evaluator internal constructor(
     }
 
     /**
-     * @return the [CalculatorExpr] representation of the result of the given
-     * expression.
-     * The resulting expression contains a single "token" with the pre-evaluated result.
+     * "Collapses" the expression with index [index] to the [CalculatorExpr] representation of its
+     * result. The resulting expression contains a single "token" with the pre-evaluated result.
      * The client should ensure that this is never invoked unless initial evaluation of the
-     * expression has been completed.
+     * expression has been completed. If our parameter [index] refers to a mutable expression (only
+     * MAIN_INDEX or HISTORY_MAIN_INDEX are mutable since they refer to the current expression in
+     * the calculator display) we call our [preserve] method to preserve a copy of the expression at
+     * [index] at a new index and we use the new index that it returns to initialize our variable
+     * `realIndex`, otherwise we initialize it to [index]. We initialize our variable `ei` to the
+     * [ExprInfo] stored at index `realIndex` in our [mExprs] cache, and our variable `rs` to the
+     * `mResultString` field of `ei`. If `rs` is *null* or equal to ERRONEOUS_RESULT we return
+     * *null* to the caller. Otherwise we initialize our variable `dotIndex` to the index of the
+     * first '.' character in `rs`, and our variable `leastDigOffset` to the index of the rightmost
+     * nonzero digit position that our [lsdOffsetGet] method returns when it examines the [UnifiedReal]
+     * in the `mVal` field of `ei` using `rs` as the cached short result and starts looking in `rs`
+     * starting at `dotIndex`. Finally we return the [CalculatorExpr] that the `abbreviate` method
+     * of the [CalculatorExpr] in the `mExpr` field of `ei` returns when it constructs a new
+     * expression consisting of a single token representing the current pre-evaluated expression
+     * using `realIndex` as the database index of the expression it is to abbreviate to a single
+     * token, and the short string representation that our [shortStringGet] method creates using
+     * `rs` as the string approximation of value, the most significant digit index that our method
+     * [msdIndexOfGet] returns for `rs` and `leastDigOffset` as the position of the least significant
+     * digit in finite representation, relative to the decimal point (could be MAX_VALUE if does not
+     * have a finite representation).
+     *
+     * @param index Index of the [ExprInfo] in our [mExprs] cache we are interested in.
+     * @return the [CalculatorExpr] representation of the result of the given expression.
      */
-    private fun collapsedExprGet(index: Long): CalculatorExpr? {
-        val realIndex = if (isMutableIndex(index)) preserve(index, false) else index
+    private fun collapsedExprGet(
+            index: Long
+    ): CalculatorExpr? {
+        val realIndex = if (isMutableIndex(index)) preserve(index,false) else index
         val ei = mExprs[realIndex]
 
         val rs = ei!!.mResultString
@@ -2035,17 +2062,27 @@ class Evaluator internal constructor(
         }
         val dotIndex = rs.indexOf('.')
         val leastDigOffset = lsdOffsetGet(ei.mVal.get(), rs, dotIndex)
-        return ei.mExpr.abbreviate(realIndex,
-                shortStringGet(rs, msdIndexOfGet(rs), leastDigOffset))
+        return ei.mExpr.abbreviate(realIndex, shortStringGet(rs, msdIndexOfGet(rs), leastDigOffset))
     }
 
     /**
-     * Abbreviate the indicated expression to a pre-evaluated expression node,
-     * and use that as the new main expression.
-     * This should not be called unless the expression was previously evaluated and produced a
-     * non-error result.  Pre-evaluated expressions can never represent an expression for which
-     * evaluation to a constructive real diverges.  Subsequent re-evaluation will also not
-     * diverge, though it may generate errors of various kinds.  E.g.  sqrt(-10^-1000) .
+     * Abbreviate the indicated expression to a pre-evaluated expression node, and use that as the
+     * new main expression. This should not be called unless the expression was previously evaluated
+     * and produced a non-error result. Pre-evaluated expressions can never represent an expression
+     * for which evaluation to a constructive real diverges. Subsequent re-evaluation will also not
+     * diverge, though it may generate errors of various kinds (E.g. sqrt(-10^-1000)). We initialize
+     * our variable `longTimeout` to the `mLongTimeout` field of the [ExprInfo] stored at index
+     * [index] in our [mExprs] cache. We then initialize our variable `abbrvExpr` to the "collapsed"
+     * [CalculatorExpr] that our [collapsedExprGet] method constructs from the [ExprInfo] stored at
+     * index [index] in our [mExprs] cache. We call our [clearMain] method to completely clear the
+     * current main expression. We use an [assert] to make sure `abbrvExpr` is not *null*, then call
+     * the `append` method of the [CalculatorExpr] in the `mExpr` field of [mMainExpr] to append
+     * `abbrvExpr` to it (`abbrvExpr` is now the only token in the main expression). We then set the
+     * `mLongTimeout` field of [mMainExpr] to our variable `longTimeout`, set [mChangedValue] to
+     * *true*, and set [mHasTrigFuncs] to *false* (change of degree mode cannot affect the collapsed
+     * expression).
+     *
+     * @param index index of the [ExprInfo] in our [mExprs] we are to "collapse".
      */
     fun collapse(index: Long) {
 
@@ -2066,25 +2103,80 @@ class Evaluator internal constructor(
         mChangedValue = true
     }
 
+    /**
+     * This abstract class is implemented by our [SetMemoryWhenDoneListener] class which overrides
+     * our [setNow] method to set the memory index when our [onEvaluate] override is called and by
+     * our [SetSavedWhenDoneListener] class which overrides our [setNow] method to set the index of
+     * the "saved" expression mirroring the clipboard when our [onEvaluate] override is called.
+     */
     private abstract inner class SetWhenDoneListener : EvaluationListener {
+        /**
+         * This method exists solely to be called to throw an [AssertionError] if anyone calls our
+         * [onReevaluate] override.
+         */
         private fun badCall() {
             throw AssertionError("unexpected callback")
         }
 
+        /**
+         * Classes which implement us need to override this method in order for our [onEvaluate]
+         * override to call it to do whatever needs to be done with the evaluation result.
+         */
         internal abstract fun setNow()
+
+        /**
+         * Called if evaluation was explicitly cancelled or evaluation timed out. We ignore.
+         *
+         * @param index the index of the the expression which was cancelled.
+         */
         override fun onCancelled(index: Long) {}  // Extremely unlikely; leave unset.
+
+        /**
+         * Called if evaluation resulted in an error. We ignore.
+         *
+         * @param index the index of the the expression which was cancelled.
+         * @param errorId the resource ID of the string describing the error.
+         */
         override fun onError(index: Long, errorId: Int) {}  // Extremely unlikely; leave unset.
-        override fun onEvaluate(index: Long, initPrecOffset: Int, msdIndex: Int, lsdOffset: Int,
-                                truncatedWholePart: String) {
+
+        /**
+         * Called if evaluation completed normally. We just call the [setNow] method which classes
+         * which inherit from us need to implement.
+         *
+         * @param index index of expression whose evaluation completed
+         * @param initPrecOffset the offset used for initial evaluation
+         * @param msdIndex index of first non-zero digit in the computed result string
+         * @param lsdOffset offset of last digit in result if result has finite decimal expansion
+         * @param truncatedWholePart the integer part of the result
+         */
+        override fun onEvaluate(
+                index: Long,
+                initPrecOffset: Int,
+                msdIndex: Int,
+                lsdOffset: Int,
+                truncatedWholePart: String) {
             setNow()
         }
 
+        /**
+         * Called in response to a reevaluation request, once more precision is available. Typically
+         * the listener wil respond by calling stringGet() to retrieve the new better approximation.
+         * We just call our [badCall] method to throw an [AssertionError].
+         *
+         * @param index the index of the the expression which was reevaluated.
+         */
         override fun onReevaluate(index: Long) {
             badCall()
         }
     }
 
-    private inner class SetMemoryWhenDoneListener internal constructor(internal val mIndex: Long, internal val mPersist: Boolean) : SetWhenDoneListener() {
+    /**
+     *
+     */
+    private inner class SetMemoryWhenDoneListener internal constructor(
+            internal val mIndex: Long,
+            internal val mPersist: Boolean
+    ) : SetWhenDoneListener() {
         override fun setNow() {
             if (mMemoryIndex != 0L) {
                 throw AssertionError("Overwriting nonzero memory index")
