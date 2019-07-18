@@ -2171,12 +2171,27 @@ class Evaluator internal constructor(
     }
 
     /**
-     *
+     * This subclass of [SetWhenDoneListener] overrides the [setNow] method to set the [mMemoryIndex]
+     * field to [mIndex] when the `onEvaluate` method of that [EvaluationListener] subclass is called
+     * after the evaluation of the expression is complete. It is used as the [EvaluationListener] when
+     * the result of the manipulation of the "memory" expression is stored back to "memory". If our
+     * construction parameter [mPersist] is *true* [mIndex] is stored to our preference file too.
      */
     private inner class SetMemoryWhenDoneListener internal constructor(
             internal val mIndex: Long,
             internal val mPersist: Boolean
     ) : SetWhenDoneListener() {
+        /**
+         * This override of [SetWhenDoneListener.setNow] is used when the result of the evaluation
+         * needs to be stored to the memory expression [mMemoryIndex] (ie. when the user selects the
+         * "add to memory" or "subtract from memory" options from the context menu that pops up when
+         * the calculator display is long clicked, as well as in the *init* block of [Evaluator] to
+         * restore the index of the memory expression from the shared preference file). If our
+         * [mMemoryIndex] field is not 0 we throw an [AssertionError] "Overwriting nonzero memory
+         * index". If our [mPersist] field is *true* we call our [setMemoryIndex] method to set
+         * [mMemoryIndex] to [mIndex] and write the new value to our shared preference file.
+         * Otherwise we just set [mMemoryIndex] to [mIndex].
+         */
         override fun setNow() {
             if (mMemoryIndex != 0L) {
                 throw AssertionError("Overwriting nonzero memory index")
@@ -2189,14 +2204,34 @@ class Evaluator internal constructor(
         }
     }
 
-    private inner class SetSavedWhenDoneListener internal constructor(internal val mIndex: Long) : SetWhenDoneListener() {
+    /**
+     * This subclass of [SetWhenDoneListener] overrides the [setNow] method to set the [mSavedIndex]
+     * field to [mIndex] when the `onEvaluate` method of that [EvaluationListener] subclass is called
+     * after the evaluation of the expression is complete. It is used as the [EvaluationListener] in
+     * the *init* block of [Evaluator] in order to restore the expression which mirrors the clipboard
+     * to that which was stored in our shared preferences file.
+     */
+    private inner class SetSavedWhenDoneListener internal constructor(
+            internal val mIndex: Long
+    ) : SetWhenDoneListener() {
+        /**
+         * This override of [SetWhenDoneListener.setNow] is used when the result of the evaluation
+         * needs to be stored to [mSavedIndex] (the "saved" expression mirroring the clipboard) and
+         * that is exactly what it does.
+         */
         override fun setNow() {
             mSavedIndex = mIndex
         }
     }
 
     /**
-     * Set the local and persistent memory index.
+     * Set the local and persistent memory index. First we set our field [mMemoryIndex] to our
+     * parameter [index]. Then we use our field [mSharedPrefs] to create a new instance of
+     * [SharedPreferences.Editor] which we use to store the [Long] value [index] under the key
+     * KEY_PREF_MEMORY_INDEX, and then we commit the change. If our field [mCallback] is not *null*
+     * we call its `onMemoryStateChanged` override to report that the "memory" index has changed.
+     *
+     * @param index Index of the expression which is to become the "memory" index.
      */
     private fun setMemoryIndex(index: Long) {
         mMemoryIndex = index
@@ -2210,7 +2245,12 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Set the local and persistent saved index.
+     * Set the local and persistent saved index (index of the expression which has been copied to the
+     * clipboard). We set our field [mSavedIndex] to our parameter [index], then use our field
+     * [mSharedPrefs] to create a new instance of [SharedPreferences.Editor] which we use to store
+     * the [Long] value [index] under the key KEY_PREF_SAVED_INDEX, and then we commit the change.
+     *
+     * @param index Index of the expression which has been "copied" to the clipboard.
      */
     private fun setSavedIndex(index: Long) {
         mSavedIndex = index
@@ -2220,45 +2260,81 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Set mMemoryIndex (possibly including the persistent version) to index when we finish
-     * evaluating the corresponding expression.
+     * Set [mMemoryIndex] (possibly including the persistent version) to [index] when we finish
+     * evaluating the corresponding expression. We just call our [requireResult] method to have it
+     * evaluate the expression with index [index] in the background using a new instance of
+     * [SetMemoryWhenDoneListener] constructed using our parameters as its [EvaluationListener], and
+     * [mDummyCharMetricsInfo] as its [CharMetricsInfo].
+     *
+     * @param index Index of the expression which is to become the memory index after evaluation.
+     * @param persist If *true* write the new index value to our shared preferences file.
      */
     internal fun setMemoryIndexWhenEvaluated(index: Long, persist: Boolean) {
         requireResult(index, SetMemoryWhenDoneListener(index, persist), mDummyCharMetricsInfo)
     }
 
     /**
-     * Set mSavedIndex (not the persistent version) to index when we finish evaluating
-     * the corresponding expression.
+     * Set [mSavedIndex] (not the persistent version) to [index] when we finish evaluating the
+     * corresponding expression. This is called from the *init* block of [Evaluator] to restore
+     * [mSavedIndex] to the value that was stored in our shared preferences file. We just call our
+     * [requireResult] method to have it evaluate the expression with index [index] in the background
+     * using a new instance of [SetSavedWhenDoneListener] constructed using our parameter [index] as
+     * its [EvaluationListener], and [mDummyCharMetricsInfo] as its [CharMetricsInfo].
+     *
+     * @param index Index of the expression which is to become the saved index after evaluation.
      */
     internal fun setSavedIndexWhenEvaluated(index: Long) {
         requireResult(index, SetSavedWhenDoneListener(index), mDummyCharMetricsInfo)
     }
 
     /**
-     * Save an immutable version of the expression at the given index as the saved value.
-     * mExpr is left alone.  Return false if result is unavailable.
+     * Save an immutable version of the expression at the given [index] as the saved value. `mExpr`
+     * is left alone. Return *false* if result is unavailable. If the `mResultString` field of the
+     * [ExprInfo] at index [index] in our [mExprs] cache is *null* or equal to ERRONEOUS_RESULT we
+     * just return *false* to the caller. Otherwise we call our [setSavedIndex] method with [index]
+     * if our [isMutableIndex] method returns *false* (the expression is an immutable one from history)
+     * or the index returned by our [preserve] method after it preserves the expression to our database
+     * if it is a mutable index ([setSavedIndex] sets our [mSavedIndex] field and stores the value
+     * to our shared preferences file). Finally we return *true* to the caller.
+     *
+     * @param index Index of the expression which is to become the saved index
+     * @return *false* if result is unavailable, or *true* if it was.
      */
     private fun copyToSaved(index: Long): Boolean {
 
-        if (mExprs[index]!!.mResultString == null || mExprs[index]!!.mResultString == ERRONEOUS_RESULT) {
-            return false
-        }
+        if (mExprs[index]!!.mResultString == null) return false
+        if (mExprs[index]!!.mResultString == ERRONEOUS_RESULT) return false
         setSavedIndex(if (isMutableIndex(index)) preserve(index, false) else index)
         return true
     }
 
     /**
-     * Save an immutable version of the expression at the given index as the "memory" value.
-     * The expression at index is presumed to have been evaluated.
+     * Save an immutable version of the expression at the given [index] as the "memory" value. The
+     * expression at [index] is presumed to have been evaluated. We call our [setMemoryIndex] method
+     * with [index] if our [isMutableIndex] method returns *false* (the expression is an immutable
+     * one from history) or the index returned by our [preserve] method after it preserves the
+     * expression to our database if it is a mutable index ([setMemoryIndex] sets our [mMemoryIndex]
+     * field and stores the value to our shared preferences file).
+     *
+     * @param index Index of the expression which is to become the index of the "memory" value.
      */
     fun copyToMemory(index: Long) {
         setMemoryIndex(if (isMutableIndex(index)) preserve(index, false) else index)
     }
 
     /**
-     * Save an an expression representing the sum of "memory" and the expression with the
-     * given index. Make mMemoryIndex point to it when we complete evaluating.
+     * Save an an expression representing the sum of "memory" and the expression with the given
+     * [index]. Make [mMemoryIndex] point to it when we complete evaluating. We initialize our
+     * variable `newEi` to the [ExprInfo] returned by our [sum] method that it constructs by
+     * joining the expressions with indices [mMemoryIndex] and [index] with a "+" add operator.
+     * If `newEi` is not *null* we initialize our variable `newIndex` to the index that our
+     * [addToDB] method returns after adding `newEi` to our database without making it visible
+     * in history. We then set [mMemoryIndex] to 0 (we need to invalidate it while we're evaluating)
+     * and call our [setMemoryIndexWhenEvaluated] to start the background evaluation of the expression
+     * with index `newIndex`, setting [mMemoryIndex] to `newIndex` when the evaluation is done and
+     * persisting the new value to our shared preferences file.
+     *
+     * @param index Index of the expression which is to be added to the "memory" value.
      */
     fun addToMemory(index: Long) {
         val newEi = sum(mMemoryIndex, index)
@@ -2270,8 +2346,18 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Save an an expression representing the subtraction of the expression with the given index
-     * from "memory." Make mMemoryIndex point to it when we complete evaluating.
+     * Save an an expression representing the subtraction of the expression with the given [index]
+     * from "memory." Make [mMemoryIndex] point to it when we complete evaluating. We initialize our
+     * variable `newEi` to the [ExprInfo] returned by our [difference] method that it constructs by
+     * joining the expressions with indices [mMemoryIndex] and [index] with a "-" subtract operator.
+     * If `newEi` is not *null* we initialize our variable `newIndex` to the index that our
+     * [addToDB] method returns after adding `newEi` to our database without making it visible
+     * in history. We then set [mMemoryIndex] to 0 (we need to invalidate it while we're evaluating)
+     * and call our [setMemoryIndexWhenEvaluated] to start the background evaluation of the expression
+     * with index `newIndex`, setting [mMemoryIndex] to `newIndex` when the evaluation is done and
+     * persisting the new value to our shared preferences file.
+     *
+     * @param index Index of the expression which is to be subtracted from the "memory" value.
      */
     fun subtractFromMemory(index: Long) {
         val newEi = difference(mMemoryIndex, index)
@@ -2284,6 +2370,8 @@ class Evaluator internal constructor(
 
     /**
      * Return index of "saved" expression, or 0.
+     *
+     * @return the value of our [mSavedIndex] field.
      */
     fun savedIndexGet(): Long {
         return mSavedIndex
@@ -2291,11 +2379,21 @@ class Evaluator internal constructor(
 
     /**
      * Return index of "memory" expression, or 0.
+     *
+     * @return the value of our [mMemoryIndex] field.
      */
     fun memoryIndexGet(): Long {
         return mMemoryIndex
     }
 
+    /**
+     * Builds and returns a unique private [Uri] from our [mSavedName] field that is used as the
+     * [Uri] part of a `ClipData` `Item` when one of our expressions is copied to the clipboard.
+     * We construct a [Uri.Builder], set its scheme to "tag", set its reviously encoded opaque
+     * scheme-specific-part to our [mSavedName], build the [Uri] then return it to the caller.
+     *
+     * @return a unique private [Uri] describing expression to be saved to the clipboard.
+     */
     private fun uriForSaved(): Uri {
         return Uri.Builder().scheme("tag")
                 .encodedOpaquePart(mSavedName)
@@ -2303,8 +2401,11 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Save the index expression as the saved location and return a URI describing it.
-     * The URI is used to distinguish this particular result from others we may generate.
+     * Save the [index] expression as the saved location and return a [Uri] describing it. The [Uri]
+     * is used to distinguish this particular result from others we may generate.
+     *
+     * @param index Index of the expression which is to be captured to the clipboard.
+     * @return a unique private [Uri] describing the result copied to the clipboard.
      */
     fun capture(index: Long): Uri? {
         if (!copyToSaved(index)) return null
