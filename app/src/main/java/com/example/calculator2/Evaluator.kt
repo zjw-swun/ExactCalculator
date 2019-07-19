@@ -2389,7 +2389,7 @@ class Evaluator internal constructor(
     /**
      * Builds and returns a unique private [Uri] from our [mSavedName] field that is used as the
      * [Uri] part of a `ClipData` `Item` when one of our expressions is copied to the clipboard.
-     * We construct a [Uri.Builder], set its scheme to "tag", set its reviously encoded opaque
+     * We construct a [Uri.Builder], set its scheme to "tag", set its previously encoded opaque
      * scheme-specific-part to our [mSavedName], build the [Uri] then return it to the caller.
      *
      * @return a unique private [Uri] describing expression to be saved to the clipboard.
@@ -2402,7 +2402,18 @@ class Evaluator internal constructor(
 
     /**
      * Save the [index] expression as the saved location and return a [Uri] describing it. The [Uri]
-     * is used to distinguish this particular result from others we may generate.
+     * is used to distinguish this particular result from others we may generate. If our method
+     * [copyToSaved] returns *false* because a result for the expression with index [index] is not
+     * available we return *null*. Otherwise we initialize our variable `tz` with the default
+     * [TimeZone] for our host, and our variable `df` with an instance of [SimpleDateFormat] for the
+     * format "yyyy-MM-dd", set the `timeZone` field of `df` to `tz`, then initialize our variable
+     * `isoDate` with the [Date] of the current time formatted according to the format of `df`. We
+     * then set our field [mSavedName] to the string formed by concatenating "calculator2.android.com,"
+     * followed by `isoDate`, followed by the string ":", followed by the string value of the lower
+     * 30 bits of the next random [Int]. We then use our field [mSharedPrefs] to create a shared
+     * preferences `Editor` which we use to store [mSavedName] in our shared preferences file under
+     * the key KEY_PREF_SAVED_NAME and commit the change. Finally we return the [Uri] returned by
+     * our [uriForSaved] method to the caller.
      *
      * @param index Index of the expression which is to be captured to the clipboard.
      * @return a unique private [Uri] describing the result copied to the clipboard.
@@ -2424,12 +2435,34 @@ class Evaluator internal constructor(
         return uriForSaved()
     }
 
+    /**
+     * Tests its parameter [uri] to see if it references the expression with index [mSavedIndex]
+     * and saved name [mSavedName] that we recently copied to the clipboard. If [mSavedIndex] is
+     * equal to 0 we return *false* (we have no expression on the clipboard), otherwise we return
+     * *true* if our parameter [uri] is equal to the [Uri] that our [uriForSaved] method constructs
+     * from [mSavedName].
+     *
+     * @param uri the [Uri] that we want to test to see if it references [mSavedIndex]
+     * @return *true* if our parameter [uri] is equal to that which our [uriForSaved] constructs for
+     * the current value of [mSavedName].
+     */
     fun isLastSaved(uri: Uri): Boolean {
         return mSavedIndex != 0L && uri == uriForSaved()
     }
 
     /**
-     * Append the expression at index as a pre-evaluated expression to the main expression.
+     * Append the expression at index [index] as a pre-evaluated expression to the main expression.
+     * We initialize our variable `ei` with the [ExprInfo] stored under index [index] in our [mExprs]
+     * cache, and set our [mChangedValue] field to *true* (the main expression will have been changed
+     * and need to be reevaluated when we return). We then set the `mLongTimeout` field of [mMainExpr]
+     * to the logical or of the `mLongTimeout` field of [mMainExpr] and the `mLongTimeout` field of
+     * `ei`. We initialize our variable `collapsed` to the [CalculatorExpr] returned by our method
+     * [collapsedExprGet] for the expression with index [index], and if that is not *null* we call
+     * the `append` method of the [CalculatorExpr] in the `mExpr` field of [mMainExpr] to have it
+     * append the collapsed [CalculatorExpr] that our method [collapsedExprGet] returns for the
+     * expression with index [index] to itself.
+     *
+     * @param index Index of the expression which is to be appended to the main expression.
      */
     fun appendExpr(index: Long) {
         val ei = mExprs[index]
@@ -2444,8 +2477,12 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Add the power of 10 operator to the main expression.
-     * This is treated essentially as a macro expansion.
+     * Add the power of 10 operator to the main expression. This is treated essentially as a macro
+     * expansion. We initialize our variable `ten` with a new instance of [CalculatorExpr]. We add
+     * the resource id for the key "1" to `ten` followed by the resource id for the key "0". We
+     * set our [mChangedValue] field to *true* then use the `append` method of the [CalculatorExpr]
+     * field `mExpr` of [mMainExpr] to append `ten` to the main expression, followed by a call the
+     * the `add` method of `mExpr` to add the resource id for the "power" key to the main expression.
      */
     private fun add10pow() {
         val ten = CalculatorExpr()
@@ -2457,10 +2494,27 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Ensure that the expression with the given index is in mExprs.
-     * We assume that if it's either already in mExprs or mExprDB.
-     * When we're done, the expression in mExprs may still contain references to other
-     * subexpressions that are not yet cached.
+     * Ensure that the expression with the given index [index] is in [mExprs]. We assume that if it
+     * is either already in [mExprs] or [mExprDB]. When we're done, the expression in [mExprs] may
+     * still contain references to other subexpressions that are not yet cached. First we initialize
+     * our variable `ei` with the [ExprInfo] stored under index [index] in our cache [mExprs], and
+     * if this is not *null* we return it to the caller. If [index] is MAIN_INDEX we throw an
+     * [AssertionError] "Main expression should be cached". Otherwise we initialize our variable
+     * `row` with the [ExpressionDB.RowData] that the `getRow` method of our [mExprDB] field returns
+     * for the database row index [index]. We initialize our variable `serializedExpr` with a new
+     * instance of [DataInputStream] constructed from a [ByteArrayInputStream] constructed from the
+     * `mExpression` byte array field of `row`. Then wrapped in a *try* block intended to catch
+     * [IOException] in order to re-throw it as an [AssertionError] we set `ei` to a new instance of
+     * [ExprInfo] constructed from a [CalculatorExpr] that is constructed by reading in `serializedExpr`
+     * and the `degreeMode` that the `degreeMode` method of `row` extracts from the flags of the row.
+     * We then set the `mTimeStamp` field of `ei` to the `mTimeStamp` field of `row` and the
+     * `mLongTimeout` field of `ei` to the `longTimeout` that the `longTimeout` method of `row`
+     * extracts from the flags of the row. We initialize our variable `newEi` to the [ExprInfo]
+     * returned by the `putIfAbsent` method of [mExprs] after storing `ei` under key [index] in
+     * [mExprs]. We then return `newEi` to the caller (or `ei` if `newEi` is *null*).
+     *
+     * @param index Index of the expression we need cached in our [ExprInfo] cache [mExprs].
+     * @return the [ExprInfo] that is cached under index [index] in our [mExprs] cache.
      */
     private fun ensureExprIsCached(index: Long): ExprInfo {
         var ei = mExprs[index]
@@ -2484,6 +2538,9 @@ class Evaluator internal constructor(
         return newEi ?: ei
     }
 
+    /**
+     *
+     */
     override fun exprGet(index: Long): CalculatorExpr {
         return ensureExprIsCached(index).mExpr
     }
