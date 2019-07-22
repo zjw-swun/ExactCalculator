@@ -2539,28 +2539,65 @@ class Evaluator internal constructor(
     }
 
     /**
+     * Returns the [CalculatorExpr] in the `mExpr` field of the [ExprInfo] at index [index] of our
+     * [mExprs] cache that our [ensureExprIsCached] method returns after it makes sure that that
+     * expression is in the cache. Part of the [CalculatorExpr.ExprResolver] interface.
      *
+     * @param index the index of the the expression whose [CalculatorExpr] we need to get.
+     * @return The [CalculatorExpr] in the `mExpr` field of the [ExprInfo] with index [index].
      */
     override fun exprGet(index: Long): CalculatorExpr {
         return ensureExprIsCached(index).mExpr
     }
 
-    /*
-     * Return timestamp associated with the expression in milliseconds since epoch.
-     * Yields zero if the expression has not been written to or read from the database.
+    /**
+     * Return timestamp associated with the expression in milliseconds since epoch. Yields zero if
+     * the expression has not been written to or read from the database. We return the `mTimeStamp`
+     * field of the [ExprInfo] at index [index] of our [mExprs] cache that our [ensureExprIsCached]
+     * method returns after it makes sure that that expression is in the cache.
+     *
+     * @param index the index of the the expression whose time stamp we want.
+     * @return the timestamp in the `mTimeStamp` field of the [ExprInfo] with index [index].
      */
     fun timeStampGet(index: Long): Long {
         return ensureExprIsCached(index).mTimeStamp
     }
 
+    /**
+     * Returns the degree mode flag in the `mDegreeMode` field of the [ExprInfo] at index [index] of
+     * our [mExprs] cache that our [ensureExprIsCached] method returns after it makes sure that that
+     * expression is in the cache. Part of the [CalculatorExpr.ExprResolver] interface.
+     *
+     * @param index the index of the the expression whose degree mode flag we want.
+     * @return the degree mode flag in the `mDegreeMode` field of the [ExprInfo] with index [index].
+     */
     override fun degreeModeGet(index: Long): Boolean {
         return ensureExprIsCached(index).mDegreeMode
     }
 
+    /**
+     * Returns the [UnifiedReal] that results from evaluating the expression at index [index] of our
+     * [mExprs] cache that our [ensureExprIsCached] method returns (after it makes sure that that
+     * expression is in the cache) using the `eval` method. Part of the [CalculatorExpr.ExprResolver]
+     * interface.
+     *
+     * @param index the index of the the expression which we want evaluated to a [UnifiedReal].
+     * @return the [UnifiedReal] that results from calling the `eval` method of the expression which
+     * is cached under index [index] in our [mExprs] cache of [ExprInfo] expressions.
+     */
     override fun resultGet(index: Long): UnifiedReal? {
         return ensureExprIsCached(index).mVal.get()
     }
 
+    /**
+     * Atomically test for an existing result, and set it if there was none. Return the prior result
+     * if there was one, or the new one if there was not. May only be called after [exprGet].
+     *
+     * @param index index of the expression that we are interested in.
+     * @param result the [UnifiedReal] we are to save at index [index].
+     * @return if there was no [UnifiedReal] at [index] we return [result], otherwise we return
+     * the [UnifiedReal] which already occupies position [index].
+     */
     override fun putResultIfAbsent(index: Long, result: UnifiedReal): UnifiedReal {
         val ei = mExprs[index]
 
@@ -2574,7 +2611,10 @@ class Evaluator internal constructor(
 
     /**
      * Does the current main expression contain trig functions?
-     * Might its value depend on DEG/RAD mode?
+     * (Might its value depend on DEG/RAD mode?)
+     *
+     * @return *true* if our [mHasTrigFuncs] is *true* (indicating that the main expression has trig
+     * functions.
      */
     fun hasTrigFuncs(): Boolean {
         return mHasTrigFuncs
@@ -2582,16 +2622,28 @@ class Evaluator internal constructor(
 
     /**
      * Add the exponent represented by s[begin..end) to the constant at the end of current
-     * expression.
-     * The end of the current expression must be a constant.  Exponents have the same syntax as
-     * for exponentEnd().
+     * expression. The end of the current expression must be a constant. Exponents have the
+     * same syntax as for [exponentEnd]. We initialize our variable `sign` to 1, our variable
+     * `exp` to 0, and our variable `i` to [begin] plus 1. If our [KeyMaps.keyForChar] decides
+     * that the resource ID of the key that produces the character at index `i` in [s] is
+     * the minus character (R.id.op_sub), we set `sign` to minus 1, and increment `i`. We then
+     * loop while `i` is less than [end] setting `exp` to 10 times `exp` plus the numeric value
+     * of the character at index `i` in [s] in the 10 radix that the [Character.digit] method
+     * returns. When done calculating `exp` we call the `addExponent` method of the `mExpr` field
+     * of [mMainExpr] to have it add `sign` times `exp` as an exponent to the `Constant` at the
+     * end of the expression. Finally we set our [mChangedValue] field to *true* to indicate that
+     * the main expression has changed and needs to be reevaluated.
+     *
+     * @param s the [String] which contains the exponent to add to the end of the current expression.
+     * @param begin the beginning index of the substring of [s] to add as an exponent.
+     * @param end the ending index of the substring of [s] to add as an exponent.
      */
     fun addExponent(s: String, begin: Int, end: Int) {
         var sign = 1
         var exp = 0
         var i = begin + 1
         // We do the decimal conversion ourselves to exactly match exponentEnd() conventions
-        // and handle various kinds of digits on input.  Also avoids allocation.
+        // and handle various kinds of digits on input. Also avoids allocation.
         if (KeyMaps.keyForChar(s[i]) == R.id.op_sub) {
             sign = -1
             ++i
@@ -2605,9 +2657,13 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Generate a String representation of the expression at the given index.
-     * This has the side effect of adding the expression to mExprs.
-     * The expression must exist in the database.
+     * Generate a String representation of the expression at the given index. This has the side
+     * effect of adding the expression to [mExprs]. The expression must exist in the database.
+     * We just return the result returned by the `toString` method of the [Spannable] returned
+     * by our [exprAsSpannableGet] method for [index].
+     *
+     * @param index index of the expression that we are interested in.
+     * @return [String] representation of the expression at the given [index].
      */
     fun exprAsStringGet(index: Long): String {
         return exprAsSpannableGet(index).toString()
