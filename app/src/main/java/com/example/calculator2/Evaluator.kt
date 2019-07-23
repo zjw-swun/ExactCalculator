@@ -2657,7 +2657,7 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Generate a String representation of the expression at the given index. This has the side
+     * Generate a [String] representation of the expression at the given index. This has the side
      * effect of adding the expression to [mExprs]. The expression must exist in the database.
      * We just return the result returned by the `toString` method of the [Spannable] returned
      * by our [exprAsSpannableGet] method for [index].
@@ -2669,13 +2669,26 @@ class Evaluator internal constructor(
         return exprAsSpannableGet(index).toString()
     }
 
+    /**
+     * Generate a [Spannable] representation of the expression at the given index. This has the side
+     * effect of adding the expression to [mExprs]. The expression must exist in the database. We
+     * chain the [CalculatorExpr] returned by our [exprGet] method returns for the expression at
+     * index [index] to a call to its `toSpannableStringBuilder` method for our [Context] field
+     * [mContext] returning the `SpannableStringBuilder` string representation of the expression
+     * (`SpannableStringBuilder` implements the [Spannable] interface).
+     *
+     * @param index index of the expression that we are interested in.
+     * @return [Spannable] representation of the expression at the given [index].
+     */
     fun exprAsSpannableGet(index: Long): Spannable {
         return exprGet(index).toSpannableStringBuilder(mContext)
     }
 
     /**
-     * Generate a String representation of all expressions in the database.
-     * Debugging only.
+     * Generate a String representation of all expressions in the database. Debugging only.
+     *
+     * @return a [String] which contains the [String] representation of all the expressions in the
+     * database
      */
     @Suppress("unused", "UNUSED_VARIABLE")
     fun historyAsString(): String {
@@ -2694,7 +2707,11 @@ class Evaluator internal constructor(
     }
 
     /**
-     * Wait for pending writes to the database to complete.
+     * Wait for pending writes to the database to complete. We just call the `waitForWrites` method
+     * of our field [mExprDB] which loops until its `mIncompleteWrites` counter goes to 0 when all
+     * of the background writing threads have finished their work. This is called from the
+     * `onSaveInstanceState` override to delay exiting since the state it has saved may depend on
+     * expressions being written.
      */
     fun waitForWrites() {
         mExprDB.waitForWrites()
@@ -2710,20 +2727,61 @@ class Evaluator internal constructor(
         evaluator = null
     }
 
+    /**
+     * This is the interface which is implemented by users of [Evaluator] instances which want to
+     * be notified of important state changes or events.
+     */
     interface Callback {
+        /**
+         * This callback is called when the state of the "memory" register has changed, and in our
+         * case it is called when the index of the memory expression has changed or when the history
+         * has been cleared.
+         */
         fun onMemoryStateChanged()
+
+        /**
+         * This callback is called when the [Evaluator] needs to show an alert dialog. We call it
+         * when our background evaluation is canceled, or times out with resource IDs appropriate
+         * for those occurrences.
+         *
+         * @param title resource id for the title string
+         * @param message resource id for the displayed message string
+         * @param positiveButtonLabel label for second button, if any. If non-null, activity must
+         * implement *AlertDialogFragment.OnClickListener* to respond to that button being clicked.
+         * @param tag tag for the *Fragment* that the *FragmentManager* will add.
+         */
         fun showMessageDialog(@StringRes title: Int, @StringRes message: Int,
                               @StringRes positiveButtonLabel: Int, tag: String?)
     }
 
+    /**
+     * Our static methods, variables, and constants.
+     */
     companion object {
+        /**
+         * TAG used for logging.
+         */
         internal const val TAG = "Evaluator"
 
+        /**
+         * Our singleton [Evaluator] instance.
+         */
         @SuppressLint("StaticFieldLeak")
         private var evaluator: Evaluator? = null
 
-        var TIMEOUT_DIALOG_TAG = "timeout"
+        /**
+         * The fragment TAG for our timeout [AlertDialogFragment].
+         */
+        const val TIMEOUT_DIALOG_TAG = "timeout"
 
+        /**
+         * The lazy getter for our singleton [Evaluator] instance. If our [evaluator] field is *null*
+         * we set it to a new instance of [Evaluator]. In any case we then return [evaluator] to the
+         * caller.
+         *
+         * @param context the application [Context] to use to construct an [Evaluator] if needed.
+         * @return our singleton [Evaluator] instance.
+         */
         fun instanceGet(context: Context): Evaluator {
             if (evaluator == null) {
                 evaluator = Evaluator(context.applicationContext)
@@ -2731,7 +2789,11 @@ class Evaluator internal constructor(
             return evaluator as Evaluator
         }
 
-        const val MAIN_INDEX: Long = 0  // Index of main expression.
+        /**
+         * Index of main expression.
+         */
+        const val MAIN_INDEX: Long = 0
+
         // Once final evaluation of an expression is complete, or when we need to save
         // a partial result, we copy the main expression to a non-zero index.
         // At that point, the expression no longer changes, and is preserved
@@ -2740,7 +2802,11 @@ class Evaluator internal constructor(
         // Each expression index can only have one outstanding evaluation request at a time.
         // To avoid conflicts between the history and main View, we copy the main expression
         // to allow independent evaluation by both.
-        const val HISTORY_MAIN_INDEX: Long = -1  // Read-only copy of main expression.
+
+        /**
+         * Read-only copy of main expression.
+         */
+        const val HISTORY_MAIN_INDEX: Long = -1
 
         // When naming variables and fields, "Offset" denotes a character offset in a string
         // representing a decimal number, where the offset is relative to the decimal point.  1 =
@@ -2750,48 +2816,83 @@ class Evaluator internal constructor(
         // we also use "index" to refer to the key in mExprs below, the list of all known
         // expressions.)
 
+        /**
+         * The key under which the current `degreeMode` is stored in the shared preferences file.
+         */
         private const val KEY_PREF_DEGREE_MODE = "degree_mode"
+        /**
+         * The key under which the index of the expression copied to clipboard is stored in the
+         * shared preferences file.
+         */
         private const val KEY_PREF_SAVED_INDEX = "saved_index"
+        /**
+         * The key under which the index of the expression in the memory register is stored in the
+         * shared preferences file.
+         */
         private const val KEY_PREF_MEMORY_INDEX = "memory_index"
+        /**
+         * The key under which the saved name of the expression copied to clipboard is stored in the
+         * shared preferences file.
+         */
         private const val KEY_PREF_SAVED_NAME = "saved_name"
 
-        // The minimum number of extra digits we always try to compute to improve the chance of
-        // producing a correctly-rounded-towards-zero result.  The extra digits can be displayed to
-        // avoid generating placeholder digits, but should only be displayed briefly while computing.
+        /**
+         * The minimum number of extra digits we always try to compute to improve the chance of
+         * producing a correctly-rounded-towards-zero result.  The extra digits can be displayed to
+         * avoid generating placeholder digits, but should only be displayed briefly while computing.
+         */
         private const val EXTRA_DIGITS = 20
 
-        // We adjust EXTRA_DIGITS by adding the length of the previous result divided by
-        // EXTRA_DIVISOR.  This helps hide recompute latency when long results are requested;
-        // We start the re-computation substantially before the need is likely to be visible.
+        /**
+         * We adjust EXTRA_DIGITS by adding the length of the previous result divided by
+         * EXTRA_DIVISOR.  This helps hide recompute latency when long results are requested;
+         * We start the re-computation substantially before the need is likely to be visible.
+         */
         private const val EXTRA_DIVISOR = 5
 
-        // In addition to insisting on extra digits (see above), we minimize reevaluation
-        // frequency by pre-computing an extra PRECOMPUTE_DIGITS
-        // + <current_precision_offset>/PRECOMPUTE_DIVISOR digits, whenever we are forced to
-        // reevaluate.  The last term is dropped if prec < 0.
+        /**
+         * In addition to insisting on extra digits (see above), we minimize reevaluation frequency
+         * by pre-computing an extra PRECOMPUTE_DIGITS + current_precision_offset/PRECOMPUTE_DIVISOR
+         * digits, whenever we are forced to reevaluate. The last term is dropped if prec < 0.
+         */
         private const val PRECOMPUTE_DIGITS = 30
+        /**
+         * Divisor used to divide current_precision_offset by when calculating how many extra digits
+         * we should pre-compute.
+         */
         private const val PRECOMPUTE_DIVISOR = 5
 
-        // Initial evaluation precision.  Enough to guarantee that we can compute the short
-        // representation, and that we rarely have to evaluate nonzero results to MAX_MSD_PREC_OFFSET.
-        // It also helps if this is at least EXTRA_DIGITS + display width, so that we don't
-        // immediately need a second evaluation.
+        /**
+         * Initial evaluation precision. Enough to guarantee that we can compute the short
+         * representation, and that we rarely have to evaluate nonzero results to MAX_MSD_PREC_OFFSET.
+         * It also helps if this is at least EXTRA_DIGITS + display width, so that we don't
+         * immediately need a second evaluation.
+         */
         private const val INIT_PREC = 50
 
-        // The largest number of digits to the right of the decimal point to which we will evaluate to
-        // compute proper scientific notation for values close to zero.  Chosen to ensure that we
-        // always to better than IEEE double precision at identifying non-zeros. And then some.
-        // This is used only when we cannot a priori determine the most significant digit position, as
-        // we always can if we have a rational representation.
+        /**
+         * The largest number of digits to the right of the decimal point to which we will evaluate
+         * to compute proper scientific notation for values close to zero. Chosen to ensure that we
+         * always do better than IEEE double precision at identifying non-zeros. And then some.
+         * This is used only when we cannot a priori determine the most significant digit position,
+         * as we always can if we have a rational representation.
+         */
         private const val MAX_MSD_PREC_OFFSET = 1_100
 
-        // If we can replace an exponent by this many leading zeroes, we do so.  Also used in
-        // estimating exponent size for truncating short representation.
+        /**
+         * If we can replace an exponent by this many leading zeroes, we do so. Also used in
+         * estimating exponent size for truncating short representation.
+         */
         private const val EXP_COST = 3
 
+        /**
+         * The value returned if we cannot determine the index of the most significant digit.
+         */
         const val INVALID_MSD = Integer.MAX_VALUE
 
-        // Used to represent an erroneous result or a required evaluation. Not displayed.
+        /**
+         * Used to represent an erroneous result or a required evaluation. Not displayed.
+         */
         private const val ERRONEOUS_RESULT = "ERR"
 
         /**
@@ -2802,10 +2903,9 @@ class Evaluator internal constructor(
         /**
          * Timeout for non-MAIN expressions. Note that there may be many such evaluations in
          * progress on the same thread or core. Thus the evaluation latency may include that needed
-         * to complete previously enqueued evaluations. Thus the longTimeout flag is not very
-         * meaningful, and currently ignored.
-         * Since this is only used for expressions that we have previously successfully evaluated,
-         * these timeouts should never trigger.
+         * to complete previously enqueued evaluations. Thus the `longTimeout` flag is not very
+         * meaningful, and is currently ignored. Since this is only used for expressions that we
+         * have previously successfully evaluated, these timeouts should never trigger.
          */
         private const val NON_MAIN_TIMEOUT: Long = 100_000
 
@@ -2817,18 +2917,40 @@ class Evaluator internal constructor(
 
         /**
          * Check whether a new higher precision result flips previously computed trailing 9s
-         * to zeroes.  If so, flip them back.  Return the adjusted result.
-         * Assumes newPrecOffset >= oldPrecOffset > 0.
+         * to zeroes. If so, flip them back. Return the adjusted result.
+         *
+         * Assumes [newPrecOffset] >= [oldPrecOffset] > 0.
+         *
          * Since our results are accurate to < 1 ulp, this can only happen if the true result
          * is less than the new result with trailing zeroes, and thus appending 9s to the
-         * old result must also be correct.  Such flips are impossible if the newly computed
-         * digits consist of anything other than zeroes.
-         * It is unclear that there are real cases in which this is necessary,
-         * but we have failed to prove there aren't such cases.
+         * old result must also be correct. Such flips are impossible if the newly computed
+         * digits consist of anything other than zeroes. It is unclear that there are real cases
+         * in which this is necessary, but we have failed to prove there aren't such cases.
+         *
+         * We initialize our `val oldLen` to the length of [oldDigs]. If the last character of
+         * [oldDigs] is not '9' we just return [newDigs]. We then initialize our `val newLen` to
+         * the length of [newDigs], our `val precDiff` to [newPrecOffset] minus [oldPrecOffset],
+         * and our `val oldLastInNew` to `newLen` minus 1 minus `precDiff` (this is the index of
+         * the least significant digit of [oldDigs] in [newDigs]). If the digit at `oldLastInNew`
+         * in [newDigs] is not now a '0' character we just return [newDigs] to the caller. We then
+         * make sure that earlier digits of [newDigs] starting at `newLen` minus `precDiff` are all
+         * now `precDiff` repeats of the '0' character and throw an [AssertionError] if they are not
+         * all '0' characters. Otherwise we return the string formed by concatenating [oldDigs] to
+         * a string formed of `precDiff` '9' digits.
+         *
+         * @param oldDigs The old result string approximation.
+         * @param oldPrecOffset The precision of the [oldDigs] string approximation.
+         * @param newDigs The new result string approximation.
+         * @param newPrecOffset The precision of the [newDigs] string approximation.
+         * @return The [newDigs] result string adjusted to undo any trailing 9s flipped to 0s.
          */
         @VisibleForTesting
-        fun unflipZeroes(oldDigs: String, oldPrecOffset: Int, newDigs: String,
-                         newPrecOffset: Int): String {
+        fun unflipZeroes(
+                oldDigs: String,
+                oldPrecOffset: Int,
+                newDigs: String,
+                newPrecOffset: Int
+        ): String {
             val oldLen = oldDigs.length
             if (oldDigs[oldLen - 1] != '9') {
                 return newDigs
@@ -2848,15 +2970,32 @@ class Evaluator internal constructor(
         }
 
         /**
-         * Return the rightmost nonzero digit position, if any.
+         * Return the rightmost nonzero digit position, if any. If the `definitelyZero` method of
+         * [value] determines that the [BoundedRational] it holds is actually "0" we just return
+         * [Integer.MIN_VALUE] to the caller. Otherwise we initialize our `var result` to the value
+         * that the `digitsRequired` method of [value] returns for the number of decimal digits to
+         * the right of the decimal point required to represent the argument exactly (this will be
+         * [Integer.MAX_VALUE] if the number of digits cannot be determined). If the number of
+         * digits to the right of the decimal point in `result` is 0, we need to search to the
+         * right of the decimal point for a non-zero digit, so we initialize our `var i` to minus 1
+         * then loop while [decIndex] plus `i` is greater than 0, and the character at [decIndex]
+         * plus `i` in [cache] is a '0' character decrementing `i`. When a non-zero character is
+         * found (or we run out of characters to check) we set `result` to `i`.
+         *
+         * Finally we return `result` to the caller.
+         *
          * @param value UnifiedReal value of result.
          * @param cache Current cached decimal string representation of result.
          * @param decIndex Index of decimal point in cache.
          * @return Position of rightmost nonzero digit relative to decimal point.
-         * Integer.MIN_VALUE if we cannot determine.  Integer.MAX_VALUE if there is no lsd,
+         * Integer.MIN_VALUE if we cannot determine. Integer.MAX_VALUE if there is no lsd,
          * or we cannot determine it.
          */
-        internal fun lsdOffsetGet(value: UnifiedReal, cache: String?, decIndex: Int): Int {
+        internal fun lsdOffsetGet(
+                value: UnifiedReal,
+                cache: String?,
+                decIndex: Int
+        ): Int {
             if (value.definitelyZero()) return Integer.MIN_VALUE
             var result = value.digitsRequired()
             if (result == 0) {
@@ -2874,16 +3013,29 @@ class Evaluator internal constructor(
         // It seems likely that would simplify the logic.
 
         /**
-         * Retrieve the preferred precision "offset" for the currently displayed result.
-         * May be called from non-UI thread.
+         * Retrieve the preferred precision "offset" for the currently displayed result. May be
+         * called from non-UI thread.
+         *
+         * We initialize our `var msdLocal` to [msd] and our `var lastDigitOffsetLocal` to
+         * [lastDigitOffset]. We initialize our `val lineLength` to the maximum number of characters
+         * that will fit in the result display returned by the `maxCharsGet` method  of [cm]. We
+         * initialize our `val wholeSize` to the index of the decimal point in [cache].
+         *
          * @param cache Current approximation as string.
-         * @param msd Position of most significant digit in result.  Index in cache.
+         * @param msd Position of most significant digit in result. Index in [cache].
          * Can be INVALID_MSD if we haven't found it yet.
          * @param lastDigitOffset Position of least significant digit (1 = tenths digit)
          * or Integer.MAX_VALUE.
+         * @param cm the [CharMetricsInfo] to use to query for information based on character widths.
+         * @return precision that the result in [cache] should be displayed at. (This appears to be
+         * the number of digits to the right of the decimal point that will fit? TODO: is it?)
          */
-        private fun preferredPrecGet(cache: String, msd: Int, lastDigitOffset: Int,
-                                     cm: CharMetricsInfo): Int {
+        private fun preferredPrecGet(
+                cache: String,
+                msd: Int,
+                lastDigitOffset: Int,
+                cm: CharMetricsInfo
+        ): Int {
             var msdLocal = msd
             var lastDigitOffsetLocal = lastDigitOffset
             val lineLength = cm.maxCharsGet()

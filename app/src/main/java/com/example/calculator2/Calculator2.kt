@@ -123,10 +123,25 @@ class Calculator2 : FragmentActivity(), OnTextSizeChangeListener, OnLongClickLis
      * displays an alert dialog when the [Evaluator] is cancelled or a computation times out.
      */
     private val mEvaluatorCallback = object : Evaluator.Callback {
+        /**
+         * This is called when the state of the "memory" register has changed. We just call the
+         * `onMemoryStateChanged` method of the [TextView] holding our formula which enables/disables
+         * its on long click behavior appropriately (used for copy/paste).
+         */
         override fun onMemoryStateChanged() {
             mFormulaText.onMemoryStateChanged()
         }
 
+        /**
+         * This callback is called when the [Evaluator] needs to show an alert dialog. We just call
+         * our [AlertDialogFragment.showMessageDialog] method with the parameters passed us.
+         *
+         * @param title resource id for the title string
+         * @param message resource id for the displayed message string
+         * @param positiveButtonLabel label for second button, if any. If non-null, activity must
+         * implement *AlertDialogFragment.OnClickListener* to respond to that button being clicked.
+         * @param tag tag for the *Fragment* that the *FragmentManager* will add.
+         */
         override fun showMessageDialog(@StringRes title: Int, @StringRes message: Int,
                                        @StringRes positiveButtonLabel: Int, tag: String?) {
             AlertDialogFragment.showMessageDialog(this@Calculator2, title, message,
