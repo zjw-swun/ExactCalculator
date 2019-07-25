@@ -35,17 +35,39 @@ import java.util.Calendar
 class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
     : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
-
+    /**
+     * The singleton [Evaluator] instance for our activity.
+     */
     private var mEvaluator: Evaluator? = null
 
+    /**
+     * The [Calendar] we use in our [shouldShowHeader] method to compare times.
+     */
     private val mCalendar = Calendar.getInstance()
 
+    /**
+     * Our dataset of [HistoryItem] entries.
+     */
     private var mDataSet: MutableList<HistoryItem>? = null
 
+    /**
+     * Is the calculator display displaying a result line at the moment?
+     */
     private var mIsResultLayout: Boolean = false
+    /**
+     * Does the calculator display use a one line layout?
+     */
     private var mIsOneLine: Boolean = false
+    /**
+     * Is the calculator display empty?
+     */
     private var mIsDisplayEmpty: Boolean = false
 
+    /**
+     * Our *init* block, we just save our parameter `dataSet` in our field `mDataSet` and call the
+     * `setHasStableIds` with *true* to notify our super that each item in the data set can be
+     * represented with a unique identifier.
+     */
     init {
         mDataSet = dataSet
         setHasStableIds(true)
