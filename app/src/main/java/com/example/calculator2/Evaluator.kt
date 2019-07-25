@@ -447,7 +447,7 @@ class Evaluator internal constructor(
      * @return the minimum index value in our [ExpressionDB].
      */
     fun minIndexGet(): Long {
-        return mExprDB.minIndex
+        return mExprDB.minIndexGet()
     }
 
     /**
@@ -460,7 +460,7 @@ class Evaluator internal constructor(
      * @return the maximum index value in our [ExpressionDB].
      */
     fun maxIndexGet(): Long {
-        return mExprDB.maxIndex
+        return mExprDB.maxIndexGet()
     }
 
     /**
@@ -2500,7 +2500,7 @@ class Evaluator internal constructor(
      * our variable `ei` with the [ExprInfo] stored under index [index] in our cache [mExprs], and
      * if this is not *null* we return it to the caller. If [index] is MAIN_INDEX we throw an
      * [AssertionError] "Main expression should be cached". Otherwise we initialize our variable
-     * `row` with the [ExpressionDB.RowData] that the `getRow` method of our [mExprDB] field returns
+     * `row` with the [ExpressionDB.RowData] that the `rowGet` method of our [mExprDB] field returns
      * for the database row index [index]. We initialize our variable `serializedExpr` with a new
      * instance of [DataInputStream] constructed from a [ByteArrayInputStream] constructed from the
      * `mExpression` byte array field of `row`. Then wrapped in a *try* block intended to catch
@@ -2524,7 +2524,7 @@ class Evaluator internal constructor(
         if (index == MAIN_INDEX) {
             throw AssertionError("Main expression should be cached")
         }
-        val row = mExprDB.getRow(index)
+        val row = mExprDB.rowGet(index)
         val serializedExpr = DataInputStream(ByteArrayInputStream(row.mExpression))
         try {
             ei = ExprInfo(CalculatorExpr(serializedExpr), row.degreeMode())

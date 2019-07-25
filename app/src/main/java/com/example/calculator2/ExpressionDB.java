@@ -236,7 +236,7 @@ public class ExpressionDB {
     }
 
 
-    private void setBadDB() {
+    private void badDBset() {
         if (!CONTINUE_WITH_BAD_DB) {
             Log.e("Calculator", "Database access failed");
             throw new RuntimeException("Database access failed");
@@ -286,7 +286,7 @@ public class ExpressionDB {
                                 {Long.toString(mAllCursorBase), Long.toString(mMinIndex)};
                         mAllCursor = (AbstractWindowedCursor) db.rawQuery(SQL_GET_ALL, args);
                         if (!mAllCursor.moveToFirst()) {
-                            setBadDB();
+                            badDBset();
                             return null;
                         }
                     }
@@ -299,7 +299,7 @@ public class ExpressionDB {
             } catch(SQLiteException e) {
                 Log.e("Calculator", "Database initialization failed.\n", e);
                 synchronized(mLock) {
-                    setBadDB();
+                    badDBset();
                     mLock.notifyAll();
                 }
                 return null;
@@ -531,12 +531,12 @@ public class ExpressionDB {
      * Such a row must exist.
      * We assume that the database has been initialized, and the argument has been range checked.
      */
-    private RowData getRowDirect(long index) {
+    private RowData rowDirectGet(long index) {
         RowData result;
         String[] args = new String[]{Long.toString(index)};
         try (Cursor resultC = mExpressionDB.rawQuery(SQL_GET_ROW, args)) {
             if (!resultC.moveToFirst()) {
-                setBadDB();
+                badDBset();
                 return makeBadRow();
             } else {
                 result = new RowData(resultC.getBlob(1), resultC.getInt(2) /* flags */,
@@ -551,13 +551,13 @@ public class ExpressionDB {
      * Note the argument is NOT an expression index!
      * We assume that the database has been initialized, and the argument has been range checked.
      */
-    private RowData getRowFromCursor(int offset) {
+    private RowData rowFromCursorGet(int offset) {
         //noinspection unused
         RowData result;
         synchronized(mLock) {
             if (!mAllCursor.moveToPosition(offset)) {
                 Log.e("Calculator", "Failed to move cursor to position " + offset);
-                setBadDB();
+                badDBset();
                 return makeBadRow();
             }
             return new RowData(mAllCursor.getBlob(1), mAllCursor.getInt(2) /* flags */,
@@ -570,7 +570,7 @@ public class ExpressionDB {
      * We currently assume that we never read data that we added since we initialized the database.
      * This makes sense, since we cache it anyway. And we should always cache recently added data.
      */
-    public RowData getRow(long index) {
+    public RowData rowGet(long index) {
         waitForDBInitialized();
         if (!inAccessibleRange(index)) {
             // Even if something went wrong opening or writing the database, we should
@@ -598,22 +598,22 @@ public class ExpressionDB {
                 endPosition = window.getStartPosition() + window.getNumRows();
             }
             if (position >= endPosition) {
-                return getRowDirect(index);
+                return rowDirectGet(index);
             }
         }
         // In the positive index case, it's probably OK to cross a cursor boundary, since
         // we're much more likely to stay in the new window.
-        return getRowFromCursor(position);
+        return rowFromCursorGet(position);
     }
 
-    public long getMinIndex() {
+    public long minIndexGet() {
         waitForDBInitialized();
         synchronized(mLock) {
             return mMinIndex;
         }
     }
 
-    public long getMaxIndex() {
+    public long maxIndexGet() {
         waitForDBInitialized();
         synchronized(mLock) {
             return mMaxIndex;
