@@ -29,10 +29,12 @@ import java.util.ArrayList
 import java.util.Calendar
 
 /**
- * Adapter for RecyclerView of HistoryItems.
+ * Adapter for [RecyclerView] of [HistoryItem].
  */
 @RequiresApi(api = Build.VERSION_CODES.N)
-class HistoryAdapter(dataSet: ArrayList<HistoryItem>) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
+class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
+    : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
+
 
     private var mEvaluator: Evaluator? = null
 

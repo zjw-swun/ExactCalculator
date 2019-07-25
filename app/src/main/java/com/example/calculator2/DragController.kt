@@ -245,10 +245,10 @@ class DragController {
         }
         if (vh != null && !mIsDisplayEmpty
                 && vh.itemViewType == HistoryAdapter.HISTORY_VIEW_TYPE) {
-            val formula = vh.formula
-            val result = vh.result
-            val date = vh.date
-            val divider = vh.divider
+            val formula = vh.formula!!
+            val result = vh.result!!
+            val date = vh.date!!
+            val divider = vh.divider!!
 
             if (!mAnimationInitialized) {
                 mBottomPaddingHeight = recyclerView.paddingBottom
