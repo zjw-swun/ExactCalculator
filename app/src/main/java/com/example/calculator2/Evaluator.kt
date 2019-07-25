@@ -3019,16 +3019,48 @@ class Evaluator internal constructor(
          * We initialize our `var msdLocal` to [msd] and our `var lastDigitOffsetLocal` to
          * [lastDigitOffset]. We initialize our `val lineLength` to the maximum number of characters
          * that will fit in the result display returned by the `maxCharsGet` method  of [cm]. We
-         * initialize our `val wholeSize` to the index of the decimal point in [cache].
+         * initialize our `val wholeSize` to the index of the decimal point in [cache]. We initialize
+         * our `val rawSepChars` to the number of additional digit widths required to add digit
+         * separators to the first `wholeSize` characters of [cache]. We initialize our
+         * `val rawSepCharsNoDecimal` to `rawSepChars` minus the extra width credit for absence of
+         * ellipsis, and our `val rawSepCharsWithDecimal` to `rawSepCharsNoDecimal` minus the extra
+         * width credit for presence of a decimal point. We initialize our `val sepCharsNoDecimal`
+         * to the ceiling of the maximum of `rawSepCharsNoDecimal` and 0, and `val sepCharsWithDecimal`
+         * to the ceiling of the maximum of `rawSepCharsWithDecimal` and 0. We initialize our
+         * `val negative` to 1 if the zeroth character of [cache] is a '-' or to 0 if it is not. If
+         * `lastDigitOffsetLocal` is equal to 0 (result is an integer) we set it to -1 so as to not
+         * display the decimal point for integers. If `lastDigitOffsetLocal` is not [Integer.MAX_VALUE]
+         * then we check if `wholeSize` is less then `lineLength` minus `sepCharsNoDecimal` and
+         * `lastDigitOffsetLocal` is less than or equal to 0, in which case we have an exact integer
+         * so we return minus 1 because we prefer to display it as an integer, without decimal point.
+         * Otherwise we initialize our `val fitsInDisplay` to *true* if `wholeSize` plus
+         * `lastDigitOffsetLocal` plus 1 is less than or equal to `lineLength` minus `sepCharsWithDecimal`.
+         * Then if `lastDigitOffsetLocal` is greater than or equal to 0 and `fitsInDisplay` is *true*
+         * we return `lastDigitOffsetLocal` in order to display the full exact number without scientific
+         * notation.
+         *
+         * Otherwise we check if `msdLocal` is greater than `wholeSize` and `msdLocal` is less then
+         * or equal to `wholeSize` plus EXP_COST plus 1, and if it is we can display the number
+         * without scientific notation treating leading zero as msd so we set `msdLocal` to `wholeSize`
+         * minus 1. Now we check if `msdLocal` is greater than QUICK_MAX_RESULT_BITS in which case
+         * we return `lineLength` minus 2 in order to display a probable but uncertain 0 as "0.000000000",
+         * without exponent.
+         *
+         * At this point we need to return a position corresponding to having msd at left, effectively
+         * presuming scientific notation that preserves the left part of the result. So we initialize
+         * our `var result` to `msdLocal` minus `wholeSize` plus `lineLength` minus `negative` minus
+         * 1. Then if `wholeSize` is less than or equal to `lineLength` minus `sepCharsNoDecimal` we
+         * subtract `sepCharsNoDecimal` from `result` if `wholeSize` is less than `lineLength` minus
+         * `sepCharsWithDecimal` or we subtract `sepCharsNoDecimal` if it is not. Finally we return
+         * `result` to the caller.
          *
          * @param cache Current approximation as string.
-         * @param msd Position of most significant digit in result. Index in [cache].
+         * @param msd Position of most significant digit in result. Index of digit in [cache].
          * Can be INVALID_MSD if we haven't found it yet.
          * @param lastDigitOffset Position of least significant digit (1 = tenths digit)
          * or Integer.MAX_VALUE.
          * @param cm the [CharMetricsInfo] to use to query for information based on character widths.
-         * @return precision that the result in [cache] should be displayed at. (This appears to be
-         * the number of digits to the right of the decimal point that will fit? TODO: is it?)
+         * @return precision that the result in [cache] should be displayed at.
          */
         private fun preferredPrecGet(
                 cache: String,
@@ -3055,7 +3087,8 @@ class Evaluator internal constructor(
                     // Exact integer.  Prefer to display as integer, without decimal point.
                     return -1
                 }
-                if (lastDigitOffsetLocal >= 0 && wholeSize + lastDigitOffsetLocal + 1 /* decimal pt. */ <= lineLength - sepCharsWithDecimal) {
+                val fitsInDisplay = wholeSize + lastDigitOffsetLocal + 1 <= lineLength - sepCharsWithDecimal
+                if (lastDigitOffsetLocal >= 0 && fitsInDisplay) {
                     // Display full exact number without scientific notation.
                     return lastDigitOffsetLocal
                 }
@@ -3087,22 +3120,79 @@ class Evaluator internal constructor(
             return result
         }
 
+        /**
+         * Target length of the short representation generated by our [shortStringGet] method.
+         */
         private const val SHORT_TARGET_LENGTH = 8
+        /**
+         * String to be returned by our [shortStringGet] method if value "might" be 0.00000...
+         */
         private const val SHORT_UNCERTAIN_ZERO = "0.00000" + KeyMaps.ELLIPSIS
 
         /**
-         * Get a short representation of the value represented by the string cache.
-         * We try to match the CalculatorResult code when the result is finite
-         * and small enough to suit our needs.
-         * The result is not internationalized.
-         * @param cache String approximation of value.  Assumed to be long enough
-         * that if it doesn't contain enough significant digits, we can
-         * reasonably abbreviate as SHORT_UNCERTAIN_ZERO.
+         * Get a short representation of the value represented by the string [cache]. We try to match
+         * the [CalculatorResult] code when the result is finite and small enough to suit our needs.
+         * The result is not internationalized. We initialize our `var msdIndexLocal` to our parameter
+         * [msdIndex] and our `var lsdOffsetLocal` to our parameter [lsdOffset]. We initialize our
+         * `val dotIndex` to the character index of the decimal point in [cache], initialize our
+         * `val negative` to 1 if the zeroth character in [cache] is '-' or to 0 if it is not and
+         * initialize our `val negativeSign` to the string "-" if `negative` is 1 or to the empty
+         * string if it is not. Then if `msdIndexLocal` is greater than or equal to the length of
+         * [cache] minus SHORT_TARGET_LENGTH we set `msdIndexLocal` to INVALID_MSD to avoid running
+         * off the end of [cache]. Then is `msdIndexLocal` is equal to INVALID_MSD we return the
+         * string "0" if `lsdOffsetLocal` is less than INIT_PREC and our constant SHORT_UNCERTAIN_ZERO
+         * if it is not. Otherwise we check if the whole number will fit in the allotted space and
+         * if so we avoid scientific notation by setting `lsdOffsetLocal` to minus 1. If `msdIndexLocal`
+         * is greater than `dotIndex` we branch on whether `msdIndexLocal` is less than or equal to
+         * `dotIndex` plus EXP_COST plus 1:
+         * - `msdIndexLocal` is less than or equal: The preferred display format in this case is with
+         * leading zeroes, even if it doesn't fit entirely so we set `msdIndexLocal` to `dotIndex`
+         * minus 1.
+         * - Otherwise if `lsdOffsetLocal` is less than or equal to SHORT_TARGET_LENGTH minus `negative`
+         * minus 2 the fraction that fits entirely in allotted space so we do not need scientific
+         * notation and we also set `msdIndexLocal` to `dotIndex` minus 1.
+         *
+         * We now initialize our `var exponent` to `dotIndex` minus `msdIndexLocal`, and if `exponent`
+         * is greater than 0 we subtract one from it to adjust for the fact that the decimal point
+         * itself takes space.
+         *
+         * If `lsdOffsetLocal` is not equal to [Integer.MAX_VALUE] we initialize our `val lsdIndex`
+         * to `dotIndex` plus `lsdOffsetLocal`, and initialize our `val totalDigits` to `lsdIndex`
+         * minus `msdIndexLocal` plus `negative` plus 1. If `totalDigits` is less than SHORT_TARGET_LENGTH
+         * and `dotIndex` is greater than `msdIndexLocal` and `lsdOffsetLocal` is greater than or equal
+         * to minus 1 the number fits so no exponent is needed and we initialize our `val wholeWithCommas`
+         * to the comma separated string that our [StringUtils.addCommas] method creates from [cache]
+         * then return the string formed by concatenating `negativeSign` followed by `wholeWithCommas`
+         * followed by the substring of [cache] from `dotIndex` to `lsdIndex` plus 1.
+         *
+         * Otherwise `lsdOffsetLocal` is equal to [Integer.MAX_VALUE] so we need to abbreviate:
+         * If `dotIndex` is greater than `msdIndexLocal` and `dotIndex` is less than `msdIndexLocal`
+         * plus SHORT_TARGET_LENGTH minus `negative` minus 1 we initialize our `val wholeWithCommas`
+         * to the comma separated string that our [StringUtils.addCommas] method creates from [cache]
+         * then return the string formed by concatenating `negativeSign` followed by `wholeWithCommas`
+         * followed by the substring of [cache] from `dotIndex` to `msdIndexLocal` plus SHORT_TARGET_LENGTH
+         * minus `negative` minus 1, followed by the [KeyMaps.ELLIPSIS] character (...).
+         *
+         * If we reach this point we need an abbreviation plus an exponent: So we return the string
+         * formed by concatenating `negativeSign` followed by the `msdIndexLocal` character in [cache],
+         * followed by the "." decimal point, followed by the substring of [cache] from `msdIndexLocal`
+         * plus 1 to `msdIndexLocal` plus SHORT_TARGET_LENGTH minus `negative` minus 4 followed by
+         * the [KeyMaps.ELLIPSIS] character (...), followed by the "E" string, followed by the string
+         * value of `exponent`.
+         *
+         * @param cache String approximation of value. Assumed to be long enough that if it doesn't
+         * contain enough significant digits, we can reasonably abbreviate as SHORT_UNCERTAIN_ZERO.
          * @param msdIndex Index of most significant digit in cache, or INVALID_MSD.
-         * @param lsdOffset Position of least significant digit in finite representation,
-         * relative to decimal point, or MAX_VALUE.
+         * @param lsdOffset Position of least significant digit in finite representation, relative
+         * to decimal point, or MAX_VALUE.
+         * @return a shorter representation of the value in [cache] (less than or equal to our
+         * SHORT_TARGET_LENGTH (8) characters) suitable for display in an abbreviated expression.
          */
-        private fun shortStringGet(cache: String, msdIndex: Int, lsdOffset: Int): String {
+        private fun shortStringGet(
+                cache: String,
+                msdIndex: Int,
+                lsdOffset: Int
+        ): String {
             var msdIndexLocal = msdIndex
             var lsdOffsetLocal = lsdOffset
             // This somewhat mirrors the display formatting code, but
@@ -3139,7 +3229,8 @@ class Evaluator internal constructor(
                     // it doesn't fit entirely.  Replicate that here.
                     msdIndexLocal = dotIndex - 1
                 } else
-                    if (lsdOffsetLocal <= SHORT_TARGET_LENGTH - negative - 2 && lsdOffsetLocal <= CalculatorResult.MAX_LEADING_ZEROES + 1) {
+                    if (lsdOffsetLocal <= SHORT_TARGET_LENGTH - negative - 2
+                            && lsdOffsetLocal <= CalculatorResult.MAX_LEADING_ZEROES + 1) {
                         // Fraction that fits entirely in allotted space.
                         // CalculatorResult would not use scientific notation either.
                         msdIndexLocal = dotIndex - 1
@@ -3156,7 +3247,7 @@ class Evaluator internal constructor(
                 if (totalDigits <= SHORT_TARGET_LENGTH && dotIndex > msdIndexLocal && lsdOffsetLocal >= -1) {
                     // Fits, no exponent needed.
                     val wholeWithCommas = StringUtils.addCommas(cache, msdIndexLocal, dotIndex)
-                    return negativeSign + wholeWithCommas + cache.substring(dotIndex, lsdIndex + 1)
+                        return negativeSign + wholeWithCommas + cache.substring(dotIndex, lsdIndex + 1)
                 }
                 if (totalDigits <= SHORT_TARGET_LENGTH - 3) {
                     return (negativeSign + cache[msdIndexLocal] + "."
@@ -3177,9 +3268,18 @@ class Evaluator internal constructor(
         }
 
         /**
-         * Return the most significant digit index in the given numeric string.
-         * Return INVALID_MSD if there are not enough digits to prove the numeric value is
-         * different from zero.  As usual, we assume an error of strictly less than 1 ulp.
+         * Return the most significant digit index in the given numeric string. Return INVALID_MSD
+         * if there are not enough digits to prove the numeric value is different from zero. As
+         * usual, we assume an error of strictly less than 1 ulp. We initialize our `val len` to the
+         * length of [s], and our `var nonzeroIndex` to minus 1. We then loop over `i` from 0 until
+         * `len` initializing our `val c` to the `i`th character in [s], and if `c` is not '-' and
+         * not '.' and not '0' we set `nonzeroIndex` to `i` and break out of the loop. Then if
+         * `nonzeroIndex` is greater than or equal to 0 and `nonzeroIndex` is less than `len` minus
+         * 1 or the `nonzeroIndex` character in [s] is not equal to '1' we return `nonzeroIndex` to
+         * the caller, otherwise we return INVALID_MSD.
+         *
+         * @param s The [String] we are searching for the most significant digit in.
+         * @return the index of the first non-zero digit in [s].
          */
         fun msdIndexOfGet(s: String): Int {
             val len = s.length
@@ -3198,8 +3298,10 @@ class Evaluator internal constructor(
             }
         }
 
-        // Refuse to scroll past the point at which this many digits from the whole number
-        // part of the result are still displayed.  Avoids silly displays like 1E1.
+        /**
+         * Refuse to scroll past the point at which this many digits from the whole number
+         * part of the result are still displayed. Avoids silly displays like 1E1.
+         */
         private const val MIN_DISPLAYED_DIGS = 5
 
         /**
@@ -3208,12 +3310,28 @@ class Evaluator internal constructor(
         private const val MAX_EXP_CHARS = 8
 
         /**
-         * Return the index of the character after the exponent starting at s[offset].
-         * Return offset if there is no exponent at that position.
-         * Exponents have syntax E[-]digit* .  "E2" and "E-2" are valid.  "E+2" and "e2" are not.
+         * Return the index of the character after the exponent starting at the [offset] character
+         * in [s]. Return [offset] if there is no exponent at that position.
+         * Exponents have syntax E[-]digit* . "E2" and "E-2" are valid. "E+2" and "e2" are not.
          * We allow any Unicode digits, and either of the commonly used minus characters.
+         *
+         * We initialize `var i` to our parameter [offset], and our `val len` to the length of [s].
+         * If `i` is greater than or equal to `len` minus 1, or the `i`'th character of [s] is not
+         * 'E' we return [offset]. Otherwise we increment `i`, and if the resource ID of the `i`'th
+         * character of [s] is the minus sign (R.id.op_sub) we increment it again. If `i` is equal
+         * to `len` or the `i`'th character of [s] is not a digit we return [offset]. Otherwise we
+         * increment `i` then loop while `i` is less than `len` and the i`'th character of [s] is a
+         * digit character incrementing `i`, and if `i` is greater than [offset] plus MAX_EXP_CHARS
+         * we return [offset]. When we finally locate a non-digit in [s] we return `i` to the caller.
+         *
+         * @param s Numeric [String] we are to search for the character after the exponent.
+         * @param offset Index into [s] to start looking from.
+         * @return Index of the character after the exponent to start looking.
          */
-        fun exponentEnd(s: String, offset: Int): Int {
+        fun exponentEnd(
+                s: String,
+                offset: Int
+        ): Int {
             var i = offset
             val len = s.length
             if (i >= len - 1 || s[i] != 'E') {
