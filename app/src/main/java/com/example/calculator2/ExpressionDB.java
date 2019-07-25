@@ -51,6 +51,7 @@ import android.os.AsyncTask;
 import android.provider.BaseColumns;
 import android.util.Log;
 
+// Note to markgray: use (foo as java.lang.Object).wait() and notifyAll?
 @SuppressWarnings("WeakerAccess")
 public class ExpressionDB {
     private final boolean CONTINUE_WITH_BAD_DB = false;
