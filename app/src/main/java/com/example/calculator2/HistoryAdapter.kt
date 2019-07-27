@@ -65,14 +65,26 @@ class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
 
     /**
      * Our *init* block, we just save our parameter `dataSet` in our field `mDataSet` and call the
-     * `setHasStableIds` with *true* to notify our super that each item in the data set can be
-     * represented with a unique identifier.
+     * `setHasStableIds` with *true* to notify our super (`RecyclerView.Adapter`) that each item in
+     * the data set can be represented with a unique identifier.
      */
     init {
         mDataSet = dataSet
         setHasStableIds(true)
     }
 
+    /**
+     * Called when RecyclerView needs a new [ViewHolder] of the given type to represent an item. If
+     * our parameter [viewType] is HISTORY_VIEW_TYPE we initialize our `val v` with a [View] which
+     * is inflated from the layout file R.layout.history_item, otherwise we initialize it with a
+     * [View] inflated from the layout file R.layout.empty_history_view. Then we return a new instance
+     * of [ViewHolder] constructed from `v` and [viewType].
+     *
+     * @param parent The [ViewGroup] into which the new View will be added after it is bound to
+     * an adapter position.
+     * @param viewType The view type of the new View.
+     * @return A new [ViewHolder] that holds a View of the given view type.
+     */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val v: View = if (viewType == HISTORY_VIEW_TYPE) {
             LayoutInflater.from(parent.context)
@@ -84,6 +96,16 @@ class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
         return ViewHolder(v, viewType)
     }
 
+    /**
+     * Called by [RecyclerView] to display the data at the specified position. This method should
+     * update the contents of the [ViewHolder] to reflect the item at the given [position]. We
+     * initialize our `val item` with the [HistoryItem] at position [position] in our dataset that
+     * is returned by our [getItem] method.
+     *
+     * @param holder The [ViewHolder] which should be updated to represent the contents of the
+     * item at the given [position] in the data set.
+     * @param position The position of the item within the adapter's data set.
+     */
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
 
