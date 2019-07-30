@@ -37,7 +37,7 @@ public class HistoryItem {
         mIsEmpty = false;
     }
 
-    public long getEvaluatorIndex() {
+    public long evaluatorIndexGet() {
         return mEvaluatorIndex;
     }
 
@@ -53,16 +53,16 @@ public class HistoryItem {
      * @return String in format "n days ago"
      * For n > 7, the date is returned.
      */
-    public CharSequence getDateString() {
+    public CharSequence dateStringGet() {
         return DateUtils.getRelativeTimeSpanString(mTimeInMillis, System.currentTimeMillis(),
                 DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
     }
 
-    public long getTimeInMillis() {
+    public long timeInMillisGet() {
         return mTimeInMillis;
     }
 
-    public Spannable getFormula() {
+    public Spannable formulaGet() {
         return mFormula;
     }
 }
