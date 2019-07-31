@@ -30,30 +30,79 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING
 import java.util.*
 
+/**
+ * This Fragment displays the History database entries in its `RecyclerView`.
+ */
 @RequiresApi(api = Build.VERSION_CODES.N)
 class HistoryFragment : Fragment(), DragLayout.DragCallback {
 
+    /**
+     * The [DragController] which animates our dragging down over the calculator display.
+     */
     private val mDragController = DragController()
 
+    /**
+     * The [RecyclerView] in our layout file (R.layout.fragment_history) with the resource ID
+     * R.id.history_recycler_view which displays the History database entries.
+     */
     private var mRecyclerView: RecyclerView? = null
+    /**
+     * The custom [RecyclerView.Adapter] which fills our [RecyclerView] field [mRecyclerView] with
+     * [HistoryItem] entries from its dataset when requested to do so.
+     */
     private var mAdapter: HistoryAdapter? = null
+    /**
+     * The [DragLayout] in the main layout file layout/activity_calculator_main.xml which holds both
+     * the calculator display layout file activity_calculator and the `FrameLayout` we display in.
+     */
     private var mDragLayout: DragLayout? = null
 
+    /**
+     * Our handle to our app's singleton [Evaluator] instance (manages the background evaluation of
+     * all expressions).
+     */
     private var mEvaluator: Evaluator? = null
 
+    /**
+     * Our dataset, which is lazy-filled by [mAdapter] from our history database.
+     */
     private var mDataSet = ArrayList<HistoryItem?>()
 
+    /**
+     * This is set to *true* when the calculator display is cleared
+     */
     private var mIsDisplayEmpty: Boolean = false
 
+    /**
+     * Called to do initial creation of a fragment. This is called after [onAttach] and before
+     * [onCreateView]. First we call our super's implementation of `onCreate`, then we initialize
+     * our field [mAdapter] with a new instance of [HistoryAdapter] constructed to use [mDataSet]
+     * as its dataset.
+     *
+     * @param savedInstanceState If the fragment is being re-created from a previous saved state,
+     * this is the state.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mAdapter = HistoryAdapter(mDataSet)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View? {
-        val view = inflater.inflate(
-                R.layout.fragment_history, container, false /* attachToRoot */)
+    /**
+     * Called to have the fragment instantiate its user interface view. This will be called between
+     * [onCreate] and [onActivityCreated].
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate any views.
+     * @param container Parent view that our fragment's UI will be attached to.
+     * @param savedInstanceState If non-null, this fragment is being re-constructed
+     * from a previous saved state as given here.
+     * @return The [View] for our fragment's UI.
+     */
+    override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_history, container, false)
 
         mDragLayout = container!!.rootView.findViewById(R.id.drag_layout)
         mDragLayout!!.addDragCallback(this)
