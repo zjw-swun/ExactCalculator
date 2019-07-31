@@ -32,7 +32,7 @@ import java.util.Calendar
  * Adapter for [RecyclerView] of [HistoryItem].
  */
 @RequiresApi(api = Build.VERSION_CODES.N)
-class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
+class HistoryAdapter(dataSet: ArrayList<HistoryItem?>)
     : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
     /**
@@ -48,7 +48,7 @@ class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
     /**
      * Our dataset of [HistoryItem] entries.
      */
-    private var mDataSet: MutableList<HistoryItem>? = null
+    private var mDataSet: MutableList<HistoryItem?>? = null
 
     /**
      * Is the calculator display displaying a result line at the moment?
@@ -232,7 +232,7 @@ class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
      *
      * @param dataSet the [ArrayList] of [HistoryItem]'s we should use as our dataset.
      */
-    fun setDataSet(dataSet: ArrayList<HistoryItem>) {
+    fun setDataSet(dataSet: ArrayList<HistoryItem?>) {
         mDataSet = dataSet
     }
 
