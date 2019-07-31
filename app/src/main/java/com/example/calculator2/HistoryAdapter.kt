@@ -399,11 +399,18 @@ class HistoryAdapter(dataSet: ArrayList<HistoryItem>)
      * Our static constants.
      */
     companion object {
-
+        /**
+         * TAG useful for logging.
+         */
         @Suppress("unused")
         private const val TAG = "HistoryAdapter"
-
+        /**
+         * View type used when history is empty.
+         */
         private const val EMPTY_VIEW_TYPE = 0
+        /**
+         * View type which holds a normal [HistoryItem]
+         */
         const val HISTORY_VIEW_TYPE = 1
     }
 }
