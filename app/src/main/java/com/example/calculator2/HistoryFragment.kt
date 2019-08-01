@@ -89,7 +89,30 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
 
     /**
      * Called to have the fragment instantiate its user interface view. This will be called between
-     * [onCreate] and [onActivityCreated].
+     * [onCreate] and [onActivityCreated]. We initialize our `val view` by using our parameter
+     * [inflater] to inflate our layout file R.layout.fragment_history into it using our parameter
+     * [container] for its `LayoutParams` without attaching to it. We initialize our field
+     * [mDragLayout] by retrieving the root view of [container] and finding the [DragLayout] with
+     * the ID R.id.drag_layout, then add *this* as a `DragCallback` callback to it. We initialize
+     * our field [mRecyclerView] by finding the [RecyclerView] in `view` with the resource ID
+     * R.id.history_recycler_view, then add an anonymous [RecyclerView.OnScrollListener] to it
+     * whose `onScrollStateChanged` override calls our [stopActionModeOrContextMenu] method if the
+     * [RecyclerView] is currently being dragged (this will close the action mode or context menu
+     * if they are currently open). We then call the `setHasFixedSize` method of [mRecyclerView] to
+     * inform [RecyclerView] that the size of the [RecyclerView] is not affected by the adapter's
+     * contents (this allows it to perform several optimizations). We then set the adapter of
+     * [mRecyclerView] to our field [mAdapter].
+     *
+     * We then initialize our `val toolbar` by finding the [Toolbar] in `view` with the resource id
+     * R.id.history_toolbar. We inflate the menu resource with the ID R.menu.fragment_history into
+     * `toolbar` and set its [Toolbar.OnMenuItemClickListener] to a lambda which overrides its
+     * `onMenuItemClick(MenuItem item)` method in order to launch an [AlertDialogFragment] that
+     * allows the user to clear the history and memory if the item ID clicked is the one with the
+     * ID R.id.menu_clear_history ("Clear"). Finally we set the navigation on click listener of
+     * `toolbar` to a lambda which calls the `onBackPressed` method of the `FragmentActivity` this
+     * fragment is currently associated with to have it "navigate back" to the calculator display by
+     * finishing this [Fragment] when the back button is pressed. We then return `view` to the
+     * caller.
      *
      * @param inflater The LayoutInflater object that can be used to inflate any views.
      * @param container Parent view that our fragment's UI will be attached to.
@@ -110,6 +133,18 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         mRecyclerView = view.findViewById(R.id.history_recycler_view)
 
         mRecyclerView!!.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            /**
+             * Callback method to be invoked when RecyclerView's scroll state changes. If our
+             * parameter [newState] is SCROLL_STATE_DRAGGING (the [RecyclerView] is currently
+             * being dragged by outside input such as user touch input) we call our method
+             * [stopActionModeOrContextMenu] to close the action mode or context menu if they
+             * are currently open. In any case we then call our super's implementation of
+             * `onScrollStateChanged`.
+             *
+             * @param recyclerView The RecyclerView whose scroll state has changed.
+             * @param newState     The updated scroll state. One of {@link #SCROLL_STATE_IDLE},
+             *                     {@link #SCROLL_STATE_DRAGGING} or {@link #SCROLL_STATE_SETTLING}.
+             */
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 if (newState == SCROLL_STATE_DRAGGING) {
                     stopActionModeOrContextMenu()
@@ -139,6 +174,19 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         return view
     }
 
+    /**
+     * Called when the fragment's activity has been created and this fragment's view hierarchy
+     * instantiated. This is called after [onCreateView] and before [onViewStateRestored]. First
+     * we call our super's implementation of `onActivityCreated`. We then initialize our
+     * `val activity` with the `FragmentActivity` this fragment is currently associated with
+     * (casting it to [Calculator2]). We initialize our field [mEvaluator] to our singleton instance
+     * of [Evaluator] and set the [Evaluator] of our field [mAdapter] to it. We initialize our
+     * `val isResultLayout` to the `isResultLayout` property of `activity` and our `val isOneLine`
+     * to its `isOneLine` property.
+     *
+     * @param savedInstanceState If the fragment is being re-created from a previous saved state,
+     * this is the state.
+     */
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
