@@ -182,7 +182,34 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
      * (casting it to [Calculator2]). We initialize our field [mEvaluator] to our singleton instance
      * of [Evaluator] and set the [Evaluator] of our field [mAdapter] to it. We initialize our
      * `val isResultLayout` to the `isResultLayout` property of `activity` and our `val isOneLine`
-     * to its `isOneLine` property.
+     * to its `isOneLine` property. We initialize our `val mainExpr` with the [CalculatorExpr] for
+     * the MAIN_INDEX expression returned by the `exprGet` method of [mEvaluator]. We then initialize
+     * our field [mIsDisplayEmpty] field to *true* if `mainExpr` is *null* or it is empty (cleared).
+     * We then call our method [initializeController] to have it initialize the animations performed
+     * by the [DragController] of our field [mDragController]. We initialize our `val maxIndex` with
+     * the maximum index value returned by the `maxIndexGet` method of [mEvaluator] (this is the
+     * number of history expressions in the expression database that have positive indices). We
+     * initialize our `val newDataSet` with a new instance of [ArrayList] that will hold the
+     * [HistoryItem] objects that will be displayed in our [RecyclerView]. If [mIsDisplayEmpty] is
+     * *false* and `isResultLayout` is *false* we want to add the current expression as the first
+     * element in the list `newDataSet` so we call the `copyMainToHistory` method of [mEvaluator] to
+     * have it discard the previous expression in HISTORY_MAIN_INDEX and replace it by a fresh copy
+     * of the main expression, we then add to `newDataSet` a new instance of [HistoryItem] constructed
+     * to hold the HISTORY_MAIN_INDEX expression, with a timestamp of the current time in milliseconds,
+     * and the string representation of the value of the expression at index 0 (which is the main
+     * expression displayed in the calculator display that was just cached of course). When done
+     * dealing with the possible value in the calculator display we then loop over `i` from 0 *until*
+     * `maxIndex` adding *null* entries to `newDataSet` (they will be lazy filled with entries from
+     * the database by the [RecyclerView]'s adapter). We initialize our `val isEmpty` to *true* if
+     * `newDataSet` is empty (both the display and history are cleared at the moment). We then set
+     * the background color of [mRecyclerView] to R.color.empty_history_color (a shade of gray) if
+     * `isEmpty` is *true* or to R.color.display_background_color (a dark blue) if it is *false*.
+     * If `isEmpty` is *true* we add an empty [HistoryItem] to `newDataSet`. We then set our field
+     * [mDataSet] to `newDataSet`, set the dataset of our field [mAdapter] to [mDataSet] then set
+     * the "is result layout property" of [mAdapter] to `isResultLayout`, set its "is one line"
+     * property to the `isOneLine` property of `activity`, set its "is display empty" property to
+     * our field [mIsDisplayEmpty], and finally call the `notifyDataSetChanged` method of [mAdapter]
+     * to notify it that its dataset has changed and it needs to redisplay its contents.
      *
      * @param savedInstanceState If the fragment is being re-created from a previous saved state,
      * this is the state.
@@ -238,15 +265,35 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         mAdapter!!.notifyDataSetChanged()
     }
 
+    /**
+     * Called when the Fragment is visible to the user. First we call our super's implementation of
+     * `onStart`, then we initialize our `val activity` to the `FragmentActivity` this fragment is
+     * currently associated with (cast to [Calculator2]). Then we call the `initializeAnimation`
+     * method of our field [mDragController] to have it initialize itself to the state it should be
+     * in when the [HistoryFragment] is first visible to the user.
+     */
     override fun onStart() {
         super.onStart()
 
         val activity = activity as Calculator2?
 
-        mDragController.initializeAnimation(activity!!.isResultLayout, activity.isOneLine,
+        mDragController.initializeAnimation(
+                activity!!.isResultLayout,
+                activity.isOneLine,
                 mIsDisplayEmpty)
     }
 
+    /**
+     * Called when a fragment loads an animator. We just return the [Animator] created by the
+     * `createAnimator` method of our field [mDragLayout].
+     *
+     * @param transit The value set in `FragmentTransaction.setTransition(int)` or 0 if not set.
+     * @param enter *true* when the fragment is added/attached/shown or *false* when
+     *              the fragment is removed/detached/hidden.
+     * @param nextAnim The resource set in `FragmentTransaction.setCustomAnimations` or
+     *                 0 if it was not called. The value will depend on the current operation.
+     * @return an [Animator] with an `AnimatorListenerAdapter` attached to it.
+     */
     override fun onCreateAnimator(transit: Int, enter: Boolean, nextAnim: Int): Animator? {
         return mDragLayout!!.createAnimator(enter)
     }
