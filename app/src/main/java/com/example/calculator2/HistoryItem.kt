@@ -19,16 +19,39 @@ package com.example.calculator2
 import android.text.Spannable
 import android.text.format.DateUtils
 
+/**
+ * Holds information about an expression loaded from our history database when its `isEmptyView`
+ * field is *false*
+ */
 class HistoryItem {
 
+    /**
+     * Index of the expression in our history database.
+     */
     private var mEvaluatorIndex: Long = 0
-    /** Date in millis  */
+    /**
+     * Date in millis when the expression was added to the database.
+     */
     private var mTimeInMillis: Long = 0
+    /**
+     * [Spannable] representation of the expression.
+     */
     private lateinit var mFormula: Spannable
 
-    /** This is true only for the "empty history" view.  */
+    /**
+     * This is true only for the "empty history" view.
+     */
     val isEmptyView: Boolean
 
+    /**
+     * The constructor used when [HistoryAdapter] lazy fills its dataset with entries read from the
+     * database. We just save our parameters in their respective fields and set [isEmptyView] to
+     * *false*.
+     *
+     * @param evaluatorIndex Index of the expression in our history database.
+     * @param millis Date in millis when the expression was added to the database.
+     * @param formula [Spannable] representation of the expression.
+     */
     constructor(evaluatorIndex: Long, millis: Long, formula: Spannable) {
         mEvaluatorIndex = evaluatorIndex
         mTimeInMillis = millis
@@ -36,17 +59,27 @@ class HistoryItem {
         isEmptyView = false
     }
 
-    fun evaluatorIndexGet(): Long {
-        return mEvaluatorIndex
-    }
-
+    /**
+     * The constructor used when the history and calculator display have been cleared. We just set
+     * our field [isEmptyView] to *true*.
+     */
     constructor() {
         isEmptyView = true
     }
 
     /**
-     * @return String in format "n days ago"
-     * For n > 7, the date is returned.
+     * Getter for our [mEvaluatorIndex] field.
+     *
+     * @return the value of our [mEvaluatorIndex] field.
+     */
+    fun evaluatorIndexGet(): Long {
+        return mEvaluatorIndex
+    }
+
+    /**
+     *
+     *
+     * @return String in format "n days ago". For n > 7, the date is returned.
      */
     fun dateStringGet(): CharSequence {
         return DateUtils.getRelativeTimeSpanString(mTimeInMillis, System.currentTimeMillis(),
