@@ -298,6 +298,14 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         return mDragLayout!!.createAnimator(enter)
     }
 
+    /**
+     * Called when the fragment is no longer in use. This is called after [onStop] and
+     * before [onDetach]. First we call our super's implementation of `onDestroy`. If
+     * our field [mDragLayout] is not *null* we call its `removeDragCallback` method to
+     * remove *this* as a callback for it. If our field [mEvaluator] is not *null* we call
+     * its `cancelNonMain` method to have it quietly cancel all evaluations associated
+     * with expressions other than the main one.
+     */
     override fun onDestroy() {
         super.onDestroy()
 
@@ -312,7 +320,25 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         }
     }
 
-    private fun initializeController(isResult: Boolean, isOneLine: Boolean, isDisplayEmpty: Boolean) {
+    /**
+     * Called to initialize the [DragController] we use (our [mDragController] field) when the
+     * fragment is created. We call the `setDisplayFormula` method of [mDragController] to have
+     * it set its formula display to the view with ID R.id.formula in our `FragmentActivity` UI,
+     * call its `setDisplayResult` method to have it set its result display to the view with ID
+     * R.id.result, and call its `setToolbar` method to have it set its tool bar reference to the
+     * view with ID R.id.toolbar. We call its `setEvaluator` method to have it set its reference
+     * to the app's singleton [Evaluator] to our field [mEvaluator], and then call its
+     * `initializeController` method to have it initialize its animation.
+     *
+     * @param isResult *true* if the display is in the RESULT state.
+     * @param isOneLine *true* if the device needs to use the one line layout.
+     * @param isDisplayEmpty *true* if the calculator display is cleared (no result or formula)
+     */
+    private fun initializeController(
+            isResult: Boolean,
+            isOneLine: Boolean,
+            isDisplayEmpty: Boolean
+    ) {
 
         mDragController.setDisplayFormula(
                 activity!!.findViewById<View>(R.id.formula) as CalculatorFormula)
@@ -323,6 +349,24 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
         mDragController.initializeController(isResult, isOneLine, isDisplayEmpty)
     }
 
+    /**
+     * Stops any active `ActionMode` or `ContextMenu` in progress. If our field [mRecyclerView] is
+     * *null* we just return *false* to the caller (these menus can only be open if one of the
+     * views in the [RecyclerView] has been long-clicked). Otherwise we loop over `i` from 0
+     * *until* the number of children of [mRecyclerView]:
+     * - We initialize our `val view` with the `i`'th child of [mRecyclerView].
+     * - We initialize our `val viewHolder` to the [HistoryAdapter.ViewHolder] of that `view`.
+     * - If `viewHolder` is not *null*, and its `result` field is not *null* we call the
+     * `stopActionModeOrContextMenu` method of the `result` field of `viewHolder` and return
+     * *true* if the method returns *true*. Otherwise we just loop around for the next child
+     * of [mRecyclerView].
+     *
+     * If we found no children of [mRecyclerView] that had a menu that needed closing we return
+     * *false* to the caller.
+     *
+     * @return *true* if there was an open action mode or context menu that we had to close,
+     * otherwise *false*
+     */
     fun stopActionModeOrContextMenu(): Boolean {
         if (mRecyclerView == null) {
             return false
@@ -341,35 +385,77 @@ class HistoryFragment : Fragment(), DragLayout.DragCallback {
 
     /* Begin override DragCallback methods. */
 
+    /**
+     * Callback when a drag to open begins. We ignore.
+     */
     override fun onStartDraggingOpen() {
         // no-op
     }
 
+    /**
+     * Callback which is called from the [DragLayout] `onRestoreInstanceState` override. If our
+     * parameter [isOpen] is *true* we were open when we were paused, so we set the visibility
+     * of our field [mRecyclerView] to VISIBLE.
+     *
+     * @param isOpen the value of its field [isOpen] that was stored by its `onSaveInstanceState`.
+     */
     override fun onInstanceStateRestored(isOpen: Boolean) {
         if (isOpen) {
             mRecyclerView!!.visibility = View.VISIBLE
         }
     }
 
+    /**
+     * Animate the RecyclerView text. If our fragment is visible or we are currently being removed
+     * from our activity, we call the `animateViews` method of our field [mDragController] to have
+     * it animate our [mRecyclerView] to the state it should be in when [yFraction] of the view is
+     * visible.
+     *
+     * @param yFraction Fraction of the dragged [View] that is visible (0.0-1.0) 0.0 is closed.
+     */
     override fun whileDragging(yFraction: Float) {
         if (isVisible || isRemoving) {
             mDragController.animateViews(yFraction, mRecyclerView!!)
         }
     }
 
+    /**
+     * Whether we should allow the view to be dragged. We call the `canScrollVertically` method of
+     * our field [mRecyclerView] to see if it can be scrolled down, and return *true* if it cannot
+     * be scrolled down.
+     *
+     * @param view the [View] that the user is attempting to capture.
+     * @param x the X coordinate of the user's motion event
+     * @param y the Y coordinate of the user's motion event
+     * @return *true* if the dragging of the [view] should be allowed.
+     */
     override fun shouldCaptureView(view: View, x: Int, y: Int): Boolean {
-        return !/* scrolling down */mRecyclerView!!.canScrollVertically(1)
+        return !mRecyclerView!!.canScrollVertically(1) // +1 is Scrolling down.
     }
 
+    /**
+     * Override this to return the measured height of the calculator display. We just return 0.
+     *
+     * @return the current height of the display.
+     */
     override fun displayHeightFetch(): Int {
         return 0
     }
 
+    /* End override DragCallback methods. */
+
+    /**
+     * Our static constants.
+     */
     companion object {
 
+        /**
+         * The TAG used for our `HistoryFragment` when adding our fragment to the fragment manager.
+         */
         const val TAG = "HistoryFragment"
+        /**
+         * The TAG used for the `AlertDialogFragment` which clears the history.
+         */
         const val CLEAR_DIALOG_TAG = "clear"
     }
-
-    /* End override DragCallback methods. */
 }
