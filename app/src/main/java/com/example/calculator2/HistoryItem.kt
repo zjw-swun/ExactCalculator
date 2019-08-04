@@ -77,7 +77,7 @@ class HistoryItem {
     }
 
     /**
-     *
+     * Formats our [mTimeInMillis] time stamp into a string in the format "n days ago".
      *
      * @return String in format "n days ago". For n > 7, the date is returned.
      */
@@ -86,10 +86,20 @@ class HistoryItem {
                 DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
     }
 
+    /**
+     * Getter for our [mTimeInMillis] time stamp field..
+     *
+     * @return the contents of our [mTimeInMillis] time stamp field.
+     */
     fun timeInMillisGet(): Long {
         return mTimeInMillis
     }
 
+    /**
+     * Getter for our field [mFormula] string representation of the expression.
+     *
+     * @return the contents of our field [mFormula] string representation of the expression.
+     */
     fun formulaGet(): Spannable {
         return mFormula
     }
