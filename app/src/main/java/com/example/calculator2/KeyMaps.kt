@@ -37,17 +37,31 @@ import java.util.*
 @SuppressLint("StaticFieldLeak")
 object KeyMaps {
 
+    /**
+     * Value returned by [digVal] function when the key checked is not a digit key (not 0-9)
+     */
     const val NOT_DIGIT = 10
 
+    /**
+     * The utf-8 elipsis string ...
+     */
     const val ELLIPSIS = "\u2026"
 
+    /**
+     * The utf-8 minus sign
+     */
     const val MINUS_SIGN = '\u2212'
 
     // The following two are only used for recognizing additional
     // input characters from a physical keyboard.  They are not used
     // for output internationalization.
+    /**
+     * The locale-dependent decimal point character.
+     */
     private var mDecimalPt: Char = ' '
-
+    /**
+     * The π character.
+     */
     private var mPiChar: Char = ' '
 
     /**
@@ -68,7 +82,7 @@ object KeyMaps {
     private var sKeyValForFun: HashMap<String, Int>? = null
 
     /**
-     * Result string corresponding to a character in the calculator result.
+     * Localized result string corresponding to a character in the calculator result.
      * The string values in the map are expected to be one character long.
      */
     private var sOutputForResultChar: HashMap<Char, String>? = null
@@ -88,6 +102,10 @@ object KeyMaps {
     /**
      * Map key id to corresponding (internationalized) display string.
      * Pure function.
+     *
+     * @param context [Context] to use to access string resources.
+     * @param id Resource ID of the key we are interested in.
+     * @return internationalized String to display for the key with resource ID [id].
      */
     fun toString(context: Context, id: Int): String {
         when (id) {
