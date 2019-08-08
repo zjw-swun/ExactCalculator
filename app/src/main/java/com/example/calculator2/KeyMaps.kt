@@ -300,8 +300,13 @@ object KeyMaps {
     }
 
     /**
-     * Does a button id correspond to a function that introduces an implicit lparen?
-     * Pure function.
+     * Does a button id correspond to a function that introduces an implicit lparen? Pure function.
+     * If our [isTrigFunc] method returns *true* for [id] (indicating that it corresponds to a trig
+     * function: sin, cos, tan, arcsin, arcsos, or arctan) we return *true* to the caller. If the
+     * function is ln, log, or exp we returns *true* to the caller. Otherwise we return *false*.
+     *
+     * @param id Resource ID of the key we are interested in.
+     * @return *true* if the key is one which includes an implicit lparen at its end.
      */
     fun isFunc(id: Int): Boolean {
         if (isTrigFunc(id)) {
@@ -314,8 +319,11 @@ object KeyMaps {
     }
 
     /**
-     * Does a button id correspond to a prefix operator?
-     * Pure function.
+     * Does a button id correspond to a prefix operator? Pure function. We return *true* if the key
+     * is a prefix operator: either the sqrt function or unary minus. Otherwise we return *false*.
+     *
+     * @param id Resource ID of the key we are interested in.
+     * @return *true* if the key is a prefix operator.
      */
     fun isPrefix(id: Int): Boolean {
         return when (id) {
@@ -325,7 +333,11 @@ object KeyMaps {
     }
 
     /**
-     * Does a button id correspond to a suffix operator?
+     * Does a button id correspond to a suffix operator? Pure function. We return *true* if the key
+     * is a suffix operator: factorial, percent, or square. Otherwise we return *false*.
+     *
+     * @param id Resource ID of the key we are interested in.
+     * @return *true* if the key is a suffix operator.
      */
     fun isSuffix(id: Int): Boolean {
         return when (id) {
