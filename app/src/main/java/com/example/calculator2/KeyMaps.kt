@@ -347,8 +347,11 @@ object KeyMaps {
     }
 
     /**
-     * Map key id to digit or NOT_DIGIT
-     * Pure function.
+     * Map key id to digit or NOT_DIGIT. Pure function. We return the [Int] value 0-9 of digit keys,
+     * or NOT_DIGIT (10) if the key is not a digit key.
+     *
+     * @param id Resource ID of the key we are interested in.
+     * @return [Int] value 0-9 of digit keys, or NOT_DIGIT (10) if the key is not a digit key.
      */
     fun digVal(id: Int): Int {
         return when (id) {
@@ -367,8 +370,10 @@ object KeyMaps {
     }
 
     /**
-     * Map digit to corresponding key.  Inverse of above.
-     * Pure function.
+     * Map digit to corresponding key. Inverse of [digVal]. Pure function.
+     *
+     * @param v the [Int] (0-9) digit that we want to map to its key.
+     * @return the resource ID of the key that cooresponds to [v], or [View.NO_ID]
      */
     fun keyForDigVal(v: Int): Int {
         return when (v) {
@@ -387,16 +392,27 @@ object KeyMaps {
     }
 
     /**
-     * Set activity used for looking up button labels.
-     * Call only from UI thread.
+     * Set activity used for looking up button labels. Call only from UI thread.
+     *
+     * @param a the [Activity] we should use to access our resources for button labels.
      */
     fun setActivity(a: Activity) {
         mActivity = a
     }
 
     /**
-     * Return the button id corresponding to the supplied character or return NO_ID.
-     * Called only by UI thread.
+     * Return the button id corresponding to the supplied character or return NO_ID. Called only by
+     * UI thread. First we call our method [validateMaps] to make sure that our maps of characters
+     * to resource ID match the current locale. Then if [c] is a digit character we initalize our
+     * `val i` to the *int* value in radix 10 that is represents and return the resource ID of the
+     * key that produces `i` that our [keyForDigVal] method returns. Otherwise we branch on the
+     * value of [c] returning the resource ID that each [Char] produces with special checks for
+     * when [c] is the localized decimal point character in [mDecimalPt] in order to return the
+     * key ID R.id.dec_point, and for the pi character in [mPiChar] in order to return the key ID
+     * R.id.const_pi. If [c] is not a character we expect we return [View.NO_ID].
+     *
+     * @param c [Char] whose button ID we want to locate.
+     * @return the resource ID of the button which produces the character [c].
      */
     fun keyForChar(c: Char): Int {
         validateMaps()
@@ -430,8 +446,12 @@ object KeyMaps {
     }
 
     /**
-     * Add information corresponding to the given button id to sKeyValForFun, to be used
-     * when mapping keyboard input to button ids.
+     * Add information corresponding to the given button id to [sKeyValForFun], to be used when
+     * mapping keyboard input to button ids. We initialize our `val button` by finding the button
+     * in our UI's [Activity] with the resource ID [button_id]. We then store [button_id] in
+     * [sKeyValForFun] under the key of the string which is the text of `button`.
+     *
+     * @param button_id the resource ID of the button whose information we want to add.
      */
     internal fun addButtonToFunMap(button_id: Int) {
         val button = mActivity!!.findViewById<Button>(button_id)
@@ -439,8 +459,13 @@ object KeyMaps {
     }
 
     /**
-     * Add information corresponding to the given button to sOutputForResultChar, to be used
-     * when translating numbers on output.
+     * Add information corresponding to the given button to [sOutputForResultChar], to be used
+     * when translating numbers on output. We initialize our `val button` by finding the button
+     * in our UI's [Activity] with the resource ID [button_id]. We then store the text of
+     * `button` in [sOutputForResultChar] under the key [c].
+     *
+     * @param c Character to use as key to the text string of the button with ID [button_id].
+     * @param button_id The resource ID of the button that produces the character [c].
      */
     internal fun addButtonToOutputMap(c: Char, button_id: Int) {
         val button = mActivity!!.findViewById<Button>(button_id)
@@ -449,77 +474,94 @@ object KeyMaps {
 
     /**
      * Ensure that the preceding map and character constants correspond to the current locale.
-     * Called only by UI thread.
+     * Called only by UI thread. We initialize our `val locale` to the current value of the
+     * default locale, and if it is equal to our field [sLocaleForMaps] we return having done
+     * nothing (the default locale has not changed since we were last called). Otherwise we go
+     * through our maps [sKeyValForFun], [sKeyValForFun], [sOutputForResultChar], and
+     * [sOutputForResultChar] initializing them to the values they need to have for the current
+     * locale. We also set our fields [mDecimalPt], and [mPiChar] to their localized values.
+     * When done we set [sLocaleForMaps] to `locale` so we need not repeat this until the locale
+     * changes again.
      */
     internal fun validateMaps() {
         val locale = Locale.getDefault()
-        if (locale != sLocaleForMaps) {
-            Log.v("Calculator", "Setting locale to: " + locale.toLanguageTag())
-            sKeyValForFun = HashMap()
-            sKeyValForFun!!["sin"] = R.id.fun_sin
-            sKeyValForFun!!["cos"] = R.id.fun_cos
-            sKeyValForFun!!["tan"] = R.id.fun_tan
-            sKeyValForFun!!["arcsin"] = R.id.fun_arcsin
-            sKeyValForFun!!["arccos"] = R.id.fun_arccos
-            sKeyValForFun!!["arctan"] = R.id.fun_arctan
-            sKeyValForFun!!["asin"] = R.id.fun_arcsin
-            sKeyValForFun!!["acos"] = R.id.fun_arccos
-            sKeyValForFun!!["atan"] = R.id.fun_arctan
-            sKeyValForFun!!["ln"] = R.id.fun_ln
-            sKeyValForFun!!["log"] = R.id.fun_log
-            sKeyValForFun!!["sqrt"] = R.id.op_sqrt // special treatment
-            addButtonToFunMap(R.id.fun_sin)
-            addButtonToFunMap(R.id.fun_cos)
-            addButtonToFunMap(R.id.fun_tan)
-            addButtonToFunMap(R.id.fun_arcsin)
-            addButtonToFunMap(R.id.fun_arccos)
-            addButtonToFunMap(R.id.fun_arctan)
-            addButtonToFunMap(R.id.fun_ln)
-            addButtonToFunMap(R.id.fun_log)
+        if (locale == sLocaleForMaps) return
 
-            // Set locale-dependent character "constants"
-            mDecimalPt = DecimalFormatSymbols.getInstance().decimalSeparator
-            // We recognize this in keyboard input, even if we use
-            // a different character.
-            val res = mActivity!!.resources
-            mPiChar = 0.toChar()
-            val piString = res.getString(R.string.const_pi)
-            if (piString.length == 1) {
-                mPiChar = piString[0]
-            }
+        Log.v("Calculator", "Setting locale to: " + locale.toLanguageTag())
+        sKeyValForFun = HashMap()
+        sKeyValForFun!!["sin"] = R.id.fun_sin
+        sKeyValForFun!!["cos"] = R.id.fun_cos
+        sKeyValForFun!!["tan"] = R.id.fun_tan
+        sKeyValForFun!!["arcsin"] = R.id.fun_arcsin
+        sKeyValForFun!!["arccos"] = R.id.fun_arccos
+        sKeyValForFun!!["arctan"] = R.id.fun_arctan
+        sKeyValForFun!!["asin"] = R.id.fun_arcsin
+        sKeyValForFun!!["acos"] = R.id.fun_arccos
+        sKeyValForFun!!["atan"] = R.id.fun_arctan
+        sKeyValForFun!!["ln"] = R.id.fun_ln
+        sKeyValForFun!!["log"] = R.id.fun_log
+        sKeyValForFun!!["sqrt"] = R.id.op_sqrt // special treatment
+        addButtonToFunMap(R.id.fun_sin)
+        addButtonToFunMap(R.id.fun_cos)
+        addButtonToFunMap(R.id.fun_tan)
+        addButtonToFunMap(R.id.fun_arcsin)
+        addButtonToFunMap(R.id.fun_arccos)
+        addButtonToFunMap(R.id.fun_arctan)
+        addButtonToFunMap(R.id.fun_ln)
+        addButtonToFunMap(R.id.fun_log)
 
-            sOutputForResultChar = HashMap()
-            sOutputForResultChar!!['e'] = "E"
-            sOutputForResultChar!!['E'] = "E"
-            sOutputForResultChar!![' '] = CHAR_DIGIT_UNKNOWN.toString()
-            sOutputForResultChar!![ELLIPSIS[0]] = ELLIPSIS
-            // Translate numbers for fraction display, but not the separating slash, which appears
-            // to be universal.  We also do not translate the ln, sqrt, pi
-            sOutputForResultChar!!['/'] = "/"
-            sOutputForResultChar!!['('] = "("
-            sOutputForResultChar!![')'] = ")"
-            sOutputForResultChar!!['l'] = "l"
-            sOutputForResultChar!!['n'] = "n"
-            sOutputForResultChar!![','] = DecimalFormatSymbols.getInstance().groupingSeparator.toString()
-            sOutputForResultChar!!['\u221A'] = "\u221A" // SQUARE ROOT
-            sOutputForResultChar!!['\u03C0'] = "\u03C0" // GREEK SMALL LETTER PI
-            addButtonToOutputMap('-', R.id.op_sub)
-            addButtonToOutputMap('.', R.id.dec_point)
-            for (i in 0..9) {
-                addButtonToOutputMap(('0'.toInt() + i).toChar(), keyForDigVal(i))
-            }
-
-            sLocaleForMaps = locale
-
+        // Set locale-dependent character "constants"
+        mDecimalPt = DecimalFormatSymbols.getInstance().decimalSeparator
+        // We recognize this in keyboard input, even if we use
+        // a different character.
+        val res = mActivity!!.resources
+        mPiChar = 0.toChar()
+        val piString = res.getString(R.string.const_pi)
+        if (piString.length == 1) {
+            mPiChar = piString[0]
         }
+
+        sOutputForResultChar = HashMap()
+        sOutputForResultChar!!['e'] = "E"
+        sOutputForResultChar!!['E'] = "E"
+        sOutputForResultChar!![' '] = CHAR_DIGIT_UNKNOWN.toString()
+        sOutputForResultChar!![ELLIPSIS[0]] = ELLIPSIS
+        // Translate numbers for fraction display, but not the separating slash, which appears
+        // to be universal.  We also do not translate the ln, sqrt, pi
+        sOutputForResultChar!!['/'] = "/"
+        sOutputForResultChar!!['('] = "("
+        sOutputForResultChar!![')'] = ")"
+        sOutputForResultChar!!['l'] = "l"
+        sOutputForResultChar!!['n'] = "n"
+        sOutputForResultChar!![','] = DecimalFormatSymbols.getInstance().groupingSeparator.toString()
+        sOutputForResultChar!!['\u221A'] = "\u221A" // SQUARE ROOT
+        sOutputForResultChar!!['\u03C0'] = "\u03C0" // GREEK SMALL LETTER PI
+        addButtonToOutputMap('-', R.id.op_sub)
+        addButtonToOutputMap('.', R.id.dec_point)
+        for (i in 0..9) {
+            addButtonToOutputMap(('0'.toInt() + i).toChar(), keyForDigVal(i))
+        }
+
+        sLocaleForMaps = locale
     }
 
     /**
-     * Return function button id for the substring of s starting at nextPos and ending with
-     * the next "(".  Return NO_ID if there is none.
-     * We currently check for both (possibly localized) button labels, and standard
-     * English names.  (They should currently be the same, and hence this is currently redundant.)
-     * Callable only from UI thread.
+     * Return function button id for the substring of [s] starting at [pos] and ending with the
+     * next "(".  Return NO_ID if there is none.
+     * We currently check for both (possibly localized) button labels, and standard English names.
+     * (They should currently be the same, and hence this is currently redundant.) Callable only
+     * from UI thread. First we call our method [validateMaps] to ensure that the [sKeyValForFun]
+     * map is up to date with the current default locale. Then we initialize our `val parenPos` by
+     * finding the index in [s] of the next '(' left paren starting from [pos]. If `parenPos` is
+     * not equal to -1 (a paren was found) we initialize our `val funString` with the substring of
+     * [s] between [pos] and `parenPos` then return the resource ID stored under the key `funString`
+     * in [sKeyValForFun] or [View.NO_ID] if it is *null*. If `parenPos` is equal to -1 (no paren
+     * was found in [s]) we also return [View.NO_ID].
+     *
+     * @param s String to search for a function string.
+     * @param pos Index into [s] to start our search for a function name.
+     * @return Resource ID of the button which produces the function we found in [s] or [View.NO_ID]
+     * if we did not find one.
      */
     fun funForString(s: String, pos: Int): Int {
         validateMaps()
@@ -532,9 +574,23 @@ object KeyMaps {
     }
 
     /**
-     * Return the localization of the string s representing a numeric answer.
-     * Callable only from UI thread.
-     * A trailing e is treated as the mathematical constant, not an exponent.
+     * Return the localization of the string [s] representing a numeric answer. Callable only from
+     * UI thread. A trailing e is treated as the mathematical constant, not an exponent. First we
+     * initialize our `val result` with a new instance of [StringBuilder], initialize our `val len`
+     * to the length of [s], and then we call our method [validateMaps] to ensure that the map
+     * [sOutputForResultChar] is up to date with the current default locale. Then we loop over `i`
+     * from 0 until `len`:
+     * - We initialize our `val c` to the `i`'th [Char] in [s].
+     * - If this is the last character in [s] and is an 'e' we skip it.
+     * - Otherwise we initialize our `val translation` to the localized string stored under the key
+     * `c` in [sOutputForResultChar]
+     * - If `translation` is *null* we log the fact we found a bad character and just append `c` to
+     * `result`, otherwise we append `translation` to `result`.
+     *
+     * When done with all the [Char] in [s] we return the string value of `result` to the caller.
+     *
+     * @param s The numeric string we want to localize.
+     * @return The localized string version of [s].
      */
     fun translateResult(s: String): String {
         val result = StringBuilder()
@@ -542,15 +598,15 @@ object KeyMaps {
         validateMaps()
         for (i in 0 until len) {
             val c = s[i]
-            if (i < len - 1 || c != 'e') {
-                val translation = sOutputForResultChar!![c]
-                if (translation == null) {
-                    // Should not get here.  Report if we do.
-                    Log.v("Calculator", "Bad character:$c")
-                    result.append(c)
-                } else {
-                    result.append(translation)
-                }
+            if (i >= len - 1 && c == 'e') continue // last character is 'e', ignore it.
+
+            val translation = sOutputForResultChar!![c]
+            if (translation == null) {
+                // Should not get here.  Report if we do.
+                Log.v("Calculator", "Bad character:$c")
+                result.append(c)
+            } else {
+                result.append(translation)
             }
         }
         return result.toString()
