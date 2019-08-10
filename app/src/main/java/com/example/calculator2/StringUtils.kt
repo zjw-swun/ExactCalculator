@@ -23,7 +23,11 @@ package com.example.calculator2
 object StringUtils {
 
     /**
-     * Return a string with n copies of c.
+     * Return a string with [n] copies of [c].
+     *
+     * @param c Character we wish to copy.
+     * @param n Number of copies of [c] to make.
+     * @return A [String] consisting of [n] copies of [c].
      */
     fun repeat(c: Char, n: Int): String {
         val result = StringBuilder()
