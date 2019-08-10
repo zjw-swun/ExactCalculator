@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-package com.example.calculator2;
+package com.example.calculator2
 
 /**
  * Some helpful methods operating on strings.
  */
 
-@SuppressWarnings("WeakerAccess")
-public class StringUtils {
+object StringUtils {
 
     /**
      * Return a string with n copies of c.
      */
-    public static String repeat(char c, int n) {
-        final StringBuilder result = new StringBuilder();
-        for (int i = 0; i < n; ++i) {
-            result.append(c);
+    fun repeat(c: Char, n: Int): String {
+        val result = StringBuilder()
+        for (i in 0 until n) {
+            result.append(c)
         }
-        return result.toString();
+        return result.toString()
     }
 
     /**
@@ -42,54 +41,54 @@ public class StringUtils {
      * at least somewhat acceptable, though not necessarily preferred, everywhere.
      * The grouping separator in the result is NOT localized.
      */
-    public static String addCommas(String s, int begin, int end) {
+    fun addCommas(s: String, begin: Int, end: Int): String {
         // Resist the temptation to use Java's NumberFormat, which converts to long or double
         // and hence doesn't handle very large numbers.
-        StringBuilder result = new StringBuilder();
-        int current = begin;
-        while (current < end && (s.charAt(current) == '-' || s.charAt(current) == ' ')) {
-            ++current;
+        val result = StringBuilder()
+        var current = begin
+        while (current < end && (s[current] == '-' || s[current] == ' ')) {
+            ++current
         }
-        result.append(s, begin, current);
+        result.append(s, begin, current)
         while (current < end) {
-            result.append(s.charAt(current));
-            ++current;
+            result.append(s[current])
+            ++current
             if ((end - current) % 3 == 0 && end != current) {
-                result.append(',');
+                result.append(',')
             }
         }
-        return result.toString();
+        return result.toString()
     }
 
     /**
      * Ignoring all occurrences of c in both strings, check whether old is a prefix of new.
      * If so, return the remaining sub-sequence of whole. If not, return null.
      */
-    public static CharSequence getExtensionIgnoring(CharSequence whole, CharSequence prefix,
-            char c) {
-        int wIndex = 0;
-        int pIndex = 0;
-        final int wLen = whole.length();
-        final int pLen = prefix.length();
+    fun getExtensionIgnoring(whole: CharSequence, prefix: CharSequence,
+                             c: Char): CharSequence? {
+        var wIndex = 0
+        var pIndex = 0
+        val wLen = whole.length
+        val pLen = prefix.length
         while (true) {
-            while (pIndex < pLen && prefix.charAt(pIndex) == c) {
-                ++pIndex;
+            while (pIndex < pLen && prefix[pIndex] == c) {
+                ++pIndex
             }
-            while (wIndex < wLen && whole.charAt(wIndex) == c) {
-                ++wIndex;
+            while (wIndex < wLen && whole[wIndex] == c) {
+                ++wIndex
             }
             if (pIndex == pLen) {
-                break;
+                break
             }
-            if (wIndex == wLen || whole.charAt(wIndex) != prefix.charAt(pIndex) ) {
-                return null;
+            if (wIndex == wLen || whole[wIndex] != prefix[pIndex]) {
+                return null
             }
-            ++pIndex;
-            ++wIndex;
+            ++pIndex
+            ++wIndex
         }
-        while (wIndex < wLen && whole.charAt(wIndex) == c) {
-            ++wIndex;
+        while (wIndex < wLen && whole[wIndex] == c) {
+            ++wIndex
         }
-        return whole.subSequence(wIndex, wLen);
+        return whole.subSequence(wIndex, wLen)
     }
 }

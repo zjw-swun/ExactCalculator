@@ -433,7 +433,7 @@ public class UnifiedReal {
         String digits = intScaled.toString();
         int len = digits.length();
         if (len < n + 1) {
-            digits = StringUtils.repeat('0', n + 1 - len) + digits;
+            digits = StringUtils.INSTANCE.repeat('0', n + 1 - len) + digits;
             len = n + 1;
         }
         return (negative ? "-" : "") + digits.substring(0, len - n) + "."
@@ -1295,7 +1295,6 @@ public class UnifiedReal {
      * to the right of the binary point and to the left of the most significant digit.
      * Return Integer.MAX_VALUE if we cannot bound it.
      */
-    @SuppressWarnings("WeakerAccess")
     public int leadingBinaryZeroes() {
         if (isNamed(mCrFactor)) {
             // Only ln(2) is smaller than one, and could possibly add one zero bit.
@@ -1317,7 +1316,6 @@ public class UnifiedReal {
      * Is the number of bits to the left of the decimal point greater than bound?
      * The result is inexact: We roughly approximate the whole number bits.
      */
-    @SuppressWarnings("WeakerAccess")
     public boolean approxWholeNumberBitsGreaterThan(int bound) {
         if (isNamed(mCrFactor)) {
             return mRatFactor.wholeNumberBits() > bound;
