@@ -936,7 +936,7 @@ public class UnifiedReal {
         if (definitelyEquals(SQRT3)) {
             return PI_OVER_3;
         }
-        return new UnifiedReal(UnaryCRFunction.atanFunction.execute(crValue()));
+        return new UnifiedReal(UnaryCRFunction.Companion.getAtanFunction().execute(crValue()));
     }
 
     @SuppressWarnings("unused")
