@@ -55,10 +55,19 @@ import java.math.BigInteger
  */
 // Naming vaguely follows ObjectSpace JGL convention.
 abstract class UnaryCRFunction {
+    /**
+     * Computes the [CR] created by applying our [UnaryCRFunction] to [x].
+     *
+     * @param x The [CR] we are to operate upon.
+     * @return The [CR] result of applying our [UnaryCRFunction] to [x].
+     */
     abstract fun execute(x: CR): CR
 
     /**
-     * Compose this function with <TT>f2</TT>.
+     * Compose *this* function with [f2].
+     *
+     * @param f2 the [UnaryCRFunction] we are to compose with *this*
+     * @return a [UnaryCRFunction] created by composing *this* with [f2].
      */
     fun compose(f2: UnaryCRFunction): UnaryCRFunction {
         return ComposeUnaryCRFunction(this, f2)
