@@ -64,7 +64,8 @@ abstract class UnaryCRFunction {
     abstract fun execute(x: CR): CR
 
     /**
-     * Compose *this* function with [f2].
+     * Compose *this* function with [f2]. Produces a [UnaryCRFunction] whose `execute` method calls
+     * the `execute` method of *this* on the results of the `execute` method of [f2].
      *
      * @param f2 the [UnaryCRFunction] we are to compose with *this*
      * @return a [UnaryCRFunction] created by composing *this* with [f2].
@@ -74,11 +75,13 @@ abstract class UnaryCRFunction {
     }
 
     /**
-     * Compute the inverse of this function, which must be defined
-     * and strictly monotone on the interval [<TT>low</TT>, <TT>high</TT>].
-     * The resulting function is defined only on the image of
-     * [<TT>low</TT>, <TT>high</TT>].
-     * The original function may be either increasing or decreasing.
+     * Compute the inverse of *this* function, which must be defined and strictly monotone on the
+     * interval [[low], [high]]. The resulting function is defined only on the image of
+     * [[low], [high]]. The original function may be either increasing or decreasing.
+     *
+     * @param low lower end of the range we are defined on.
+     * @param high higher end of the range we are defined on.
+     * @return an [InverseMonotoneUnaryCRFunction] of *this* [UnaryCRFunction].
      */
     @Suppress("unused")
     fun inverseMonotone(low: CR, high: CR): UnaryCRFunction {
@@ -86,17 +89,22 @@ abstract class UnaryCRFunction {
     }
 
     /**
-     * Compute the derivative of a function.
-     * The function must be defined on the interval [<TT>low</TT>, <TT>high</TT>],
-     * and the derivative must exist, and must be continuous and
-     * monotone in the open interval [<TT>low</TT>, <TT>high</TT>].
-     * The result is defined only in the open interval.
+     * Compute the derivative of a function. The function must be defined on the interval
+     * [[low], [high]], and the derivative must exist, and must be continuous and monotone
+     * in the open interval [[low], [high]]. The result is defined only in the open interval.
+     *
+     * @param low lower end of the range we are defined on.
+     * @param high higher end of the range we are defined on.
+     * @return an [MonotoneDerivativeUnaryCRFunction] of *this* [UnaryCRFunction].
      */
     @Suppress("unused")
     fun monotoneDerivative(low: CR, high: CR): UnaryCRFunction {
         return MonotoneDerivativeUnaryCRFunction(this, low, high)
     }
 
+    /**
+     * Our static constants.
+     */
     companion object {
 
         /**
@@ -188,40 +196,57 @@ abstract class UnaryCRFunction {
 }
 
 // Subclasses of UnaryCRFunction for various built-in functions.
+
+/**
+ * [UnaryCRFunction] whose `execute` method returns the sin of its argument.
+ */
 internal class SinUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.sin()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the cos of its argument.
+ */
 internal class CosUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.cos()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the tan of its argument.
+ */
 internal class TanUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.sin().divide(x.cos())
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the asin of its argument.
+ */
 internal class AsinUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.asin()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the acos of its argument.
+ */
 internal class AcosUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.acos()
     }
 }
 
-// This uses the identity (sin x)^2 = (tan x)^2/(1 + (tan x)^2)
-// Since we know the tangent of the result, we can get its sine,
-// and then use the asin function.  Note that we don't always
-// want the positive square root when computing the sine.
+/**
+ * This uses the identity (sin x)^2 = (tan x)^2/(1 + (tan x)^2). Since we know the tangent of the
+ * result, we can get its sine, and then use the asin function. Note that we don't always want the
+ * positive square root when computing the sine.
+ */
 internal class AtanUnaryCRFunction : UnaryCRFunction() {
     var one: CR = CR.valueOf(1)
 
@@ -233,57 +258,88 @@ internal class AtanUnaryCRFunction : UnaryCRFunction() {
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the exp of its argument.
+ */
 internal class ExpUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.exp()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the ln of its argument.
+ */
 internal class LnUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.ln()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns its argument.
+ */
 internal class IdentityUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the negation of its argument.
+ */
 internal class NegateUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.negate()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the inverse of its argument.
+ */
 internal class InverseUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.inverse()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the abs of its argument.
+ */
 internal class AbsUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.abs()
     }
 }
 
+/**
+ * [UnaryCRFunction] whose `execute` method returns the sqrt of its argument.
+ */
 internal class SqrtUnaryCRFunction : UnaryCRFunction() {
     override fun execute(x: CR): CR {
         return x.sqrt()
     }
 }
 
-internal class ComposeUnaryCRFunction(var f1: UnaryCRFunction,
-                                      var f2: UnaryCRFunction) : UnaryCRFunction() {
+/**
+ * [UnaryCRFunction] whose `execute` method calls the `execute` method of its [f1] parameter and the
+ * value returned by the `execute` method of its [f2] parameter.
+ */
+internal class ComposeUnaryCRFunction(
+        var f1: UnaryCRFunction,
+        var f2: UnaryCRFunction
+) : UnaryCRFunction() {
 
     override fun execute(x: CR): CR {
         return f1.execute(f2.execute(x))
     }
 }
 
-internal class InverseMonotoneUnaryCRFunction(func: UnaryCRFunction, l: CR, h: CR) : UnaryCRFunction() {
+internal class InverseMonotoneUnaryCRFunction(
+        func: UnaryCRFunction,
+        l: CR,
+        h: CR
+) : UnaryCRFunction() {
     // The following variables are final, so that they
     // can be referenced from the inner class InverseIncreasingCR.
     // I couldn't find a way to initialize these such that the
