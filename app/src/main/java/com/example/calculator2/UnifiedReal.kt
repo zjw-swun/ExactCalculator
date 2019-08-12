@@ -26,10 +26,12 @@ import kotlin.math.round
  * for a number of interesting special cases, including rational computations.
  *
  * A real number is represented as the product of two numbers with different representations:
- * A) A BoundedRational that can only represent a subset of the rationals, but supports
- * exact computable comparisons.
- * B) A lazily evaluated "constructive real number" that provides operations to evaluate
- * itself to any requested number of digits.
+ * > A) A BoundedRational that can only represent a subset of the rationals, but supports
+ * > exact computable comparisons.
+ *
+ * > B) A lazily evaluated "constructive real number" that provides operations to evaluate
+ * > itself to any requested number of digits.
+ *
  * Whenever possible, we choose (B) to be one of a small set of known constants about which we
  * know more.  For example, whenever we can, we represent rationals such that (B) is 1.
  * This scheme allows us to do some very limited symbolic computation on numbers when both
@@ -41,10 +43,12 @@ import kotlin.math.round
  * CR.PrecisionOverflowException and CR.AbortedException.
  */
 @Suppress("MemberVisibilityCanBePrivate")
-class UnifiedReal private constructor(private val mRatFactor: BoundedRational, private val mCrFactor: CR) {
+class UnifiedReal private constructor(
+        private val mRatFactor: BoundedRational,
+        private val mCrFactor: CR) {
 
     /**
-     * Return (this mod 2pi)/(pi/6) as a BigInteger, or null if that isn't easily possible.
+     * Return (*this* mod 2pi)/(pi/6) as a [BigInteger], or *null* if that isn't easily possible.
      */
     private val piTwelfths: BigInteger?
         get() {
@@ -74,10 +78,13 @@ class UnifiedReal private constructor(private val mRatFactor: BoundedRational, p
     constructor(n: Long) : this(BoundedRational(n))
 
     /**
-     * Given a constructive real cr, try to determine whether cr is the logarithm of a small
-     * integer.  If so, return exp(cr) as a BoundedRational.  Otherwise return null.
-     * We make this determination by simple table lookup, so spurious null returns are
+     * Given a constructive real [cr], try to determine whether [cr] is the logarithm of a small
+     * integer.  If so, return exp([cr]) as a [BoundedRational].  Otherwise return *null*.
+     * We make this determination by simple table lookup, so spurious *null* returns are
      * entirely possible, or even likely.
+     *
+     * @param cr The [CR] we are to look up in our table of logariths of small numbers.
+     * @return A [BoundedRational] constructed from a small integer or *null*.
      */
     private fun getExp(cr: CR): BoundedRational? {
         for (i in sLogs.indices) {
