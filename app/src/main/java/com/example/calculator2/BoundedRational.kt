@@ -186,7 +186,7 @@ class BoundedRational {
     fun doubleValue(): Double {
         val sign = signum()
         if (sign < 0) {
-            return -negate(this)!!.doubleValue() // TODO: Remove !! somehow (this is not null)
+            return -negate(this).doubleValue()
         }
         // We get the mantissa by dividing the numerator by denominator, after
         // suitably pre-scaling them so that the integral part of the result contains
@@ -651,10 +651,8 @@ class BoundedRational {
          * @param r the [BoundedRational] we are to negate.
          * @return a [BoundedRational] which has the opposite sign of its parameter [r].
          */
-        fun negate(r: BoundedRational?): BoundedRational? {
-            return if (r == null) {
-                null
-            } else BoundedRational(r.mNum.negate(), r.mDen)
+        fun negate(r: BoundedRational): BoundedRational {
+            return BoundedRational(r.mNum.negate(), r.mDen)
         }
 
         /**
