@@ -26,10 +26,10 @@ import kotlin.math.round
  * for a number of interesting special cases, including rational computations.
  *
  * A real number is represented as the product of two numbers with different representations:
- * > A) A BoundedRational that can only represent a subset of the rationals, but supports
+ * > A) A [BoundedRational] that can only represent a subset of the rationals, but supports
  * > exact computable comparisons.
  *
- * > B) A lazily evaluated "constructive real number" that provides operations to evaluate
+ * > B) A lazily evaluated "constructive real number" ([CR]) that provides operations to evaluate
  * > itself to any requested number of digits.
  *
  * Whenever possible, we choose (B) to be one of a small set of known constants about which we
@@ -39,8 +39,8 @@ import kotlin.math.round
  * possibility.
  *
  * Arithmetic operations and operations that produce finite approximations may throw unchecked
- * exceptions produced by the underlying CR and BoundedRational packages, including
- * CR.PrecisionOverflowException and CR.AbortedException.
+ * exceptions produced by the underlying [CR] and [BoundedRational] packages, including
+ * [CR.PrecisionOverflowException] and [CR.AbortedException].
  */
 @Suppress("MemberVisibilityCanBePrivate")
 class UnifiedReal private constructor(
@@ -81,7 +81,10 @@ class UnifiedReal private constructor(
      * Given a constructive real [cr], try to determine whether [cr] is the logarithm of a small
      * integer.  If so, return exp([cr]) as a [BoundedRational].  Otherwise return *null*.
      * We make this determination by simple table lookup, so spurious *null* returns are
-     * entirely possible, or even likely.
+     * entirely possible, or even likely. We loop over `i` for range of valid inidces for the
+     * array [sLogs], and if the `i`'th entry in [sLogs] points to the same object as our parameter
+     * [cr] we return a [BoundedRational] constructed from `i` to the caller. If none of the
+     * entries in [sLogs] matches [cr] we return *null*.
      *
      * @param cr The [CR] we are to look up in our table of logariths of small numbers.
      * @return A [BoundedRational] constructed from a small integer or *null*.
@@ -97,6 +100,8 @@ class UnifiedReal private constructor(
 
     /**
      * Is this number known to be rational?
+     *
+     * @return *true* if our [mCrFactor] field is [CR_ONE], or our [mRatFactor] is equal to 0.
      */
     fun definitelyRational(): Boolean {
         return mCrFactor === CR_ONE || mRatFactor.signum() == 0
@@ -106,6 +111,10 @@ class UnifiedReal private constructor(
      * Is this number known to be irrational?
      * TODO: We could track the fact that something is irrational with an explicit flag, which
      * could cover many more cases.  Whether that matters in practice is TBD.
+     *
+     * @return *true* if our [definitelyRational] determines that our number is not definitely a
+     * rational number and our [isNamed] method determines that our [mCrFactor] field is among the
+     * well-known constructive reals we know about.
      */
     fun definitelyIrrational(): Boolean {
         return !definitelyRational() && isNamed(mCrFactor)
@@ -113,6 +122,10 @@ class UnifiedReal private constructor(
 
     /**
      * Is this number known to be algebraic?
+     *
+     * @return *true* if our [definitelyAlgebraic] method determines that our [mCrFactor] field is
+     * known to be algebraic (ie. either the constant [CR_ONE] or other known [CR] constant) or our
+     * [mRatFactor] field is 0.
      */
     fun definitelyAlgebraic(): Boolean {
         return definitelyAlgebraic(mCrFactor) || mRatFactor.signum() == 0
@@ -120,6 +133,10 @@ class UnifiedReal private constructor(
 
     /**
      * Is this number known to be transcendental?
+     *
+     * @return *true* if our [definitelyAlgebraic] method returns *false* (we are not an algebraic
+     * number) and our [isNamed] method determines that our [mCrFactor] field is one of our named
+     * well-known constructive reals.
      */
     @Suppress("unused")
     fun definitelyTranscendental(): Boolean {
@@ -127,8 +144,10 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Convert to String reflecting raw representation.
-     * Debug or log messages only, not pretty.
+     * Convert to String reflecting raw representation. Debug or log messages only, not pretty.
+     *
+     * @return a string formed by concatenating the string value of our [mRatFactor] field followed
+     * by the "*" multiply character followed by the string value of our [mCrFactor] field.
      */
     override fun toString(): String {
         @Suppress("ConvertToStringTemplate")
@@ -931,11 +950,18 @@ class UnifiedReal private constructor(
         // identify numbers of the form <SQRT[i]>*n^2, and we don't otherwise know of a good
         // algorithm for that.
         @Suppress("RemoveExplicitTypeArguments")
-        private val sSqrts = arrayOf<CR?>(null, CR.ONE, CR_SQRT2, CR_SQRT3, null, CR.valueOf(5).sqrt(), CR.valueOf(6).sqrt(), CR.valueOf(7).sqrt(), null, null, CR.valueOf(10).sqrt())
+        private val sSqrts = arrayOf<CR?>(
+                null, CR.ONE, CR_SQRT2, CR_SQRT3, null, CR.valueOf(5).sqrt(),
+                CR.valueOf(6).sqrt(), CR.valueOf(7).sqrt(), null, null,
+                CR.valueOf(10).sqrt()
+        )
 
         // Natural logs of small integers that we try to recognize.
         @Suppress("RemoveExplicitTypeArguments")
-        private val sLogs = arrayOf<CR?>(null, null, CR_LN2, CR_LN3, null, CR_LN5, CR_LN6, CR_LN7, null, null, CR_LN10)
+        private val sLogs = arrayOf<CR?>(
+                null, null, CR_LN2, CR_LN3, null, CR_LN5,
+                CR_LN6, CR_LN7, null, null, CR_LN10
+        )
 
 
         // Some convenient UnifiedReal constants.
