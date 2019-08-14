@@ -155,8 +155,24 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Convert to readable String.
-     * Intended for user output.  Produces exact expression when possible.
+     * Convert to readable String. Intended for user output. Produces exact expression when possible.
+     * If our [mCrFactor] field is [CR_ONE] (we are a rational number) or our [mRatFactor] is 0 we
+     * return the string returned by the `toNiceString` method of [mRatFactor] to the caller. If not
+     * we initialize our `val name` to the [String] returned by our [crName] method for [mCrFactor].
+     * If `name` is not *null* we initialize our `val bi` to the [BigInteger] returned by the
+     * [BoundedRational.asBigInteger] method for [mRatFactor] then return:
+     * - `name` if `bi` is [BigInteger.ONE]
+     * - Theconcatenating by `name` if
+     * `bi` is not *null*
+     * - The [String] formed by concatenating "(" followed by the [String] returned by the
+     * `toNiceString` method of [mRatFactor] followed by ")" followed by `name` if `bi` is
+     * *null*.
+     *
+     * If `name` is *null* we return the [String] returned by the `toString` method of [mCrFactor]
+     * if [mRatFactor] is [BoundedRational.ONE], otherwise we return the [String] returned by the
+     * `toString` method the [CR] returned by our `crValue` method to the caller.
+     *
+     * @return readable [String] representation suitable for user output.
      */
     fun toNiceString(): String {
         if (mCrFactor === CR_ONE || mRatFactor.signum() == 0) {
@@ -178,6 +194,9 @@ class UnifiedReal private constructor(
 
     /**
      * Will toNiceString() produce an exact representation?
+     *
+     * @return *true* if our [crName] method determines that our [mCrFactor] field is a well-known
+     * constructive real.
      */
     fun exactlyDisplayable(): Boolean {
         return crName(mCrFactor) != null
