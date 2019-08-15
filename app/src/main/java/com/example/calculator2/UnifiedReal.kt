@@ -202,13 +202,18 @@ class UnifiedReal private constructor(
         return crName(mCrFactor) != null
     }
 
-    /*
-     * Returns a truncated representation of the result.
-     * If exactlyTruncatable(), we round correctly towards zero. Otherwise the resulting digit
-     * string may occasionally be rounded up instead.
-     * Always includes a decimal point in the result.
-     * The result includes n digits to the right of the decimal point.
+    /**
+     * Returns a truncated representation of the result. If exactlyTruncatable(), we round correctly
+     * towards zero. Otherwise the resulting digit string may occasionally be rounded up instead.
+     * Always includes a decimal point in the result. The result includes [n] digits to the right of
+     * the decimal point. If our [mCrFactor] field is [CR_ONE] (we are a rational number) or our
+     * [mRatFactor] is [BoundedRational.ZERO] we return the string returned by the `toStringTruncated`
+     * method of [mRatFactor] for [n] digits of precision to the caller. Otherwise we initialize our
+     * `val scaled` to the [CR] created by multiplying our value as a [CR] by the [CR] created from
+     * the [BigInteger] of 10 to the [n].
+     *
      * @param n result precision, >= 0
+     * @return string representation of our value with [n] digits to the right of the decimal point.
      */
     fun toStringTruncated(n: Int): String {
         if (mCrFactor === CR_ONE || mRatFactor === BoundedRational.ZERO) {
