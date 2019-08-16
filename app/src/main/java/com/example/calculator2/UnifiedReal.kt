@@ -210,7 +210,13 @@ class UnifiedReal private constructor(
      * [mRatFactor] is [BoundedRational.ZERO] we return the string returned by the `toStringTruncated`
      * method of [mRatFactor] for [n] digits of precision to the caller. Otherwise we initialize our
      * `val scaled` to the [CR] created by multiplying our value as a [CR] by the [CR] created from
-     * the [BigInteger] of 10 to the [n].
+     * the [BigInteger] of 10 to the [n]. We initialize our `var negative` to *false*, and declare
+     * `var intScaled` to be a [BigInteger]. If our method [exactlyTruncatable] returns *true* (to
+     * indicate that we can compute correctly truncated approximations) we wet `intScaled` to the
+     * [BigInteger] returned by the `approxGet` method of `scaled`. If the `signum` method indicated
+     * thatn `intScaled` is negative we set `negative` to *true* and negate `intScaled`. If the
+     * `compareTo` method of the [CR] of `intScaled` determines that `intScaled` is greater than
+     * the absolute value of `scaled` we subtract [BigInteger.ONE] from `intScaled`.
      *
      * @param n result precision, >= 0
      * @return string representation of our value with [n] digits to the right of the decimal point.
