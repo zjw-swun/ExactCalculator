@@ -216,7 +216,19 @@ class UnifiedReal private constructor(
      * [BigInteger] returned by the `approxGet` method of `scaled`. If the `signum` method indicated
      * thatn `intScaled` is negative we set `negative` to *true* and negate `intScaled`. If the
      * `compareTo` method of the [CR] of `intScaled` determines that `intScaled` is greater than
-     * the absolute value of `scaled` we subtract [BigInteger.ONE] from `intScaled`.
+     * the absolute value of `scaled` we subtract [BigInteger.ONE] from `intScaled`. We then call
+     * the `check` method of [CR] to make sure `intScaled` is less than `scaled`. If on the other
+     * hand [exactlyTruncatable] returns *false* we set `intScaled` to the [BigInteger] returned by
+     * the `approxGet` method for `scaled` to the precision of minus EXTRA_PREC. If `intScaled` is
+     * negative we set `negative` to *true* and negate `intScaled`. We then shift `intScaled` right
+     * by EXTRA_PREC.
+     *
+     * Next we initialize our `var digits` to the string value of `intScaled`, and `var len` to the
+     * length of `digits`. If `len` is less than [n] plus 1 we add [n] plus 1 minus `len` "0" digits
+     * to the beginning of `digits` and set `len` to [n] plus 1. Finally we return a [String] formed
+     * by concatenating a "-" character if `negative` is *true* followed by the substring of `digits`
+     * from 0 to `len` minus [n], followed by a "." decimal point followed by the substring of
+     * `digits` from `len` minus [n] to its end.
      *
      * @param n result precision, >= 0
      * @return string representation of our value with [n] digits to the right of the decimal point.
@@ -259,8 +271,10 @@ class UnifiedReal private constructor(
                 + digits.substring(len - n))
     }
 
-    /*
+    /**
      * Can we compute correctly truncated approximations of this number?
+     *
+     * @return *true* if we can compute correctly truncated approximations of this number.
      */
     fun exactlyTruncatable(): Boolean {
         // If the value is known rational, we can do exact comparisons.
