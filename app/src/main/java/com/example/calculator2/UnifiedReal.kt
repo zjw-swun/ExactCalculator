@@ -272,7 +272,10 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Can we compute correctly truncated approximations of this number?
+     * Can we compute correctly truncated approximations of this number? We return *true* is our
+     * [mCrFactor] field is [CR_ONE] (we are rational) or our [mRatFactor] field is ZERO, or if
+     * our [definitelyIrrational] method returns *true* (we are one of the well known irrational
+     * numbers).
      *
      * @return *true* if we can compute correctly truncated approximations of this number.
      */
@@ -285,9 +288,13 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Return a double approximation.
-     * Rational arguments are currently rounded to nearest, with ties away from zero.
-     * TODO: Improve rounding.
+     * Return a double approximation. Rational arguments are currently rounded to nearest, with ties
+     * away from zero. If our [mCrFactor] field is [CR_ONE] we return the [Double] value returned by
+     * the [doubleValue] method of our [mRatFactor] field, otherwise we return the [Double] returned
+     * by the [toDouble] method of the [CR] computed by our [crValue] method (it returns our
+     * [mRatFactor] field multiplied by our [mCrFactor] field).
+     *
+     * @return Our value converted to a [Double].
      */
     @Suppress("unused")
     fun doubleValue(): Double {
@@ -298,12 +305,31 @@ class UnifiedReal private constructor(
         }
     }
 
+    /**
+     * Computes our value as a [CR] by multiplying our [mRatFactor] field by our [mCrFactor] field.
+     *
+     * @return the [CR] created by multiplying our [mRatFactor] field by our [mCrFactor] field.
+     */
     fun crValue(): CR {
         return mRatFactor.crValue().multiply(mCrFactor)
     }
 
     /**
-     * Are this and r exactly comparable?
+     * Are *this* and [u] exactly comparable? There are four conditions where we declare [u] to be
+     * exactly comparable to *this*:
+     * - When our [mCrFactor] field points to the same [CR] as the [mCrFactor] field of [u] and
+     * [mCrFactor] is either a well known [CR] or is within DEFAULT_COMPARE_TOLERANCE (-1000 bits)
+     * tolerance of 0.000 - we return *true*.
+     * - When our [mRatFactor] field is 0, and the [mRatFactor] field of [u] is 0 - we return *true*.
+     * - When our [definitelyIndependent] method determines that our [mCrFactor] field and the
+     * [mCrFactor] field of [u] differ by something other than a a rational factor - we return *true*.
+     * - When our value as a [CR] calculated by our [crValue] method is not equal to the value of [u]
+     * as a [CR] within DEFAULT_COMPARE_TOLERANCE (-1000 bits) tolerance - we return *true*.
+     *
+     * Otherwise we return *false*.
+     *
+     * @param u The other [UnifiedReal] to be compared against.
+     * @return *true* if it is possible to compare *this* [UnifiedReal] to our parameter [u].
      */
     fun isComparable(u: UnifiedReal): Boolean {
         // We check for ONE only to speed up the common case.
@@ -315,14 +341,18 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Return +1 if this is greater than r, -1 if this is less than r, or 0 of the two are
+     * Return +1 if *this* is greater than [u], -1 if *this* is less than [u], or 0 of the two are
+     * known to be equal. May diverge if the two are equal and our [isComparable] method returns
+     * *false* for [u].
+     *
+     * @param u The other [UnifiedReal] to be compared to.
+     * @return +1 if *this* is greater than [u], -1 if *this* is less than [u], or 0 of the two are
      * known to be equal.
-     * May diverge if the two are equal and !isComparable(r).
      */
     operator fun compareTo(u: UnifiedReal): Int {
         if (definitelyZero() && u.definitelyZero()) return 0
         if (mCrFactor === u.mCrFactor) {
-            val signum = mCrFactor.signum()  // Can diverge if mCRFactor == 0.
+            val signum = mCrFactor.signum()  // Can diverge if mCrFactor == 0.
             return signum * mRatFactor.compareTo(u.mRatFactor)
         }
         return crValue().compareTo(u.crValue())  // Can also diverge.
