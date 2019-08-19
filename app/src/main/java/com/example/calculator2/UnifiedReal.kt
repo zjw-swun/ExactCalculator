@@ -343,7 +343,14 @@ class UnifiedReal private constructor(
     /**
      * Return +1 if *this* is greater than [u], -1 if *this* is less than [u], or 0 of the two are
      * known to be equal. May diverge if the two are equal and our [isComparable] method returns
-     * *false* for [u].
+     * *false* for [u]. If our [definitelyZero] method returns *true* indicating that *this* is 0
+     * and the [definitelyZero] method of [u] also returns *true* we return 0 to the caller. If our
+     * [mCrFactor] field points to the same [CR] as the [mCrFactor] field of [u] we initialize our
+     * `val signum` to the value returned by the `signum` method of [mCrFactor] then return `signum`
+     * times the value returned by the `compareTo` method of our field [mRatFactor] when it compares
+     * itself to the [mRatFactor] field of [u]. Otherwise we return the value returned by the
+     * `compareTo` method of our value as a [CR] that is calculated by our [crValue] when it compares
+     * itself to the [CR] value of [u] that its `crValue` method calculates.
      *
      * @param u The other [UnifiedReal] to be compared to.
      * @return +1 if *this* is greater than [u], -1 if *this* is less than [u], or 0 of the two are
@@ -360,7 +367,16 @@ class UnifiedReal private constructor(
 
     /**
      * Return +1 if this is greater than r, -1 if this is less than r, or possibly 0 of the two are
-     * within 2^a of each other.
+     * within 2^a of each other. If our [isComparable] returns *true* to indicate that it is possible
+     * to compare *this* to [u] we return the value returned by our `compareTo(UnifiedReal)` method
+     * when given [u]. Otherwise we return the value returned by the `compareTo` method of our value
+     * as a [CR] that our [crValue] method calculates when that method compares *this* to the value
+     * as a [CR] of [u] with a as the tolerance in bits.
+     *
+     * @param u The other [UnifiedReal]
+     * @param a Absolute tolerance in bits
+     * @return +1 if this is greater than r, -1 if this is less than r, or possibly 0 of the two are
+     * within 2^a of each other
      */
     fun compareTo(u: UnifiedReal, a: Int): Int {
         return if (isComparable(u)) {
@@ -372,26 +388,36 @@ class UnifiedReal private constructor(
 
     /**
      * Return compareTo(ZERO, a).
+     *
+     * @param a Absolute tolerance in bits
+     * @return the value returned by our [compareTo] method when it compares [ZERO] to *this* to a
+     * precision of [a] bits.
      */
     fun signum(a: Int): Int {
         return compareTo(ZERO, a)
     }
 
     /**
-     * Return compareTo(ZERO).
-     * May diverge for ZERO argument if !isComparable(ZERO).
+     * Return compareTo(ZERO). May diverge for ZERO argument if !isComparable(ZERO).
+     *
+     * @return the value returned by our [compareTo] method when it compares [ZERO] to *this*
      */
     fun signum(): Int {
         return compareTo(ZERO)
     }
 
     /**
-     * Equality comparison.  May erroneously return true if values differ by less than 2^a,
-     * and !isComparable(u).
+     * Equality comparison. May erroneously return true if values differ by less than 2^a, and
+     * !isComparable(u).
+     *
+     * @param u The other [UnifiedReal]
+     * @param a Absolute tolerance in bits
+     * @return *true* if [u] is approximately equal to *this* to a precision of [a] bits.
      */
     fun approxEquals(u: UnifiedReal, a: Int): Boolean {
         return if (isComparable(u)) {
-            if (definitelyIndependent(mCrFactor, u.mCrFactor) && (mRatFactor.signum() != 0 || u.mRatFactor.signum() != 0)) {
+            if (definitelyIndependent(mCrFactor, u.mCrFactor) && (mRatFactor.signum() != 0
+                            || u.mRatFactor.signum() != 0)) {
                 // No need to actually evaluate, though we don't know which is larger.
                 false
             } else {
