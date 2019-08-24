@@ -407,8 +407,15 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Equality comparison. May erroneously return true if values differ by less than 2^a, and
-     * !isComparable(u).
+     * Equality comparison. May erroneously return *true* if values differ by less than 2^a, and
+     * !isComparable(u). If our [isComparable] method determines that [u] is comparable to *this*,
+     * we call our [definitelyIndependent] returns *true* when comparing the [mCrFactor] field of
+     * this and the [mCrFactor] of [u] and our [mRatFactor] field is not equal to 0 or the same
+     * field of [u] is not equal to 0 we return *false* without doing any further work, otherwise
+     * we call our [compareTo] method to compare *this* to [u] and return *true* if it returns 0.
+     * If our [isComparable] method returns *false* on the other hand we return *true* if the
+     * `compareTo` method of our value as a [CR] as calculated by our [crValue] method determines
+     * that the value as a [CR] of [u] is within the tolerance of [a] of us.
      *
      * @param u The other [UnifiedReal]
      * @param a Absolute tolerance in bits
@@ -427,18 +434,46 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Returns true if values are definitely known to be equal, false in all other cases.
-     * This does not satisfy the contract for Object.equals().
+     * Returns *true* if values are definitely known to be equal, *false* in all other cases.
+     * This does not satisfy the contract for Object.equals(). We return *true* if our [isComparable]
+     * method determines that [u] is comparable to *this* and our [compareTo] method returns 0 to
+     * indicate that [u] is equal to *this*.
+     *
+     * @param u The other [UnifiedReal]
+     * @return *true* if [u] is definitely known to be equal to *this*.
      */
     fun definitelyEquals(u: UnifiedReal): Boolean {
         return isComparable(u) && compareTo(u) == 0
     }
 
+    /**
+     * Returns a hash code value for the object. We just return the useless value 0.
+     *
+     * @return we always return 0.
+     */
     override fun hashCode(): Int {
         // Better useless than wrong. Probably.
         return 0
     }
 
+    /**
+     * Indicates whether some other object is "equal to" this one. Implementations must fulfil the
+     * following requirements:
+     * * Reflexive: for any non-null value `x`, `x.equals(x)` should return true.
+     * * Symmetric: for any non-null values `x` and `y`, `x.equals(y)` should return true if and
+     * only if `y.equals(x)` returns true.
+     * * Transitive:  for any non-null values `x`, `y`, and `z`, if `x.equals(y)` returns true
+     * and `y.equals(z)` returns true, then `x.equals(z)` should return true.
+     * * Consistent:  for any non-null values `x` and `y`, multiple invocations of `x.equals(y)`
+     * consistently return true or consistently return false, provided no information used in
+     * `equals` comparisons on the objects is modified.
+     * * Never equal to null: for any non-null value `x`, `x.equals(null)` should return false.
+     *
+     * @param other The other kotlin object (*Any*) we are comparing *this* to.
+     * @return we always return *false* if *this* is not being compared to another instance of
+     * [UnifiedReal], if we are being compared to another instance we throw an [AssertionError]
+     * because one "Can't compare UnifiedReals for exact equality".
+     */
     override fun equals(other: Any?): Boolean {
 
         if (other == null || other !is UnifiedReal) {
