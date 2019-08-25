@@ -471,8 +471,8 @@ class UnifiedReal private constructor(
      *
      * @param other The other kotlin object (*Any*) we are comparing *this* to.
      * @return we always return *false* if *this* is not being compared to another instance of
-     * [UnifiedReal], if we are being compared to another instance we throw an [AssertionError]
-     * because one "Can't compare UnifiedReals for exact equality".
+     * [UnifiedReal] and is *null*, if we are being compared to another instance we throw an
+     * [AssertionError] because one "Can't compare UnifiedReals for exact equality".
      */
     override fun equals(other: Any?): Boolean {
 
@@ -484,8 +484,25 @@ class UnifiedReal private constructor(
     }
 
     /**
-     * Returns true if values are definitely known not to be equal, false in all other cases.
-     * Performs no approximate evaluation.
+     * Returns *true* if values are definitely known not to be equal, *false* in all other cases.
+     * Performs no approximate evaluation. We set our `val isNamed` to *true* if our [isNamed]
+     * method determines that our [mCrFactor] field points to one of the well known [CR] constants,
+     * and our `val uIsNamed` to *true* if our [isNamed] method determines that the `mCrFactor`
+     * field of [u] points to one of the well known [CR] constants. If both `isNamed` and `uIsNamed`
+     * are *true* we branch on the whether our [definitelyIndependent] method determines that our
+     * [mCrFactor] field and the `mCrFactor` field of [u] are definitely independent, returning
+     * *true* if either our [mRatFactor] field or the `mRatFactor` field of [u] are not equal to 0.
+     * If they are not definitely independent and our [mCrFactor] field points to the same [CR] as
+     * the `mCrFactor` field of [u] we return *true* if our [mRatFactor] field is not equal to the
+     * `mRatFactor` field of [u]. Otherwise we return *true* if our [mRatFactor] field is not equal
+     * to the `mRatFactor` field of [u]. On the other hand if either `isNamed` or `uIsNamed` was
+     * *false* we first check if our [mRatFactor] is 0 and if so return *true* if `uIsNamed` is
+     * *true* and the `mRatFactor` field of [u] is not equal to 0. If our [mRatFactor] field is not
+     * 0 we return *true* if the `mRatFactor` field of [u] is 0 `isNamed` is *true* and our
+     * [mRatFactor] field is not 0. Otherwise we return *false*.
+     *
+     * @param u the other [UnifiedReal] we are comparing *this* to.
+     * @return *true* it [u] is definitely not equal to *this*.
      */
     @Suppress("unused")
     fun definitelyNotEquals(u: UnifiedReal): Boolean {
@@ -509,6 +526,12 @@ class UnifiedReal private constructor(
 
     // And some slightly faster convenience functions for special cases:
 
+    /**
+     * Returns *true* if our [mRatFactor] field is 0 (as determined by the `signum` method of that
+     * [BoundedRational].
+     *
+     * @return *true* if our [mRatFactor] field is 0.
+     */
     fun definitelyZero(): Boolean {
         return mRatFactor.signum() == 0
     }
